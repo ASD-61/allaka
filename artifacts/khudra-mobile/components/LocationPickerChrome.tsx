@@ -1,10 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, Modal, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { DEFAULT_MAP_CENTER, type LatLng } from '@/lib/locationPickerHtml';
+import { getCurrentPositionSafe } from '@/lib/location';
 
 export interface LocationPickerProps {
   visible: boolean;
@@ -44,12 +45,13 @@ export function LocationPickerChrome({
   const useMyLocation = async () => {
     setLocating(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) return;
-      const position = await Location.getCurrentPositionAsync({});
-      const next = { latitude: position.coords.latitude, longitude: position.coords.longitude };
-      setCenter(next);
-      setPicked(next);
+      const coords = await getCurrentPositionSafe();
+      if (!coords) {
+        Alert.alert('تعذر تحديد موقعك', 'تأكد من تفعيل خدمة الموقع (GPS) وإعطاء الإذن، ثم حاول مرة أخرى');
+        return;
+      }
+      setCenter(coords);
+      setPicked(coords);
     } finally {
       setLocating(false);
     }

@@ -6,6 +6,7 @@ import {
   customersTable,
   productsTable,
   storesTable,
+  deliveryDriversTable,
 } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
@@ -54,6 +55,10 @@ const ADD_ITEMS_WINDOW_MS = 15 * 60 * 1000;
 
 const StatusUpdateSchema = z.object({
   status: z.enum(["قيد التحضير", "في الطريق", "تم التسليم"]),
+});
+
+const AssignDriverSchema = z.object({
+  driverId: z.number().int(),
 });
 
 // Loads the owning store for an order's notifications (owner phone for the
@@ -345,6 +350,61 @@ router.patch(
     }
 
     res.json(order);
+  },
+);
+
+// PATCH /orders/:id/driver — the order's own store owner (or admin) forwards
+// the order to one of their approved delivery drivers. Persists the
+// assignment so the merchant dashboard can show which drivers are currently
+// free vs. out on a delivery.
+router.patch(
+  "/orders/:id/driver",
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+
+    const parsed = AssignDriverSchema.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "بيانات غير صالحة" });
+      return;
+    }
+
+    const [order] = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, id));
+    if (!order) {
+      res.status(404).json({ error: "الطلب غير موجود" });
+      return;
+    }
+
+    const store = await resolveOrderStore(order.storeId);
+    const admin = isAdminRequest(req);
+    const phone = getCustomerPhone(req);
+    if (!admin && (!store || store.ownerPhone !== phone)) {
+      res.status(401).json({ error: "لا تملك صلاحية الوصول لهذا الطلب" });
+      return;
+    }
+
+    const [driver] = await db
+      .select()
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.id, parsed.data.driverId));
+    if (!driver || driver.storeId !== order.storeId) {
+      res.status(400).json({ error: "المندوب غير تابع لهذا المتجر" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(ordersTable)
+      .set({ assignedDriverId: driver.id })
+      .where(eq(ordersTable.id, id))
+      .returning();
+
+    res.json(updated);
   },
 );
 

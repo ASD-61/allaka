@@ -13,8 +13,8 @@ import {
 import { Alert } from '@/lib/alert';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
-import * as Location from 'expo-location';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { getCurrentPositionSafe } from '@/lib/location';
 import { LocationPicker } from '@/components/LocationPicker';
 import type { LatLng } from '@/lib/locationPickerHtml';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -96,17 +96,8 @@ function CartContent() {
   // stale or missing location.
   const handleCheckout = async () => {
     if (!customer) return;
-    try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.granted) {
-        const position = await Location.getCurrentPositionAsync({});
-        setInitialCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-      } else {
-        setInitialCoords(null);
-      }
-    } catch {
-      setInitialCoords(null);
-    }
+    const coords = await getCurrentPositionSafe();
+    setInitialCoords(coords);
     setPickerVisible(true);
   };
 

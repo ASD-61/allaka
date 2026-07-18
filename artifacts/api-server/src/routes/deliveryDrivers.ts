@@ -1,23 +1,20 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc } from "drizzle-orm";
-import { db, deliveryDriversTable, storesTable } from "@workspace/db";
+import { eq, desc, inArray, ne, and } from "drizzle-orm";
+import { db, deliveryDriversTable, storesTable, ordersTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
 import { z } from "zod";
 
 const router: IRouter = Router();
 
-const PENDING = "قيد المراجعة";
-const APPROVED = "مفعّل";
-const REJECTED = "مرفوض";
+const ACTIVE = "مفعّل";
+const SUSPENDED = "موقوف";
+const DELIVERED = "تم التسليم";
 
 const DriverBody = z.object({
   name: z.string().min(1),
   phone: z.string().min(8),
-});
-
-const ReviewBody = z.object({
-  action: z.enum(["approve", "reject"]),
+  vehicleType: z.string().min(1),
 });
 
 // Shared guard: the caller must be an admin or the store's own owner.
@@ -47,8 +44,35 @@ async function loadOwnedStore(
   return store;
 }
 
+// Attaches a `activeOrderId` flag to each driver row: the id of an order
+// currently assigned to them that hasn't been delivered yet (across ANY
+// store, since a driver can work for more than one merchant at once) — lets
+// the merchant see at a glance which drivers are free vs. out delivering.
+async function withBusyStatus<T extends { id: number }>(
+  rows: T[],
+): Promise<(T & { activeOrderId: number | null })[]> {
+  if (rows.length === 0) return [];
+  const driverIds = rows.map((r) => r.id);
+  const active = await db
+    .select({ driverId: ordersTable.assignedDriverId, orderId: ordersTable.id })
+    .from(ordersTable)
+    .where(
+      and(
+        inArray(ordersTable.assignedDriverId, driverIds),
+        ne(ordersTable.status, DELIVERED),
+      ),
+    );
+  const busyMap = new Map<number, number>();
+  for (const o of active) {
+    if (o.driverId != null && !busyMap.has(o.driverId)) {
+      busyMap.set(o.driverId, o.orderId);
+    }
+  }
+  return rows.map((r) => ({ ...r, activeOrderId: busyMap.get(r.id) ?? null }));
+}
+
 // GET /stores/:id/drivers — the owner (or admin) sees this store's delivery
-// reps, in any status, so the merchant can track pending approvals.
+// reps, along with which are currently free vs. out on a delivery.
 router.get(
   "/stores/:id/drivers",
   async (req: Request, res: Response): Promise<void> => {
@@ -60,12 +84,13 @@ router.get(
       .from(deliveryDriversTable)
       .where(eq(deliveryDriversTable.storeId, id))
       .orderBy(desc(deliveryDriversTable.createdAt));
-    res.json(rows);
+    res.json(await withBusyStatus(rows));
   },
 );
 
-// POST /stores/:id/drivers — the owner (or admin) adds a new delivery rep;
-// it always starts pending until an admin approves it.
+// POST /stores/:id/drivers — the owner (or admin) adds a new delivery rep.
+// The merchant IS the approver: the driver is usable immediately, no admin
+// review step.
 router.post(
   "/stores/:id/drivers",
   async (req: Request, res: Response): Promise<void> => {
@@ -85,18 +110,20 @@ router.post(
         storeId: id,
         name: parsed.data.name.trim(),
         phone: parsed.data.phone.trim(),
-        status: PENDING,
+        vehicleType: parsed.data.vehicleType.trim(),
+        status: ACTIVE,
       })
       .returning();
 
-    res.status(201).json(driver);
+    res.status(201).json({ ...driver, activeOrderId: null });
   },
 );
 
-// GET /drivers/pending — admin-only: every store's pending drivers, with the
-// store name attached, so the admin can review/approve them in one place.
+// GET /drivers — admin-only: every delivery driver across every store, with
+// the store name attached, for oversight (no approval action — merchants
+// self-manage their own drivers).
 router.get(
-  "/drivers/pending",
+  "/drivers",
   requireAdmin,
   async (_req: Request, res: Response): Promise<void> => {
     const rows = await db
@@ -106,15 +133,20 @@ router.get(
       })
       .from(deliveryDriversTable)
       .innerJoin(storesTable, eq(deliveryDriversTable.storeId, storesTable.id))
-      .where(eq(deliveryDriversTable.status, PENDING))
       .orderBy(desc(deliveryDriversTable.createdAt));
-    res.json(rows.map((r) => ({ ...r.driver, storeName: r.storeName })));
+    const withStoreName = rows.map((r) => ({ ...r.driver, storeName: r.storeName }));
+    res.json(await withBusyStatus(withStoreName));
   },
 );
 
-// PATCH /drivers/:id — admin approves or rejects a delivery rep.
+const StatusBody = z.object({
+  status: z.enum([ACTIVE, SUSPENDED]),
+});
+
+// PATCH /drivers/:id/status — admin-only: suspend/reactivate a driver in case
+// of abuse, without needing to delete their record.
 router.patch(
-  "/drivers/:id",
+  "/drivers/:id/status",
   requireAdmin,
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(String(req.params.id), 10);
@@ -122,7 +154,7 @@ router.patch(
       res.status(400).json({ error: "Invalid id" });
       return;
     }
-    const parsed = ReviewBody.safeParse(req.body);
+    const parsed = StatusBody.safeParse(req.body);
     if (!parsed.success) {
       res.status(400).json({ error: "بيانات غير صالحة" });
       return;
@@ -139,7 +171,7 @@ router.patch(
 
     const [driver] = await db
       .update(deliveryDriversTable)
-      .set({ status: parsed.data.action === "approve" ? APPROVED : REJECTED })
+      .set({ status: parsed.data.status })
       .where(eq(deliveryDriversTable.id, id))
       .returning();
 

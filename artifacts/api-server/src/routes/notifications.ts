@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, or, isNull, inArray } from "drizzle-orm";
 import { db, ordersTable, broadcastsTable } from "@workspace/db";
 import { requireCustomer } from "../middlewares/customerAuth";
 
@@ -7,20 +7,32 @@ const router: IRouter = Router();
 
 // Notifications are derived from the customer's real order history/status —
 // no separate mock data. Each order contributes a "placed" notification and,
-// once delivered, a "delivered" one. Admin broadcasts (announcements sent to
-// everyone) are merged into the same feed.
+// once delivered, a "delivered" one. Broadcasts are merged into the same
+// feed: global admin announcements (storeId null) reach everyone; a store's
+// own broadcast only reaches customers who have actually ordered from it.
 router.get(
   "/notifications",
   requireCustomer,
   async (req: Request, res: Response): Promise<void> => {
-    const [orders, broadcasts] = await Promise.all([
-      db
-        .select()
-        .from(ordersTable)
-        .where(eq(ordersTable.customerPhone, req.customerPhone!))
-        .orderBy(desc(ordersTable.createdAt)),
-      db.select().from(broadcastsTable).orderBy(desc(broadcastsTable.createdAt)),
-    ]);
+    const orders = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.customerPhone, req.customerPhone!))
+      .orderBy(desc(ordersTable.createdAt));
+
+    const orderedStoreIds = Array.from(
+      new Set(orders.map((o) => o.storeId).filter((id): id is number => id != null)),
+    );
+
+    const broadcasts = await db
+      .select()
+      .from(broadcastsTable)
+      .where(
+        orderedStoreIds.length > 0
+          ? or(isNull(broadcastsTable.storeId), inArray(broadcastsTable.storeId, orderedStoreIds))
+          : isNull(broadcastsTable.storeId),
+      )
+      .orderBy(desc(broadcastsTable.createdAt));
 
     const notifications = orders.flatMap((order) => {
       const items = [

@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
-import * as Location from 'expo-location';
+import { getCurrentPositionSafe } from '@/lib/location';
 import {
   useListAddresses,
   useCreateAddress,
@@ -48,13 +48,8 @@ function AddressesContent() {
   const handleUseLocation = async () => {
     setLocating(true);
     try {
-      const permission = await Location.requestForegroundPermissionsAsync();
-      if (permission.granted) {
-        const position = await Location.getCurrentPositionAsync({});
-        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
-      }
-    } catch {
-      // fall through — the picker still works, just starts at the default center
+      const coords = await getCurrentPositionSafe();
+      if (coords) setCoords(coords);
     } finally {
       setLocating(false);
       setPickerVisible(true);

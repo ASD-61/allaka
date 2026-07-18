@@ -9,6 +9,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
+import { BroadcastComposer } from '@/components/admin/BroadcastComposer';
 
 // Per-store snapshot for the owner: everything here is scoped to this store's
 // own orders, products and customers — no other merchant's data is mixed in.
@@ -55,6 +56,8 @@ export function MerchantOverview({ storeId }: { storeId: number }) {
 
   return (
     <ScrollView contentContainerStyle={styles.content}>
+      <BroadcastComposer storeId={storeId} />
+
       <Text style={[styles.title, { color: colors.foreground }]}>نظرة عامة على متجرك</Text>
       <View style={styles.grid}>
         {stats.map((s) => (

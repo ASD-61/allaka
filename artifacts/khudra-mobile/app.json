@@ -35,7 +35,13 @@
         }
       ],
       "expo-font",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لتحديد عنوان التوصيل بدقة وإرساله للمتجر مع طلبك."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

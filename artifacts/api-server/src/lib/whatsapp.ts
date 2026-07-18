@@ -133,6 +133,43 @@ function isValidPhone(v: string | null | undefined): v is string {
   return !!v && /^\+?\d{8,15}$/.test(v.trim());
 }
 
+// Shrinks a Google Maps link via TinyURL's key-less API so the message shows
+// a short, clean line instead of a long raw URL. WhatsApp can't hide a URL
+// behind custom anchor text in a plain message, so the closest we can get to
+// "a sentence you tap" is: a clear label line immediately above a short,
+// still-tappable link. Best-effort — falls back to the original (long) link
+// if the shortening service is slow/unreachable so location sharing never
+// breaks because of it.
+async function shortenUrl(longUrl: string): Promise<string> {
+  try {
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 4000);
+    const response = await fetch(
+      `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`,
+      { signal: controller.signal },
+    );
+    clearTimeout(timeout);
+    if (!response.ok) return longUrl;
+    const short = (await response.text()).trim();
+    return short.startsWith("http") ? short : longUrl;
+  } catch {
+    return longUrl;
+  }
+}
+
+// Builds a "📍 <label>:\n<short link>" block for a lat/lng pair — used for
+// both the customer's location (sent to the merchant) and the store's
+// location (sent to the customer).
+async function buildLocationLine(
+  label: string,
+  latitude: number,
+  longitude: number,
+): Promise<string> {
+  const longUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
+  const shortUrl = await shortenUrl(longUrl);
+  return `\n📍 ${label}:\n${shortUrl}`;
+}
+
 export async function sendWhatsAppOrderNotification(opts: {
   orderId: number;
   customerPhone: string;
@@ -178,7 +215,7 @@ export async function sendWhatsAppOrderNotification(opts: {
 
   const mapsLink =
     latitude != null && longitude != null
-      ? `\n📍 موقع الزبون: https://maps.google.com/?q=${latitude},${longitude}`
+      ? await buildLocationLine("فتح موقع الزبون", latitude, longitude)
       : "";
 
   const deliveryLabel =
@@ -252,7 +289,7 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
 
   const storeMapsLink =
     storeLatitude != null && storeLongitude != null
-      ? `\n📍 موقع المتجر: https://maps.google.com/?q=${storeLatitude},${storeLongitude}`
+      ? await buildLocationLine("فتح موقع المتجر", storeLatitude, storeLongitude)
       : "";
 
   const storeBlock =

@@ -38,6 +38,10 @@ export const ordersTable = pgTable("orders", {
   status: text("status").notNull().default("قيد التحضير"),
   // The store this order was placed with (single-store carts).
   storeId: integer("store_id"),
+  // The delivery driver the merchant forwarded this order to (nullable — set
+  // once the merchant taps "send to driver"). Used to show which of the
+  // store's drivers are currently free vs. out on a delivery.
+  assignedDriverId: integer("assigned_driver_id"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

@@ -12,15 +12,18 @@ import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
 
 const STATUS_LABEL: Record<string, string> = {
-  'قيد المراجعة': 'بانتظار موافقة الإدارة',
   'مفعّل': 'مفعّل',
-  'مرفوض': 'مرفوض',
+  'موقوف': 'موقوف من الإدارة',
 };
 
-// Lets a merchant add their own delivery reps ("مندوبين") for this store.
-// Each one starts pending until an admin approves them — same review flow as
-// stores themselves — after which the merchant can forward any order to the
-// driver's WhatsApp with one tap from the Orders tab.
+const VEHICLE_TYPES = ['دراجة نارية', 'سيارة', 'دراجة هوائية'];
+
+// Lets a merchant add their own delivery reps ("مندوبين") for this store —
+// the merchant themselves is the approver, so a driver is usable immediately
+// after adding: no admin review step. The same person can be added as a
+// driver by more than one store. Once added, the merchant can forward any
+// order to the driver's WhatsApp with one tap from the Orders tab, which
+// also shows whether each driver is currently free or out on a delivery.
 export function MerchantDrivers({ storeId }: { storeId: number }) {
   const colors = useColors();
   const driversQuery = useListStoreDrivers(storeId);
@@ -28,11 +31,15 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
   const deleteDriver = useDeleteDriver();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [vehicleType, setVehicleType] = useState(VEHICLE_TYPES[0]);
 
   const handleAdd = async () => {
-    if (!name.trim() || !phone.trim()) return;
+    if (!name.trim() || !phone.trim() || !vehicleType.trim()) return;
     try {
-      await createDriver.mutateAsync({ id: storeId, data: { name: name.trim(), phone: phone.trim() } });
+      await createDriver.mutateAsync({
+        id: storeId,
+        data: { name: name.trim(), phone: phone.trim(), vehicleType: vehicleType.trim() },
+      });
       setName('');
       setPhone('');
       driversQuery.refetch();
@@ -41,8 +48,7 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
     }
   };
 
-  const statusColor = (status: string) =>
-    status === 'مفعّل' ? colors.primary : status === 'مرفوض' ? colors.destructive : colors.accent;
+  const statusColor = (status: string) => (status === 'مفعّل' ? colors.primary : colors.destructive);
 
   const drivers = driversQuery.data ?? [];
 
@@ -56,7 +62,7 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
         <View style={{ marginBottom: 16 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>مندوبو التوصيل</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            أضف مندوبين للتوصيل حتى تقدر ترسل لهم تفاصيل أي طلب على الواتساب مباشرة. لازم تُفعّل من الإدارة أولاً.
+            أضف مندوبين للتوصيل حتى تقدر ترسل لهم تفاصيل أي طلب على الواتساب مباشرة. المندوب يصير جاهز للاستخدام فوراً بمجرد إضافته.
           </Text>
           <View style={[styles.addCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TextInput
@@ -77,14 +83,38 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
               textAlign="right"
               onSubmitEditing={handleAdd}
             />
+            <View style={styles.vehicleRow}>
+              {VEHICLE_TYPES.map((v) => (
+                <Pressable
+                  key={v}
+                  onPress={() => setVehicleType(v)}
+                  style={[
+                    styles.vehicleChip,
+                    {
+                      backgroundColor: vehicleType === v ? colors.primary : colors.muted,
+                    },
+                  ]}
+                >
+                  <Text
+                    style={[
+                      styles.vehicleChipText,
+                      { color: vehicleType === v ? colors.primaryForeground : colors.foreground },
+                    ]}
+                  >
+                    {v}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
             <Pressable
               onPress={handleAdd}
-              disabled={createDriver.isPending || !name.trim() || !phone.trim()}
+              disabled={createDriver.isPending || !name.trim() || !phone.trim() || !vehicleType.trim()}
               style={[
                 styles.addBtn,
                 {
                   backgroundColor: colors.primary,
-                  opacity: createDriver.isPending || !name.trim() || !phone.trim() ? 0.5 : 1,
+                  opacity:
+                    createDriver.isPending || !name.trim() || !phone.trim() || !vehicleType.trim() ? 0.5 : 1,
                 },
               ]}
             >
@@ -143,10 +173,24 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
             <View style={{ flex: 1, alignItems: 'flex-end', gap: 4 }}>
               <Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
               <Text style={[styles.phone, { color: colors.mutedForeground }]}>{item.phone}</Text>
-              <View style={[styles.statusPill, { backgroundColor: sc + '20' }]}>
-                <Text style={[styles.statusText, { color: sc }]}>
-                  {STATUS_LABEL[item.status] ?? item.status}
-                </Text>
+              {item.vehicleType ? (
+                <Text style={[styles.phone, { color: colors.mutedForeground }]}>{item.vehicleType}</Text>
+              ) : null}
+              <View style={{ flexDirection: 'row-reverse', gap: 6 }}>
+                <View style={[styles.statusPill, { backgroundColor: sc + '20' }]}>
+                  <Text style={[styles.statusText, { color: sc }]}>
+                    {STATUS_LABEL[item.status] ?? item.status}
+                  </Text>
+                </View>
+                {item.activeOrderId != null ? (
+                  <View style={[styles.statusPill, { backgroundColor: colors.accent + '20' }]}>
+                    <Text style={[styles.statusText, { color: colors.accent }]}>مشغول — طلب #{item.activeOrderId}</Text>
+                  </View>
+                ) : (
+                  <View style={[styles.statusPill, { backgroundColor: colors.primary + '20' }]}>
+                    <Text style={[styles.statusText, { color: colors.primary }]}>متاح</Text>
+                  </View>
+                )}
               </View>
             </View>
             <View style={[styles.iconWrap, { backgroundColor: colors.muted }]}>
@@ -186,6 +230,20 @@ const styles = StyleSheet.create({
     height: 48,
     fontFamily: fonts.medium,
     fontSize: 14,
+  },
+  vehicleRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  vehicleChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  vehicleChipText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
   },
   addBtn: {
     flexDirection: 'row-reverse',

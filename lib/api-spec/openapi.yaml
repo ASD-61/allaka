@@ -650,7 +650,7 @@ paths:
     post:
       operationId: createStoreDriver
       tags: [DeliveryDrivers]
-      summary: Add a new delivery driver for a store, starts pending (owner or admin)
+      summary: Add a new delivery driver for a store — usable immediately (owner or admin)
       parameters:
         - name: id
           in: path
@@ -682,36 +682,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-  /drivers/pending:
+  /drivers:
     get:
-      operationId: listPendingDrivers
+      operationId: listAllDrivers
       tags: [DeliveryDrivers]
-      summary: List every store's pending delivery drivers (admin only)
+      summary: List every delivery driver across every store, with store name (admin only)
       responses:
         "200":
-          description: Pending delivery drivers with their store name
+          description: All delivery drivers with their store name
           content:
             application/json:
               schema:
                 type: array
                 items:
-                  allOf:
-                    - $ref: "#/components/schemas/DeliveryDriver"
-                    - type: object
-                      properties:
-                        storeName:
-                          type: string
+                  $ref: "#/components/schemas/DeliveryDriver"
         "401":
           description: Not authorized
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
-  /drivers/{driverId}:
+  /drivers/{driverId}/status:
     patch:
-      operationId: reviewDriver
+      operationId: setDriverStatus
       tags: [DeliveryDrivers]
-      summary: Approve or reject a delivery driver (admin only)
+      summary: Suspend or reactivate a delivery driver (admin only)
       parameters:
         - name: driverId
           in: path
@@ -723,7 +718,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/DeliveryDriverReviewInput"
+              $ref: "#/components/schemas/DeliveryDriverStatusInput"
       responses:
         "200":
           description: Updated driver
@@ -743,6 +738,7 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /drivers/{driverId}:
     delete:
       operationId: deleteDriver
       tags: [DeliveryDrivers]
@@ -1018,6 +1014,48 @@ paths:
                 $ref: "#/components/schemas/Order"
         "401":
           description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /orders/{id}/driver:
+    patch:
+      operationId: assignOrderDriver
+      tags: [Orders]
+      summary: Forward an order to one of the store's delivery drivers (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AssignDriverInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid input, or driver doesn't belong to this order's store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authorized
           content:
             application/json:
               schema:
@@ -1422,6 +1460,48 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "401":
           description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/broadcasts:
+    post:
+      operationId: sendStoreBroadcast
+      tags: [Notifications]
+      summary: Send an announcement to customers who ordered from this store (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BroadcastInput"
+      responses:
+        "201":
+          description: Broadcast created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broadcast"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
           content:
             application/json:
               schema:
@@ -2052,6 +2132,9 @@ components:
           type: integer
         message:
           type: string
+        storeId:
+          type: ["integer", "null"]
+          description: Null for a global admin broadcast; set for a store-scoped merchant broadcast.
         createdAt:
           type: string
           format: date-time
@@ -2200,6 +2283,9 @@ components:
           type: integer
         storeId:
           type: ["integer", "null"]
+        assignedDriverId:
+          type: ["integer", "null"]
+          description: The delivery driver this order was forwarded to, if any.
         storeOrderNumber:
           type: ["integer", "null"]
           description: This order's 1-based position among its store's own orders (only present on store-scoped order lists, e.g. GET /stores/{id}/orders).
@@ -2262,9 +2348,15 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/OrderItemInput"
+    AssignDriverInput:
+      type: object
+      required: [driverId]
+      properties:
+        driverId:
+          type: integer
     DeliveryDriver:
       type: object
-      required: [id, storeId, name, phone, status, createdAt]
+      required: [id, storeId, name, phone, vehicleType, status, createdAt]
       properties:
         id:
           type: integer
@@ -2274,15 +2366,24 @@ components:
           type: string
         phone:
           type: string
+        vehicleType:
+          type: string
+          description: "e.g. دراجة نارية | سيارة | دراجة هوائية"
         status:
           type: string
-          description: "قيد المراجعة | مفعّل | مرفوض"
+          description: "مفعّل | موقوف"
+        activeOrderId:
+          type: ["integer", "null"]
+          description: The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.
+        storeName:
+          type: string
+          description: Only present on the admin's cross-store drivers list.
         createdAt:
           type: string
           format: date-time
     DeliveryDriverInput:
       type: object
-      required: [name, phone]
+      required: [name, phone, vehicleType]
       properties:
         name:
           type: string
@@ -2290,10 +2391,13 @@ components:
         phone:
           type: string
           minLength: 8
-    DeliveryDriverReviewInput:
-      type: object
-      required: [action]
-      properties:
-        action:
+        vehicleType:
           type: string
-          enum: [approve, reject]
+          minLength: 1
+    DeliveryDriverStatusInput:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ["مفعّل", "موقوف"]
