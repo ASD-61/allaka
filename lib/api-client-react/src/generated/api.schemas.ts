@@ -184,6 +184,13 @@ export interface Store {
   ownerPhone: string;
   /** @nullable */
   imageUrl?: string | null;
+  /**
+     * Store's map pin, used to build a Google Maps link for customers.
+     * @nullable
+     */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
   /** قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً */
   status: string;
   /** @nullable */
@@ -202,6 +209,10 @@ export interface StoreInput {
   description?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
 
 export interface StoreUpdate {
@@ -215,6 +226,10 @@ export interface StoreUpdate {
   description?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
 
 export type StoreReviewInputAction = typeof StoreReviewInputAction[keyof typeof StoreReviewInputAction];

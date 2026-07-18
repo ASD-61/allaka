@@ -278,6 +278,8 @@ export const ListStoresResponseItem = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -298,7 +300,9 @@ export const CreateStoreBody = zod.object({
   "address": zod.string().min(1),
   "storeType": zod.string().min(1),
   "description": zod.string().nullish(),
-  "imageUrl": zod.string().nullish()
+  "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish()
 })
 
 export const CreateStoreResponse = zod.object({
@@ -309,6 +313,8 @@ export const CreateStoreResponse = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -326,6 +332,8 @@ export const ListMyStoresResponseItem = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -344,6 +352,8 @@ export const ListAllStoresResponseItem = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -366,6 +376,8 @@ export const GetStoreResponse = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -389,7 +401,9 @@ export const UpdateStoreBody = zod.object({
   "address": zod.string().min(1).optional(),
   "storeType": zod.string().min(1).optional(),
   "description": zod.string().nullish(),
-  "imageUrl": zod.string().nullish()
+  "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish()
 })
 
 export const UpdateStoreResponse = zod.object({
@@ -400,6 +414,8 @@ export const UpdateStoreResponse = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()
@@ -441,6 +457,8 @@ export const ReviewStoreResponse = zod.object({
   "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
   "ownerPhone": zod.string(),
   "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
   "createdAt": zod.coerce.date()

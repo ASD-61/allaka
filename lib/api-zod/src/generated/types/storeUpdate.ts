@@ -17,4 +17,8 @@ export interface StoreUpdate {
   description?: string | null;
   /** @nullable */
   imageUrl?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
