@@ -16,6 +16,8 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { resolveImageUrl } from '@/lib/image-url';
 import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { LocationPicker } from '@/components/LocationPicker';
+import type { LatLng } from '@/lib/locationPickerHtml';
 
 export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: () => void }) {
   const colors = useColors();
@@ -30,6 +32,12 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [coords, setCoords] = useState<LatLng | null>(
+    store.latitude != null && store.longitude != null
+      ? { latitude: store.latitude, longitude: store.longitude }
+      : null,
+  );
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const isSuspended = store.status === 'موقوف مؤقتاً';
 
@@ -65,6 +73,8 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
       storeType: storeType.trim(),
       address: address.trim(),
       description: description.trim() || null,
+      latitude: coords?.latitude ?? null,
+      longitude: coords?.longitude ?? null,
     };
     if (imagePath) data.imageUrl = imagePath;
     setSaving(true);
@@ -136,6 +146,23 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
       <Field label="اسم المتجر" value={name} onChangeText={setName} placeholder="مثال: بقالية النور" colors={colors} />
       <Field label="نوع المتجر" value={storeType} onChangeText={setStoreType} placeholder="مثال: بقالة، لحوم، مخبز" colors={colors} />
       <Field label="العنوان" value={address} onChangeText={setAddress} placeholder="المدينة والمنطقة" colors={colors} />
+
+      <View style={{ marginBottom: 14 }}>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>موقع المتجر على الخارطة</Text>
+        <Pressable
+          onPress={() => setPickerVisible(true)}
+          style={[
+            styles.locationBtn,
+            { backgroundColor: coords ? colors.primary + '18' : colors.muted, borderColor: colors.border },
+          ]}
+        >
+          <Feather name="map-pin" size={16} color={coords ? colors.primary : colors.mutedForeground} />
+          <Text style={[styles.locationBtnText, { color: coords ? colors.primary : colors.mutedForeground }]}>
+            {coords ? 'تم تحديد موقع المتجر · تعديل' : 'حدد موقع المتجر على الخارطة'}
+          </Text>
+        </Pressable>
+      </View>
+
       <Field
         label="تفاصيل إضافية (اختياري)"
         value={description}
@@ -159,6 +186,17 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
           </>
         )}
       </Pressable>
+
+      <LocationPicker
+        visible={pickerVisible}
+        initial={coords}
+        title="حدد موقع المتجر"
+        onConfirm={(picked) => {
+          setCoords(picked);
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -307,6 +345,19 @@ const styles = StyleSheet.create({
     height: 90,
     paddingTop: 12,
     textAlignVertical: 'top',
+  },
+  locationBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  locationBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
   submitBtn: {
     flexDirection: 'row-reverse',

@@ -20,6 +20,8 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
 import { RequireAuth } from '@/components/RequireAuth';
+import { LocationPicker } from '@/components/LocationPicker';
+import type { LatLng } from '@/lib/locationPickerHtml';
 
 export default function AddressesScreen() {
   return (
@@ -38,24 +40,24 @@ function AddressesContent() {
   const [showForm, setShowForm] = useState(false);
   const [label, setLabel] = useState('');
   const [details, setDetails] = useState('');
-  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [coords, setCoords] = useState<LatLng | null>(null);
   const [locating, setLocating] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const handleUseLocation = async () => {
     setLocating(true);
     try {
       const permission = await Location.requestForegroundPermissionsAsync();
-      if (!permission.granted) {
-        Alert.alert('الإذن مطلوب', 'يرجى السماح بالوصول إلى الموقع لتحديد عنوان التوصيل');
-        return;
+      if (permission.granted) {
+        const position = await Location.getCurrentPositionAsync({});
+        setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
       }
-      const position = await Location.getCurrentPositionAsync({});
-      setCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
     } catch {
-      Alert.alert('خطأ', 'تعذر تحديد الموقع الحالي');
+      // fall through — the picker still works, just starts at the default center
     } finally {
       setLocating(false);
+      setPickerVisible(true);
     }
   };
 
@@ -204,6 +206,17 @@ function AddressesContent() {
             </Pressable>
           </View>
         )}
+      />
+
+      <LocationPicker
+        visible={pickerVisible}
+        initial={coords}
+        title="حدد موقع هذا العنوان"
+        onConfirm={(picked) => {
+          setCoords(picked);
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
       />
     </View>
   );

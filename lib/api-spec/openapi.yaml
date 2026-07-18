@@ -1611,6 +1611,11 @@ components:
           type: string
         imageUrl:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+          description: Store's map pin, used to build a Google Maps link for customers.
+        longitude:
+          type: ["number", "null"]
         status:
           type: string
           description: "قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً"
@@ -1637,6 +1642,10 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
     StoreUpdate:
       type: object
       properties:
@@ -1653,6 +1662,10 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
     StoreReviewInput:
       type: object
       required: [action]

@@ -3,6 +3,7 @@ import {
   serial,
   text,
   timestamp,
+  real,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -15,6 +16,10 @@ export const storesTable = pgTable("stores", {
   name: text("name").notNull(),
   address: text("address").notNull(),
   description: text("description"),
+  // Precise pin the merchant drops on the map when registering/editing the
+  // store, used to send customers a Google Maps link to the store.
+  latitude: real("latitude"),
+  longitude: real("longitude"),
   // Kind of shop, free text, e.g. "خضار وفواكه", "بقالة", "لحوم", "مخبز".
   storeType: text("store_type").notNull(),
   // The merchant account (phone) that registered and manages this store.

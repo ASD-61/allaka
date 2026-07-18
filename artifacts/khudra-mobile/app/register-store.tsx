@@ -15,6 +15,8 @@ import { useCreateStore, useListMyStores, useListStoreTypes } from '@workspace/a
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { RequireAuth } from '@/components/RequireAuth';
+import { LocationPicker } from '@/components/LocationPicker';
+import type { LatLng } from '@/lib/locationPickerHtml';
 
 export default function RegisterStoreScreen() {
   return (
@@ -41,6 +43,8 @@ function RegisterStoreContent() {
   const [storeType, setStoreType] = useState('');
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
+  const [coords, setCoords] = useState<LatLng | null>(null);
+  const [pickerVisible, setPickerVisible] = useState(false);
 
   const canSubmit =
     name.trim().length > 0 &&
@@ -56,12 +60,15 @@ function RegisterStoreContent() {
           storeType: storeType.trim(),
           address: address.trim(),
           description: description.trim() || null,
+          latitude: coords?.latitude ?? null,
+          longitude: coords?.longitude ?? null,
         },
       });
       setName('');
       setStoreType('');
       setAddress('');
       setDescription('');
+      setCoords(null);
       myStores.refetch();
       Alert.alert(
         'تم إرسال الطلب',
@@ -149,6 +156,26 @@ function RegisterStoreContent() {
       )}
 
       <Field label="العنوان" value={address} onChangeText={setAddress} placeholder="المدينة والمنطقة" colors={colors} />
+
+      <View style={{ marginBottom: 14 }}>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>موقع المتجر على الخارطة (اختياري)</Text>
+        <Pressable
+          onPress={() => setPickerVisible(true)}
+          style={[
+            styles.locationBtn,
+            { backgroundColor: coords ? colors.primary + '18' : colors.card, borderColor: colors.border },
+          ]}
+        >
+          <Feather name="map-pin" size={16} color={coords ? colors.primary : colors.mutedForeground} />
+          <Text style={[styles.locationBtnText, { color: coords ? colors.primary : colors.mutedForeground }]}>
+            {coords ? 'تم تحديد موقع المتجر' : 'حدد موقع المتجر على الخارطة'}
+          </Text>
+        </Pressable>
+        <Text style={[styles.chipHint, { color: colors.mutedForeground }]}>
+          يُستخدم هذا الموقع لإرسال رابط خارطة للزبون مع تفاصيل طلبه حتى يوصل التوصيل بسهولة
+        </Text>
+      </View>
+
       <Field
         label="تفاصيل إضافية (اختياري)"
         value={description}
@@ -175,6 +202,17 @@ function RegisterStoreContent() {
           </>
         )}
       </Pressable>
+
+      <LocationPicker
+        visible={pickerVisible}
+        initial={coords}
+        title="حدد موقع المتجر"
+        onConfirm={(picked) => {
+          setCoords(picked);
+          setPickerVisible(false);
+        }}
+        onClose={() => setPickerVisible(false)}
+      />
     </ScrollView>
   );
 }
@@ -292,6 +330,19 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     marginTop: 8,
     lineHeight: 17,
+  },
+  locationBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 48,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  locationBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
   input: {
     borderWidth: 1,

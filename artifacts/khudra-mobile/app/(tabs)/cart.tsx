@@ -15,6 +15,8 @@ import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import * as Location from 'expo-location';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
+import { LocationPicker } from '@/components/LocationPicker';
+import type { LatLng } from '@/lib/locationPickerHtml';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { useCreateOrder, useGetStore } from '@workspace/api-client-react';
@@ -63,6 +65,8 @@ function CartContent() {
   const [useWallet, setUseWallet] = useState(false);
   const [note, setNote] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [pickerVisible, setPickerVisible] = useState(false);
+  const [initialCoords, setInitialCoords] = useState<LatLng | null>(null);
 
   const canRedeem = (customer?.points ?? 0) >= POINTS_THRESHOLD;
   const walletBalance = customer?.walletBalance ?? 0;
@@ -85,19 +89,31 @@ function CartContent() {
   const classicTabBarHeight =
     (Platform.OS === 'web' ? 84 : Platform.OS === 'ios' ? 49 : 56) + insets.bottom;
 
+  // Checkout is a two-step flow: first quietly try to seed the map picker
+  // with the device's current GPS fix (if permission is already granted),
+  // then always ask the customer to confirm/adjust the exact pin on the map
+  // before the order is created — this way we never send an order with a
+  // stale or missing location.
   const handleCheckout = async () => {
     if (!customer) return;
-    setPlacing(true);
     try {
-      let latitude: number | null = null;
-      let longitude: number | null = null;
       const permission = await Location.requestForegroundPermissionsAsync();
       if (permission.granted) {
         const position = await Location.getCurrentPositionAsync({});
-        latitude = position.coords.latitude;
-        longitude = position.coords.longitude;
+        setInitialCoords({ latitude: position.coords.latitude, longitude: position.coords.longitude });
+      } else {
+        setInitialCoords(null);
       }
+    } catch {
+      setInitialCoords(null);
+    }
+    setPickerVisible(true);
+  };
 
+  const placeOrder = async (coords: LatLng) => {
+    setPickerVisible(false);
+    setPlacing(true);
+    try {
       await createOrder.mutateAsync({
         data: {
           items: items.map((i) => ({
@@ -108,8 +124,8 @@ function CartContent() {
             qty: i.qty,
           })),
           deliveryType: effectiveDeliveryType,
-          latitude: latitude as number,
-          longitude: longitude as number,
+          latitude: coords.latitude,
+          longitude: coords.longitude,
           redeem: canRedeem ? redeem : null,
           pickupTime,
           walletApplied,
@@ -424,6 +440,14 @@ function CartContent() {
           )}
         </Pressable>
       </View>
+
+      <LocationPicker
+        visible={pickerVisible}
+        initial={initialCoords}
+        title="أين نوصّل طلبك؟"
+        onConfirm={placeOrder}
+        onClose={() => setPickerVisible(false)}
+      />
     </View>
   );
 }

@@ -30,6 +30,8 @@ const StoreBody = z.object({
   storeType: z.string().min(1),
   description: z.string().nullish(),
   imageUrl: z.string().nullish(),
+  latitude: z.number().nullish(),
+  longitude: z.number().nullish(),
 });
 
 const StoreUpdateBody = z.object({
@@ -38,6 +40,8 @@ const StoreUpdateBody = z.object({
   storeType: z.string().min(1).optional(),
   description: z.string().nullish(),
   imageUrl: z.string().nullish(),
+  latitude: z.number().nullish(),
+  longitude: z.number().nullish(),
 });
 
 const ReviewBody = z.object({
@@ -113,6 +117,8 @@ router.post(
         storeType: parsed.data.storeType.trim(),
         description: cleanText(parsed.data.description),
         imageUrl: cleanText(parsed.data.imageUrl),
+        latitude: parsed.data.latitude ?? null,
+        longitude: parsed.data.longitude ?? null,
         ownerPhone: req.customerPhone!,
         status: PENDING,
       })
@@ -187,6 +193,10 @@ router.patch(
       patch.description = cleanText(parsed.data.description);
     if (parsed.data.imageUrl !== undefined)
       patch.imageUrl = cleanText(parsed.data.imageUrl);
+    if (parsed.data.latitude !== undefined)
+      patch.latitude = parsed.data.latitude ?? null;
+    if (parsed.data.longitude !== undefined)
+      patch.longitude = parsed.data.longitude ?? null;
 
     if (Object.keys(patch).length === 0) {
       res.json(existing);

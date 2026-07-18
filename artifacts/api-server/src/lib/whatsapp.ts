@@ -199,6 +199,8 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
   storeName?: string | null;
   storeAddress?: string | null;
   storePhone?: string | null;
+  storeLatitude?: number | null;
+  storeLongitude?: number | null;
   items: Array<{ name: string; qty: number; price: number }>;
   total: number;
   deliveryType: string;
@@ -211,6 +213,8 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
     storeName,
     storeAddress,
     storePhone,
+    storeLatitude,
+    storeLongitude,
     items,
     total,
     deliveryType,
@@ -230,10 +234,16 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
   const deliveryLabel =
     deliveryType === "express" ? "مستعجل (أقل من 30 دقيقة)" : "عادي (أقل من ساعة)";
 
+  const storeMapsLink =
+    storeLatitude != null && storeLongitude != null
+      ? `\n🗺️ الموقع على الخارطة: https://maps.google.com/?q=${storeLatitude},${storeLongitude}`
+      : "";
+
   const storeBlock =
     `🏪 *${storeName?.trim() || "المتجر"}*` +
     (storeAddress?.trim() ? `\n📍 ${storeAddress.trim()}` : "") +
-    (isValidPhone(storePhone) ? `\n☎️ ${storePhone!.trim()}` : "");
+    (isValidPhone(storePhone) ? `\n☎️ ${storePhone!.trim()}` : "") +
+    storeMapsLink;
 
   const body =
     `✅ *${headline ?? `تم استلام طلبك #${orderId}`}*\n` +
