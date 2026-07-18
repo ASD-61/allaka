@@ -1,0 +1,2095 @@
+openapi: 3.1.0
+info:
+  # Do not change the title, if the title changes, the import paths will be broken
+  title: Api
+  version: 0.1.0
+  description: API specification
+servers:
+  - url: /api
+    description: Base API path
+tags:
+  - name: health
+    description: Health operations
+  - name: Products
+    description: Vegetable product catalog operations.
+  - name: Storage
+    description: Object storage upload and serving endpoints.
+  - name: Categories
+    description: Product category management (admin).
+  - name: Admin
+    description: Admin authentication.
+  - name: Orders
+    description: Customer order placement and admin order management.
+  - name: Customers
+    description: Customer loyalty points lookup.
+  - name: Auth
+    description: Customer WhatsApp OTP authentication and profile.
+  - name: Addresses
+    description: Customer delivery address management.
+  - name: Notifications
+    description: Customer order-derived notifications.
+paths:
+  /healthz:
+    get:
+      operationId: healthCheck
+      tags: [health]
+      summary: Health check
+      description: Returns server health status
+      responses:
+        "200":
+          description: Healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthStatus"
+  /products:
+    get:
+      operationId: listProducts
+      tags: [Products]
+      summary: List vegetable products
+      parameters:
+        - name: category
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter by category name. Omit or pass "الكل" for all.
+        - name: storeId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: Filter to products of a single store.
+      responses:
+        "200":
+          description: List of products
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Product"
+    post:
+      operationId: createProduct
+      tags: [Products]
+      summary: Add a new vegetable product
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductInput"
+      responses:
+        "201":
+          description: Created product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /products/{id}:
+    get:
+      operationId: getProduct
+      tags: [Products]
+      summary: Get a single product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateProduct
+      tags: [Products]
+      summary: Update a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ProductUpdate"
+      responses:
+        "200":
+          description: Updated product
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Product"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteProduct
+      tags: [Products]
+      summary: Delete a product
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [Categories]
+      summary: List product categories for a store
+      parameters:
+        - name: storeId
+          in: query
+          required: false
+          schema:
+            type: integer
+          description: The store whose categories to list. Admin callers may omit this to get their own store's categories; other callers must pass it.
+      responses:
+        "200":
+          description: List of categories
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Category"
+    post:
+      operationId: createCategory
+      tags: [Categories]
+      summary: Create a category for a store (the store's owner or an admin)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "201":
+          description: Created category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /categories/{id}:
+    patch:
+      operationId: updateCategory
+      tags: [Categories]
+      summary: Rename a category (the store's owner or an admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CategoryInput"
+      responses:
+        "200":
+          description: Updated category
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Category"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteCategory
+      tags: [Categories]
+      summary: Delete a category (the store's owner or an admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores:
+    get:
+      operationId: listStores
+      tags: [Stores]
+      summary: List active (approved) stores
+      responses:
+        "200":
+          description: Active stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+    post:
+      operationId: createStore
+      tags: [Stores]
+      summary: Register a store (merchant) — created pending admin review
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreInput"
+      responses:
+        "201":
+          description: Created store (pending)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/mine:
+    get:
+      operationId: listMyStores
+      tags: [Stores]
+      summary: List stores owned by the authenticated merchant
+      responses:
+        "200":
+          description: The caller's stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/admin:
+    get:
+      operationId: listAllStores
+      tags: [Stores]
+      summary: List all stores in any status (admin only)
+      responses:
+        "200":
+          description: All stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}:
+    get:
+      operationId: getStore
+      tags: [Stores]
+      summary: Get a single store
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateStore
+      tags: [Stores]
+      summary: Update a store (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreUpdate"
+      responses:
+        "200":
+          description: Updated store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteStore
+      tags: [Stores]
+      summary: Permanently delete a store and its products (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/review:
+    patch:
+      operationId: reviewStore
+      tags: [Stores]
+      summary: Approve, reject, suspend or reactivate a store (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreReviewInput"
+      responses:
+        "200":
+          description: Reviewed store
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Store"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/orders:
+    get:
+      operationId: listStoreOrders
+      tags: [Stores]
+      summary: List a store's orders (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The store's orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/customers:
+    get:
+      operationId: listStoreCustomers
+      tags: [Stores]
+      summary: List customers who ordered from a store (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Aggregated customers for the store
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoreCustomer"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/refunds:
+    get:
+      operationId: listStoreRefunds
+      tags: [Stores]
+      summary: List compensation requests for a store's orders (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The store's compensation requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoreRefund"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/refunds/{refundId}:
+    patch:
+      operationId: decideStoreRefund
+      tags: [Stores]
+      summary: Approve (with amount) or reject a compensation for the store's own order (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: refundId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundDecisionInput"
+      responses:
+        "200":
+          description: Updated refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Already reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /store-types:
+    get:
+      operationId: listStoreTypes
+      tags: [StoreTypes]
+      summary: List curated store types (public)
+      responses:
+        "200":
+          description: Store types
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/StoreType"
+    post:
+      operationId: createStoreType
+      tags: [StoreTypes]
+      summary: Add a store type (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreTypeInput"
+      responses:
+        "201":
+          description: Created store type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreType"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Duplicate type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /store-types/{id}:
+    patch:
+      operationId: updateStoreType
+      tags: [StoreTypes]
+      summary: Update a store type (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/StoreTypeUpdate"
+      responses:
+        "200":
+          description: Updated store type
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreType"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteStoreType
+      tags: [StoreTypes]
+      summary: Delete a store type (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/login:
+    post:
+      operationId: adminLogin
+      tags: [Admin]
+      summary: Log in as admin
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminLoginInput"
+      responses:
+        "200":
+          description: Logged in
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+        "401":
+          description: Invalid password
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /admin/logout:
+    post:
+      operationId: adminLogout
+      tags: [Admin]
+      summary: Log out of admin session
+      responses:
+        "204":
+          description: Logged out
+  /admin/session:
+    get:
+      operationId: getAdminSession
+      tags: [Admin]
+      summary: Get current admin session state
+      responses:
+        "200":
+          description: Session state
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSession"
+  /customers:
+    get:
+      operationId: listCustomers
+      tags: [Customers]
+      summary: List all customers with order stats (admin only)
+      responses:
+        "200":
+          description: List of customers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CustomerSummary"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /customers/{phone}:
+    get:
+      operationId: getCustomer
+      tags: [Customers]
+      summary: Get a customer's loyalty points by phone number
+      parameters:
+        - name: phone
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Customer loyalty info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Customer"
+  /orders:
+    get:
+      operationId: listOrders
+      tags: [Orders]
+      summary: List orders (admin, or filtered by customer phone)
+      parameters:
+        - name: phone
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Filter orders by customer phone number.
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createOrder
+      tags: [Orders]
+      summary: Place a new order
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderInput"
+      responses:
+        "201":
+          description: Created order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /orders/{id}:
+    patch:
+      operationId: updateOrderStatus
+      tags: [Orders]
+      summary: Update an order's status (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OrderStatusUpdate"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /orders/{id}/items:
+    post:
+      operationId: addOrderItems
+      tags: [Orders]
+      summary: Add items to a recent order within the "نسيت غرض" grace window
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddOrderItemsInput"
+      responses:
+        "200":
+          description: Updated order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+        "400":
+          description: Invalid input or grace window elapsed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /refunds:
+    get:
+      operationId: listRefunds
+      tags: [Refunds]
+      summary: List quality-refund requests (admin only)
+      responses:
+        "200":
+          description: List of refunds
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Refund"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createRefund
+      tags: [Refunds]
+      summary: Report a damaged item with a photo (creates a pending request for merchant review)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundInput"
+      responses:
+        "201":
+          description: Created refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /refunds/{id}:
+    patch:
+      operationId: updateRefund
+      tags: [Refunds]
+      summary: Review a refund request — approve (with amount) or reject (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RefundDecisionInput"
+      responses:
+        "200":
+          description: Updated refund
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Refund"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Refund not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Already reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/otp/request:
+    post:
+      operationId: requestOtp
+      tags: [Auth]
+      summary: Request a WhatsApp OTP code for a phone number
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestOtpInput"
+      responses:
+        "200":
+          description: Code sent
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [sent]
+                properties:
+                  sent:
+                    type: boolean
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "502":
+          description: Failed to send WhatsApp message
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/otp/verify:
+    post:
+      operationId: verifyOtp
+      tags: [Auth]
+      summary: Verify an OTP code and log in / sign up the customer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/VerifyOtpInput"
+      responses:
+        "200":
+          description: Authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResponse"
+        "400":
+          description: Invalid or expired code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "429":
+          description: Too many attempts
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /auth/me:
+    get:
+      operationId: getMe
+      tags: [Auth]
+      summary: Get the current customer's profile
+      responses:
+        "200":
+          description: Customer profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    patch:
+      operationId: updateMe
+      tags: [Auth]
+      summary: Update the current customer's profile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateProfileInput"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CustomerProfile"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /addresses:
+    get:
+      operationId: listAddresses
+      tags: [Addresses]
+      summary: List the current customer's delivery addresses
+      responses:
+        "200":
+          description: List of addresses
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Address"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createAddress
+      tags: [Addresses]
+      summary: Add a new delivery address
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressInput"
+      responses:
+        "201":
+          description: Created address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /addresses/{id}:
+    patch:
+      operationId: updateAddress
+      tags: [Addresses]
+      summary: Update a delivery address
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AddressInput"
+      responses:
+        "200":
+          description: Updated address
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Address"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteAddress
+      tags: [Addresses]
+      summary: Delete a delivery address
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /notifications:
+    get:
+      operationId: listNotifications
+      tags: [Notifications]
+      summary: List the current customer's order-derived notifications
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NotificationItem"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /broadcasts:
+    post:
+      operationId: sendBroadcast
+      tags: [Notifications]
+      summary: Send an announcement to all customers (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BroadcastInput"
+      responses:
+        "201":
+          description: Broadcast created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broadcast"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated as admin
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/uploads/request-url:
+    post:
+      tags: [Storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      description: |
+        Returns a presigned GCS URL for direct upload. The client sends JSON
+        metadata here, then uploads the file directly to the returned URL.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UploadUrlRequest"
+      responses:
+        "200":
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UploadUrlResponse"
+        "400":
+          description: Missing or invalid required fields.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to generate upload URL.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/public-objects/{filePath}:
+    get:
+      tags: [Storage]
+      operationId: getPublicObject
+      summary: Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+      description: |
+        Unconditionally public — no authentication or ACL checks.
+        Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+      parameters:
+        - name: filePath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Relative file path within the public search paths.
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: File not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve public object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /storage/objects/{objectPath}:
+    get:
+      tags: [Storage]
+      operationId: getStorageObject
+      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      description: |
+        Serves object entities uploaded via presigned URLs.
+      parameters:
+        - name: objectPath
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Object path within the private object dir (e.g. `uploads/some-uuid`).
+      responses:
+        "200":
+          description: Object content streamed with correct Content-Type.
+          content:
+            "*/*":
+              schema:
+                type: string
+                format: binary
+        "404":
+          description: Object not found.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "500":
+          description: Failed to serve object.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+components:
+  schemas:
+    HealthStatus:
+      type: object
+      properties:
+        status:
+          type: string
+      required:
+        - status
+    ErrorEnvelope:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+    Product:
+      type: object
+      required:
+        - id
+        - name
+        - category
+        - price
+        - unit
+        - imageUrl
+        - rating
+        - createdAt
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+          description: Vegetable name in Arabic
+        category:
+          type: string
+          description: Category name in Arabic
+        price:
+          type: integer
+          description: Price in Iraqi Dinar (IQD)
+        originalPrice:
+          type: ["integer", "null"]
+          description: Original price before discount, in IQD
+        unit:
+          type: string
+          description: Unit of sale, e.g. "1 كغم"
+        imageUrl:
+          type: string
+          description: Public URL or storage object path for the product image
+        description:
+          type: ["string", "null"]
+          description: Extra details about the vegetable
+        rating:
+          type: number
+        isVip:
+          type: boolean
+        discountPercent:
+          type: ["integer", "null"]
+        discountExpiresAt:
+          type: ["string", "null"]
+          format: date-time
+          description: When the current offer price expires; the server reverts the price automatically after this time.
+        inStock:
+          type: boolean
+          description: Whether the product is currently available to order
+        isLocal:
+          type: boolean
+          description: Locally-grown produce badge ("منتج محلي").
+        isClearance:
+          type: boolean
+          description: Part of the end-of-day clearance section ("تصفية العلوة").
+        isWholesale:
+          type: boolean
+          description: Sold by the sack/box in the wholesale section ("قسم الجملة").
+        storeId:
+          type: ["integer", "null"]
+          description: Owning store id in the marketplace.
+        createdAt:
+          type: string
+          format: date-time
+    ProductInput:
+      type: object
+      required: [name, category, price, unit, imageUrl]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        price:
+          type: integer
+          minimum: 0
+        originalPrice:
+          type: ["integer", "null"]
+          minimum: 0
+        unit:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        rating:
+          type: number
+        isVip:
+          type: boolean
+        discountPercent:
+          type: ["integer", "null"]
+        discountExpiresAt:
+          type: ["string", "null"]
+          format: date-time
+        inStock:
+          type: boolean
+          description: Whether the product is currently available to order
+        isLocal:
+          type: boolean
+        isClearance:
+          type: boolean
+        isWholesale:
+          type: boolean
+        storeId:
+          type: ["integer", "null"]
+    ProductUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        category:
+          type: string
+          minLength: 1
+        price:
+          type: integer
+          minimum: 0
+        originalPrice:
+          type: ["integer", "null"]
+          minimum: 0
+        unit:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        rating:
+          type: number
+        isVip:
+          type: boolean
+        discountPercent:
+          type: ["integer", "null"]
+        discountExpiresAt:
+          type: ["string", "null"]
+          format: date-time
+        inStock:
+          type: boolean
+          description: Whether the product is currently available to order
+        isLocal:
+          type: boolean
+        isClearance:
+          type: boolean
+        isWholesale:
+          type: boolean
+        storeId:
+          type: ["integer", "null"]
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          description: Original file name.
+        size:
+          type: integer
+          minimum: 1
+          description: File size in bytes.
+        contentType:
+          type: string
+          minLength: 1
+          description: MIME type of the file (e.g. `image/jpeg`).
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL:
+          type: string
+          description: Presigned GCS URL for PUT upload.
+        objectPath:
+          type: string
+          description: Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database.
+        metadata:
+          $ref: "#/components/schemas/UploadUrlRequest"
+    Category:
+      type: object
+      required: [id, name, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        storeId:
+          type: ["integer", "null"]
+          description: Owning store id — each store manages its own category list.
+        createdAt:
+          type: string
+          format: date-time
+    CategoryInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        storeId:
+          type: ["integer", "null"]
+          description: The store this category belongs to. Required for non-admin callers.
+    Store:
+      type: object
+      required: [id, name, address, storeType, ownerPhone, status, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        address:
+          type: string
+        description:
+          type: ["string", "null"]
+        storeType:
+          type: string
+          description: Kind of shop, e.g. "خضار وفواكه", "بقالة", "لحوم".
+        ownerPhone:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        status:
+          type: string
+          description: "قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً"
+        subscriptionExpiresAt:
+          type: ["string", "null"]
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+    StoreInput:
+      type: object
+      required: [name, address, storeType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        address:
+          type: string
+          minLength: 1
+        storeType:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+    StoreUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        address:
+          type: string
+          minLength: 1
+        storeType:
+          type: string
+          minLength: 1
+        description:
+          type: ["string", "null"]
+        imageUrl:
+          type: ["string", "null"]
+    StoreReviewInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject, suspend, reactivate]
+        subscriptionMonths:
+          type: integer
+          minimum: 1
+          maximum: 24
+          description: Subscription length in months on approval (default 3).
+        subscriptionMode:
+          type: string
+          enum: [extend, set]
+          description: >-
+            How to apply subscriptionMonths on approval. "extend" (default) adds
+            the months onto the later of now or the current expiry (renewals
+            stack). "set" replaces the expiry with exactly that many months from
+            today — used to correct or reduce a subscription after a misclick.
+    StoreType:
+      type: object
+      required: [id, name, sortOrder, showRecipes, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        imageUrl:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        showRecipes:
+          type: boolean
+          description: Whether stores of this type show the "شنو نطبخ اليوم؟" recipe helper.
+        createdAt:
+          type: string
+          format: date-time
+    StoreTypeInput:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        showRecipes:
+          type: boolean
+    StoreTypeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: ["string", "null"]
+        sortOrder:
+          type: integer
+        showRecipes:
+          type: boolean
+    StoreCustomer:
+      type: object
+      required: [phone, orderCount, totalSpent]
+      properties:
+        phone:
+          type: string
+        name:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        orderCount:
+          type: integer
+        totalSpent:
+          type: integer
+        lastOrderAt:
+          type: ["string", "null"]
+          format: date-time
+    StoreRefund:
+      type: object
+      required: [id, orderId, customerPhone, productName, imageUrl, amount, status]
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        customerPhone:
+          type: string
+        customerName:
+          type: ["string", "null"]
+        productName:
+          type: string
+        imageUrl:
+          type: string
+        amount:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: ["string", "null"]
+          format: date-time
+        reviewedAt:
+          type: ["string", "null"]
+          format: date-time
+    AdminLoginInput:
+      type: object
+      required: [password]
+      properties:
+        password:
+          type: string
+          minLength: 1
+    AdminSession:
+      type: object
+      required: [isAdmin]
+      properties:
+        isAdmin:
+          type: boolean
+        token:
+          type: string
+          description: "Bearer token to send as Authorization header (Bearer scheme). Present on login."
+    Customer:
+      type: object
+      required: [phone, points]
+      properties:
+        phone:
+          type: string
+        points:
+          type: integer
+    RequestOtpInput:
+      type: object
+      required: [phone]
+      properties:
+        phone:
+          type: string
+          minLength: 5
+    VerifyOtpInput:
+      type: object
+      required: [phone, code]
+      properties:
+        phone:
+          type: string
+          minLength: 5
+        code:
+          type: string
+          minLength: 4
+    CustomerProfile:
+      type: object
+      required: [phone, points, hasProfile]
+      properties:
+        phone:
+          type: string
+        name:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+          description: Stored path of the customer's profile picture.
+        points:
+          type: integer
+        walletBalance:
+          type: integer
+          description: In-app wallet credit balance in IQD.
+        hasProfile:
+          type: boolean
+          description: Whether the customer has completed profile setup (name).
+    UpdateProfileInput:
+      type: object
+      properties:
+        name:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+          maxLength: 500
+    AuthResponse:
+      type: object
+      required: [token, customer]
+      properties:
+        token:
+          type: string
+          description: "Bearer token to send as Authorization header (Bearer scheme)."
+        customer:
+          $ref: "#/components/schemas/CustomerProfile"
+    Address:
+      type: object
+      required: [id, customerPhone, label, createdAt]
+      properties:
+        id:
+          type: integer
+        customerPhone:
+          type: string
+        label:
+          type: string
+        details:
+          type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    AddressInput:
+      type: object
+      properties:
+        label:
+          type: string
+          minLength: 1
+        details:
+          type: ["string", "null"]
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+    NotificationItem:
+      type: object
+      required: [id, message, createdAt]
+      properties:
+        id:
+          type: string
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    Broadcast:
+      type: object
+      required: [id, message, createdAt]
+      properties:
+        id:
+          type: integer
+        message:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+    BroadcastInput:
+      type: object
+      required: [message]
+      properties:
+        message:
+          type: string
+          minLength: 1
+          maxLength: 500
+    CustomerSummary:
+      type: object
+      required: [phone, points, orderCount, totalSpent, createdAt]
+      properties:
+        phone:
+          type: string
+        name:
+          type: ["string", "null"]
+        avatarUrl:
+          type: ["string", "null"]
+        points:
+          type: integer
+        walletBalance:
+          type: integer
+        orderCount:
+          type: integer
+        totalSpent:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    OrderItemInput:
+      type: object
+      required: [id, name, price, unit, qty]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        price:
+          type: integer
+        unit:
+          type: string
+        qty:
+          type: integer
+          minimum: 1
+    OrderInput:
+      type: object
+      # customerPhone is intentionally NOT part of the input — the server
+      # always derives it from the authenticated customer's bearer token,
+      # so a client can never place an order (or earn/spend points) under
+      # someone else's phone number.
+      required: [items, deliveryType]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+        deliveryType:
+          type: string
+          enum: [standard, express]
+        latitude:
+          type: number
+        longitude:
+          type: number
+        redeem:
+          type: ["string", "null"]
+          enum: [discount, free_delivery, null]
+        note:
+          type: ["string", "null"]
+          maxLength: 500
+          description: Optional customer note attached to the order.
+        pickupTime:
+          type: ["string", "null"]
+          maxLength: 100
+          description: Customer-chosen delivery/pickup window.
+        walletApplied:
+          type: integer
+          minimum: 0
+          description: Amount of in-app wallet credit to spend on this order, in IQD.
+        storeId:
+          type: ["integer", "null"]
+          description: The store this single-store cart belongs to.
+    OrderStatusUpdate:
+      type: object
+      required: [status]
+      properties:
+        status:
+          type: string
+          enum: ["قيد التحضير", "في الطريق", "تم التسليم"]
+    Order:
+      type: object
+      required:
+        - id
+        - customerPhone
+        - items
+        - subtotal
+        - deliveryFee
+        - deliveryType
+        - discountApplied
+        - pointsEarned
+        - pointsRedeemed
+        - total
+        - status
+        - createdAt
+      properties:
+        id:
+          type: integer
+        customerPhone:
+          type: string
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/OrderItemInput"
+        subtotal:
+          type: integer
+        deliveryFee:
+          type: integer
+        deliveryType:
+          type: string
+          enum: [standard, express]
+        discountApplied:
+          type: integer
+        pointsEarned:
+          type: integer
+        pointsRedeemed:
+          type: integer
+        redemptionType:
+          type: ["string", "null"]
+        note:
+          type: ["string", "null"]
+          description: Optional customer note attached to the order.
+        total:
+          type: integer
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
+        status:
+          type: string
+        pickupTime:
+          type: ["string", "null"]
+        walletApplied:
+          type: integer
+        storeId:
+          type: ["integer", "null"]
+        createdAt:
+          type: string
+          format: date-time
+    Refund:
+      type: object
+      required: [id, orderId, customerPhone, productName, imageUrl, amount, status, createdAt]
+      properties:
+        id:
+          type: integer
+        orderId:
+          type: integer
+        customerPhone:
+          type: string
+        productName:
+          type: string
+        imageUrl:
+          type: string
+        amount:
+          type: integer
+        status:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+        reviewedAt:
+          type: string
+          format: date-time
+          nullable: true
+    RefundInput:
+      type: object
+      required: [orderId, productName, imageUrl]
+      properties:
+        orderId:
+          type: integer
+        productName:
+          type: string
+          minLength: 1
+        imageUrl:
+          type: string
+          minLength: 1
+    RefundDecisionInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]
+        amount:
+          type: integer
+          minimum: 0
+    AddOrderItemsInput:
+      type: object
+      required: [items]
+      properties:
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/OrderItemInput"

@@ -1,0 +1,976 @@
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { Alert } from '@/lib/alert';
+import { Image } from 'expo-image';
+import { Feather } from '@expo/vector-icons';
+import { 
+  useListProducts, 
+  useListCategories, 
+  useCreateProduct, 
+  useUpdateProduct, 
+  useDeleteProduct, 
+  useRequestUploadUrl,
+} from '@workspace/api-client-react';
+import { useAdminRequest } from '@/hooks/useAdminRequest';
+import { useAdminStoreIds, useAdminStoreId, isAdminOwned } from '@/hooks/useAdminStoreIds';
+import { useColors } from '@/hooks/useColors';
+import { fonts } from '@/constants/fonts';
+import { formatIQD } from '@/lib/format';
+import { resolveImageUrl } from '@/lib/image-url';
+import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { EmptyState } from '@/components/EmptyState';
+
+export function ProductsTab() {
+  const colors = useColors();
+  const adminRequest = useAdminRequest();
+  const query = useListProducts();
+  const adminStoreIds = useAdminStoreIds();
+  const adminStoreId = useAdminStoreId();
+  // Only the admin's own store categories — a merchant's category list must
+  // never show up in (or be usable from) the admin's product form.
+  const categoriesQuery = useListCategories(
+    adminStoreId != null ? { storeId: adminStoreId } : undefined,
+    { request: adminRequest },
+  );
+
+  // The admin only manages their own (admin-owned) store products; merchant
+  // products belong solely to their owners and are hidden from this panel.
+  const adminProducts = React.useMemo(
+    () =>
+      (query.data ?? []).filter((p) => isAdminOwned(p.storeId, adminStoreIds)),
+    [query.data, adminStoreIds],
+  );
+  const createProduct = useCreateProduct({ request: adminRequest });
+  const updateProduct = useUpdateProduct({ request: adminRequest });
+  const deleteProduct = useDeleteProduct({ request: adminRequest });
+  const requestUploadUrl = useRequestUploadUrl();
+
+  const [showForm, setShowForm] = useState(false);
+  const [name, setName] = useState('');
+  const [category, setCategory] = useState('');
+  const [price, setPrice] = useState('');
+  const [unit, setUnit] = useState('1 كغم');
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [inStock, setInStock] = useState(true);
+  const [isLocal, setIsLocal] = useState(false);
+  const [isClearance, setIsClearance] = useState(false);
+  const [isWholesale, setIsWholesale] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [offerProductId, setOfferProductId] = useState<number | null>(null);
+  const [offerPrice, setOfferPrice] = useState('');
+  const [editProductId, setEditProductId] = useState<number | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editCategory, setEditCategory] = useState('');
+  const [editPrice, setEditPrice] = useState('');
+  const [editUnit, setEditUnit] = useState('');
+  const [editImagePath, setEditImagePath] = useState<string | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editUploading, setEditUploading] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editIsLocal, setEditIsLocal] = useState(false);
+  const [editIsClearance, setEditIsClearance] = useState(false);
+  const [editIsWholesale, setEditIsWholesale] = useState(false);
+
+  const startEdit = (item: {
+    id: number;
+    name: string;
+    category: string;
+    price: number;
+    originalPrice?: number | null;
+    unit: string;
+    isLocal?: boolean;
+    isClearance?: boolean;
+    isWholesale?: boolean;
+  }) => {
+    setOfferProductId(null);
+    setEditProductId(item.id);
+    setEditName(item.name);
+    setEditCategory(item.category);
+    setEditPrice(String(item.originalPrice ?? item.price));
+    setEditUnit(item.unit);
+    setEditImagePath(null);
+    setEditImagePreview(null);
+    setEditIsLocal(!!item.isLocal);
+    setEditIsClearance(!!item.isClearance);
+    setEditIsWholesale(!!item.isWholesale);
+  };
+
+  const renderFlag = (
+    label: string,
+    value: boolean,
+    onToggle: () => void,
+    icon: React.ComponentProps<typeof Feather>['name'],
+  ) => (
+    <Pressable
+      onPress={onToggle}
+      style={[styles.stockToggle, { backgroundColor: colors.muted, borderColor: colors.border }]}
+    >
+      <Feather name={icon} size={16} color={value ? colors.primary : colors.mutedForeground} />
+      <Text style={[styles.toggleText, { color: colors.foreground }]}>{label}</Text>
+      <Feather
+        name={value ? 'toggle-right' : 'toggle-left'}
+        size={24}
+        color={value ? colors.primary : colors.mutedForeground}
+        style={{ marginRight: 'auto' }}
+      />
+    </Pressable>
+  );
+
+  const handleEditPickImage = async () => {
+    const picked = await pickImage();
+    if (!picked) return;
+    setEditImagePreview(picked.uri);
+    setEditUploading(true);
+    try {
+      const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
+      setEditImagePath(path);
+    } catch {
+      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } finally {
+      setEditUploading(false);
+    }
+  };
+
+  const handleSaveEdit = async (item: { id: number; price: number; originalPrice?: number | null }) => {
+    const newBase = Math.round(Number(editPrice));
+    if (!editName.trim() || !editCategory.trim() || !newBase || newBase <= 0) {
+      Alert.alert('تنبيه', 'يرجى تعبئة الاسم والفئة والسعر');
+      return;
+    }
+    const hasOffer = item.originalPrice != null && item.originalPrice > item.price;
+    const data: Record<string, unknown> = {
+      name: editName.trim(),
+      category: editCategory.trim(),
+      unit: editUnit.trim() || '1 كغم',
+      isLocal: editIsLocal,
+      isClearance: editIsClearance,
+      isWholesale: editIsWholesale,
+    };
+    if (editImagePath) data.imageUrl = editImagePath;
+    if (hasOffer) {
+      if (newBase > item.price) {
+        // Keep the running offer, update its base price.
+        data.originalPrice = newBase;
+        data.discountPercent = Math.round((1 - item.price / newBase) * 100);
+      } else {
+        // New base is at or below the offer price — the offer no longer makes sense.
+        data.price = newBase;
+        data.originalPrice = null;
+        data.discountPercent = null;
+        data.discountExpiresAt = null;
+      }
+    } else {
+      data.price = newBase;
+    }
+    setEditSaving(true);
+    try {
+      await updateProduct.mutateAsync({ id: item.id, data: data as any });
+      setEditProductId(null);
+      query.refetch();
+    } catch {
+      Alert.alert('خطأ', 'تعذر حفظ التعديلات');
+    } finally {
+      setEditSaving(false);
+    }
+  };
+
+  const handleToggleStock = (id: number, next: boolean) => {
+    updateProduct.mutate(
+      { id, data: { inStock: next } },
+      {
+        onError: () => Alert.alert('خطأ', 'تعذر تحديث حالة التوفر'),
+      },
+    );
+  };
+
+  const handleApplyOffer = (item: { id: number; price: number; originalPrice?: number | null }) => {
+    const newPrice = Math.round(Number(offerPrice));
+    if (!newPrice || newPrice <= 0) {
+      Alert.alert('تنبيه', 'أدخل سعر العرض');
+      return;
+    }
+    const basePrice = item.originalPrice ?? item.price;
+    if (newPrice >= basePrice) {
+      Alert.alert('تنبيه', 'سعر العرض يجب أن يكون أقل من السعر الأصلي');
+      return;
+    }
+    const endOfDay = new Date();
+    endOfDay.setHours(23, 59, 59, 0);
+    updateProduct.mutate(
+      {
+        id: item.id,
+        data: {
+          price: newPrice,
+          originalPrice: basePrice,
+          discountPercent: Math.round((1 - newPrice / basePrice) * 100),
+          discountExpiresAt: endOfDay.toISOString(),
+        },
+      },
+      {
+        onSuccess: () => {
+          setOfferProductId(null);
+          setOfferPrice('');
+          query.refetch();
+        },
+        onError: () => Alert.alert('خطأ', 'تعذر تفعيل العرض'),
+      },
+    );
+  };
+
+  const handleCancelOffer = (item: { id: number; price: number; originalPrice?: number | null }) => {
+    updateProduct.mutate(
+      {
+        id: item.id,
+        data: {
+          price: item.originalPrice ?? item.price,
+          originalPrice: null,
+          discountPercent: null,
+          discountExpiresAt: null,
+        },
+      },
+      {
+        onSuccess: () => {
+          setOfferProductId(null);
+          setOfferPrice('');
+          query.refetch();
+        },
+        onError: () => Alert.alert('خطأ', 'تعذر إلغاء العرض'),
+      },
+    );
+  };
+
+  const handlePickImage = async () => {
+    const picked = await pickImage();
+    if (!picked) return;
+    setImagePreview(picked.uri);
+    setUploading(true);
+    try {
+      const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
+      setImagePath(path);
+    } catch {
+      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const resetForm = () => {
+    setName('');
+    setCategory('');
+    setPrice('');
+    setUnit('1 كغم');
+    setImagePath(null);
+    setImagePreview(null);
+    setInStock(true);
+    setIsLocal(false);
+    setIsClearance(false);
+    setIsWholesale(false);
+  };
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !category.trim() || !price || !imagePath) {
+      Alert.alert('تنبيه', 'يرجى تعبئة الاسم والفئة والسعر والصورة');
+      return;
+    }
+    setSaving(true);
+    try {
+      await createProduct.mutateAsync({
+        data: {
+          name: name.trim(),
+          category: category.trim(),
+          price: Math.round(Number(price)),
+          unit: unit.trim() || '1 كغم',
+          imageUrl: imagePath,
+          inStock,
+          isLocal,
+          isClearance,
+          isWholesale,
+        },
+      });
+      resetForm();
+      setShowForm(false);
+      query.refetch();
+    } catch {
+      Alert.alert('خطأ', 'تعذر حفظ المنتج');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <FlatList
+      data={adminProducts}
+      keyExtractor={(item) => String(item.id)}
+      contentContainerStyle={styles.listContent}
+      ItemSeparatorComponent={() => <View style={{ height: 16 }} />}
+      ListHeaderComponent={
+        <View style={{ marginBottom: 24 }}>
+          <Pressable
+            onPress={() => setShowForm((v) => !v)}
+            style={[styles.addBtn, { backgroundColor: showForm ? colors.muted : colors.primary, borderColor: showForm ? colors.border : colors.primary }]}
+          >
+            <Feather name={showForm ? 'x' : 'plus'} size={20} color={showForm ? colors.foreground : colors.primaryForeground} />
+            <Text style={[styles.addBtnText, { color: showForm ? colors.foreground : colors.primaryForeground }]}>
+              {showForm ? 'إلغاء الإضافة' : 'إضافة منتج جديد'}
+            </Text>
+          </Pressable>
+
+          {showForm ? (
+            <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <Pressable onPress={handlePickImage} style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
+                {imagePreview ? (
+                  <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="cover" />
+                ) : (
+                  <View style={styles.imagePickerPlaceholder}>
+                    <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>
+                      <Feather name="camera" size={24} color={colors.primary} />
+                    </View>
+                    <Text style={[styles.imagePickerText, { color: colors.mutedForeground }]}>إضافة صورة للمنتج</Text>
+                  </View>
+                )}
+                {uploading ? (
+                  <View style={styles.uploadOverlay}>
+                    <ActivityIndicator size="large" color={colors.primaryForeground} />
+                  </View>
+                ) : null}
+              </Pressable>
+
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.foreground }]}>معلومات المنتج</Text>
+                <TextInput
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="اسم المنتج (مثال: طماطم كرزية)"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                  textAlign="right"
+                />
+              </View>
+
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.foreground }]}>الفئة</Text>
+                <View style={styles.chipsWrap}>
+                  {(categoriesQuery.data ?? []).map((c) => {
+                    const isSelected = category === c.name;
+                    return (
+                      <Pressable
+                        key={c.id}
+                        onPress={() => setCategory(c.name)}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: isSelected ? colors.primary : colors.muted,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: isSelected ? colors.primaryForeground : colors.foreground }]}>
+                          {c.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                  {(categoriesQuery.data ?? []).length === 0 ? (
+                    <Text style={[styles.emptyText, { color: colors.mutedForeground }]}>
+                      يرجى إضافة فئات من قسم الفئات أولاً
+                    </Text>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.formRow}>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.foreground }]}>السعر (د.ع)</Text>
+                  <TextInput
+                    value={price}
+                    onChangeText={setPrice}
+                    placeholder="مثال: 1500"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="number-pad"
+                    style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                    textAlign="right"
+                  />
+                </View>
+                <View style={[styles.formGroup, { flex: 1 }]}>
+                  <Text style={[styles.label, { color: colors.foreground }]}>الوحدة</Text>
+                  <TextInput
+                    value={unit}
+                    onChangeText={setUnit}
+                    placeholder="مثال: 1 كغم"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                    textAlign="right"
+                  />
+                </View>
+              </View>
+
+              <Pressable
+                onPress={() => setInStock((v) => !v)}
+                style={[styles.stockToggle, { backgroundColor: colors.muted, borderColor: colors.border }]}
+              >
+                <View style={[styles.toggleIndicator, { backgroundColor: inStock ? colors.success : colors.destructive }]} />
+                <Text style={[styles.toggleText, { color: colors.foreground }]}>
+                  {inStock ? 'متوفر في المخزون' : 'نفذت الكمية'}
+                </Text>
+                <Feather
+                  name={inStock ? 'toggle-right' : 'toggle-left'}
+                  size={24}
+                  color={inStock ? colors.success : colors.mutedForeground}
+                  style={{ marginRight: 'auto' }}
+                />
+              </Pressable>
+
+              {renderFlag('منتج محلي', isLocal, () => setIsLocal((v) => !v), 'map-pin')}
+              {renderFlag('تصفية المحل (بيع نهاية اليوم)', isClearance, () => setIsClearance((v) => !v), 'zap')}
+              {renderFlag('بيع بالجملة (گوني/صندوق)', isWholesale, () => setIsWholesale((v) => !v), 'box')}
+
+              <Pressable
+                onPress={handleSubmit}
+                disabled={saving || uploading}
+                style={[styles.submitBtn, { backgroundColor: colors.primary, opacity: saving || uploading ? 0.7 : 1 }]}
+              >
+                {saving ? (
+                  <ActivityIndicator color={colors.primaryForeground} />
+                ) : (
+                  <>
+                    <Feather name="check" size={20} color={colors.primaryForeground} />
+                    <Text style={[styles.submitBtnText, { color: colors.primaryForeground }]}>حفظ المنتج</Text>
+                  </>
+                )}
+              </Pressable>
+            </View>
+          ) : null}
+        </View>
+      }
+      ListEmptyComponent={<EmptyState icon="package" title="لا توجد منتجات" />}
+      renderItem={({ item }) => {
+        const hasOffer = item.originalPrice != null && item.originalPrice > item.price;
+        const isEditingOffer = offerProductId === item.id;
+        
+        return (
+          <View style={[styles.productCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+            <View style={styles.productRow}>
+              <View style={styles.actionsBox}>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() =>
+                    Alert.alert('حذف المنتج', `هل تريد حذف "${item.name}"؟`, [
+                      { text: 'إلغاء', style: 'cancel' },
+                      { text: 'حذف', style: 'destructive', onPress: () => deleteProduct.mutate({ id: item.id }) },
+                    ])
+                  }
+                  style={[styles.iconBtn, { backgroundColor: colors.destructive + '15' }]}
+                >
+                  <Feather name="trash-2" size={16} color={colors.destructive} />
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => (editProductId === item.id ? setEditProductId(null) : startEdit(item))}
+                  style={[
+                    styles.iconBtn,
+                    { backgroundColor: editProductId === item.id ? colors.primary + '15' : colors.muted },
+                  ]}
+                >
+                  <Feather name="edit-2" size={16} color={editProductId === item.id ? colors.primary : colors.mutedForeground} />
+                </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => {
+                    setEditProductId(null);
+                    setOfferProductId(isEditingOffer ? null : item.id);
+                    setOfferPrice('');
+                  }}
+                  style={[
+                    styles.iconBtn,
+                    { backgroundColor: hasOffer || isEditingOffer ? colors.warning + '15' : colors.muted }
+                  ]}
+                >
+                  <Feather name="percent" size={16} color={hasOffer || isEditingOffer ? colors.warning : colors.mutedForeground} />
+                </Pressable>
+              </View>
+
+              <View style={styles.infoBox}>
+                <Text style={[styles.productName, { color: colors.foreground }]} numberOfLines={1}>
+                  {item.name}
+                </Text>
+                <Text style={[styles.productMeta, { color: colors.mutedForeground }]}>
+                  {item.category} · {item.unit}
+                </Text>
+                <View style={styles.priceRow}>
+                  <Text style={[styles.productPrice, { color: hasOffer ? colors.warning : colors.primary }]}>
+                    {formatIQD(item.price)}
+                  </Text>
+                  {hasOffer && (
+                    <Text style={[styles.oldPrice, { color: colors.mutedForeground }]}>
+                      {formatIQD(item.originalPrice!)}
+                    </Text>
+                  )}
+                </View>
+              </View>
+
+              <View style={styles.thumbBox}>
+                <Image source={{ uri: resolveImageUrl(item.imageUrl) }} style={styles.thumbImg} contentFit="cover" />
+                <Pressable
+                  onPress={() => handleToggleStock(item.id, !item.inStock)}
+                  style={[
+                    styles.stockBadge,
+                    { backgroundColor: item.inStock ? colors.success : colors.destructive }
+                  ]}
+                >
+                  <Feather name={item.inStock ? "check" : "x"} size={10} color="#fff" />
+                </Pressable>
+              </View>
+            </View>
+
+            {editProductId === item.id ? (
+              <View style={[styles.editBox, { backgroundColor: colors.primary + '08', borderColor: colors.primary + '25' }]}>
+                <View style={styles.offerHeader}>
+                  <Feather name="edit-2" size={14} color={colors.primary} />
+                  <Text style={[styles.offerTitle, { color: colors.primary }]}>تعديل المنتج</Text>
+                </View>
+
+                <View style={styles.editImageRow}>
+                  <Pressable
+                    onPress={handleEditPickImage}
+                    style={[styles.editThumb, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                  >
+                    <Image
+                      source={{ uri: editImagePreview ?? resolveImageUrl(item.imageUrl) }}
+                      style={styles.editThumbImg}
+                      contentFit="cover"
+                    />
+                    {editUploading ? (
+                      <View style={styles.uploadOverlay}>
+                        <ActivityIndicator size="small" color="#fff" />
+                      </View>
+                    ) : (
+                      <View style={[styles.editThumbBadge, { backgroundColor: colors.primary }]}>
+                        <Feather name="camera" size={10} color={colors.primaryForeground} />
+                      </View>
+                    )}
+                  </Pressable>
+                  <TextInput
+                    value={editName}
+                    onChangeText={setEditName}
+                    placeholder="اسم المنتج"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                    textAlign="right"
+                  />
+                </View>
+
+                <View style={styles.chipsWrap}>
+                  {(categoriesQuery.data ?? []).map((c) => {
+                    const isSelected = editCategory === c.name;
+                    return (
+                      <Pressable
+                        key={c.id}
+                        onPress={() => setEditCategory(c.name)}
+                        style={[
+                          styles.chip,
+                          {
+                            backgroundColor: isSelected ? colors.primary : colors.card,
+                            borderColor: isSelected ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text style={[styles.chipText, { color: isSelected ? colors.primaryForeground : colors.foreground }]}>
+                          {c.name}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+
+                <View style={styles.formRow}>
+                  <TextInput
+                    value={editPrice}
+                    onChangeText={setEditPrice}
+                    placeholder="السعر الأساسي (د.ع)"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="number-pad"
+                    style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                    textAlign="right"
+                  />
+                  <TextInput
+                    value={editUnit}
+                    onChangeText={setEditUnit}
+                    placeholder="الوحدة"
+                    placeholderTextColor={colors.mutedForeground}
+                    style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border, flex: 1 }]}
+                    textAlign="right"
+                  />
+                </View>
+                {hasOffer ? (
+                  <Text style={[styles.editHint, { color: colors.mutedForeground }]}>
+                    هذا المنتج عليه عرض حاليًا — السعر هنا هو السعر الأساسي قبل الخصم
+                  </Text>
+                ) : null}
+
+                {renderFlag('منتج محلي', editIsLocal, () => setEditIsLocal((v) => !v), 'map-pin')}
+                {renderFlag('تصفية المحل (بيع نهاية اليوم)', editIsClearance, () => setEditIsClearance((v) => !v), 'zap')}
+                {renderFlag('بيع بالجملة (گوني/صندوق)', editIsWholesale, () => setEditIsWholesale((v) => !v), 'box')}
+
+                <View style={styles.editActionsRow}>
+                  <Pressable
+                    onPress={() => handleSaveEdit(item)}
+                    disabled={editSaving || editUploading}
+                    style={[styles.applyBtn, { backgroundColor: colors.primary, flex: 1, opacity: editSaving || editUploading ? 0.7 : 1 }]}
+                  >
+                    {editSaving ? (
+                      <ActivityIndicator size="small" color={colors.primaryForeground} />
+                    ) : (
+                      <Text style={[styles.applyBtnText, { color: colors.primaryForeground }]}>حفظ التعديلات</Text>
+                    )}
+                  </Pressable>
+                  <Pressable
+                    onPress={() => setEditProductId(null)}
+                    style={[styles.applyBtn, { backgroundColor: colors.muted }]}
+                  >
+                    <Text style={[styles.applyBtnText, { color: colors.foreground }]}>إلغاء</Text>
+                  </Pressable>
+                </View>
+              </View>
+            ) : null}
+
+            {isEditingOffer ? (
+              <View style={[styles.offerBox, { backgroundColor: colors.warning + '10', borderColor: colors.warning + '30' }]}>
+                <View style={styles.offerHeader}>
+                  <Feather name="clock" size={14} color={colors.warning} />
+                  <Text style={[styles.offerTitle, { color: colors.warning }]}>
+                    عرض يومي (ينتهي منتصف الليل)
+                  </Text>
+                </View>
+                
+                <View style={styles.offerInputRow}>
+                  <Pressable
+                    onPress={() => handleApplyOffer(item)}
+                    style={[styles.applyBtn, { backgroundColor: colors.warning }]}
+                  >
+                    <Text style={[styles.applyBtnText, { color: '#fff' }]}>تفعيل العرض</Text>
+                  </Pressable>
+                  <TextInput
+                    value={offerPrice}
+                    onChangeText={setOfferPrice}
+                    placeholder={`سعر العرض (أقل من ${formatIQD(item.originalPrice ?? item.price)})`}
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="number-pad"
+                    style={[styles.offerInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+                    textAlign="right"
+                  />
+                </View>
+
+                {hasOffer ? (
+                  <Pressable onPress={() => handleCancelOffer(item)} style={styles.cancelOfferBtn}>
+                    <Text style={[styles.cancelOfferText, { color: colors.destructive }]}>
+                      إلغاء العرض والعودة للسعر الأصلي
+                    </Text>
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+        );
+      }}
+    />
+  );
+}
+
+const styles = StyleSheet.create({
+  listContent: {
+    padding: 20,
+    paddingBottom: 60,
+  },
+  addBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+  },
+  addBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  formCard: {
+    marginTop: 16,
+    borderRadius: 20,
+    borderWidth: 1,
+    padding: 20,
+    gap: 20,
+  },
+  imagePicker: {
+    height: 160,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  previewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePickerPlaceholder: {
+    alignItems: 'center',
+    gap: 12,
+  },
+  iconCircle: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePickerText: {
+    fontFamily: fonts.medium,
+    fontSize: 14,
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  formGroup: {
+    gap: 8,
+  },
+  label: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  input: {
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+  },
+  chipsWrap: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  chipText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+  },
+  emptyText: {
+    fontFamily: fonts.regular,
+    fontSize: 13,
+  },
+  formRow: {
+    flexDirection: 'row-reverse',
+    gap: 12,
+  },
+  stockToggle: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 12,
+    borderWidth: 1,
+  },
+  toggleIndicator: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  toggleText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  submitBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 52,
+    borderRadius: 16,
+  },
+  submitBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  productCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  productRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    padding: 12,
+    gap: 12,
+  },
+  thumbBox: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: '#f5f5f5',
+  },
+  thumbImg: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+  },
+  stockBadge: {
+    position: 'absolute',
+    top: -4,
+    right: -4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#fff',
+  },
+  infoBox: {
+    flex: 1,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  productName: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  productMeta: {
+    fontFamily: fonts.medium,
+    fontSize: 12,
+  },
+  priceRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  productPrice: {
+    fontFamily: fonts.bold,
+    fontSize: 15,
+  },
+  oldPrice: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    textDecorationLine: 'line-through',
+  },
+  actionsBox: {
+    gap: 8,
+  },
+  iconBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editBox: {
+    borderTopWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  editImageRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+  },
+  editThumb: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  editThumbImg: {
+    width: '100%',
+    height: '100%',
+  },
+  editThumbBadge: {
+    position: 'absolute',
+    bottom: 2,
+    left: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  editInput: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  editHint: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  editActionsRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  offerBox: {
+    borderTopWidth: 1,
+    padding: 16,
+    gap: 12,
+  },
+  offerHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+  },
+  offerTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+  },
+  offerInputRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  offerInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  applyBtn: {
+    height: 44,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  applyBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13,
+  },
+  cancelOfferBtn: {
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  cancelOfferText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+});

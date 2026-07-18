@@ -1,0 +1,23 @@
+kind = "mobile"
+previewPath = "/"
+title = "عـلاّكـة"
+version = "1.0.0"
+id = "artifacts/khudra-mobile"
+router = "expo-domain"
+
+[[services]]
+name = "expo"
+ensurePreviewReachable = "/status"
+paths = [ "/" ]
+localPort = 19487
+
+[services.development]
+run = "pnpm --filter @workspace/khudra-mobile run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/khudra-mobile", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/khudra-mobile", "run", "serve" ]
+
+[services.env]
+PORT = "19487"
+BASE_PATH = "/"

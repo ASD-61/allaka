@@ -1,0 +1,7 @@
+- [Orval zod v4 URL format bug](orval-zod-url-format.md) — avoid `format: uri` in OpenAPI string schemas; orval emits `zod.url()` which breaks with the project's zod v3 catalog version.
+- [Replit connector proxy account-ID templating](connector-proxy-templating.md) — use `connectors.proxy()`'s literal `{accountSid}`-style path placeholders instead of trying to read credentials from `listConnections()`.
+- [React Query generated hooks quirks](react-query-generated-hooks-quirks.md) — orval `ApiError` message is at `err.data.error`, not `err.error`; cast `{query:{enabled}}` `as any` to dodge a spurious `queryKey` TS error.
+- [Expo RTL for Arabic-first apps](expo-rtl-arabic-apps.md) — prefer manual `row-reverse`/`textAlign:right` styling over `I18nManager.forceRTL`, which needs a full reload and breaks live preview.
+- [Expo Go font assets need https on Replit](expo-go-font-assets-https.md) — scheme-less hostUri makes font URLs http://, fonts register corrupt without error, icons render invisible on device; rewrite to https.
+- [DB schema drift causes silent full breakage](db-schema-drift-silent-breakage.md) — a schema column merged in code but never pushed to Postgres breaks every query on that table, not just the new field; check `information_schema.columns` first.
+- [External-approval blockers stall completion review](whatsapp-otp-task-uncompletable.md) — a task gated on a third-party approval (e.g. paid Twilio + Meta WhatsApp sender) can't pass review; don't park unrelated work on its branch or it strands unmerged.
