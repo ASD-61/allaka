@@ -1,39 +1,88 @@
 import * as Location from 'expo-location';
 
-// `Location.getCurrentPositionAsync` can hang indefinitely — with no error
-// and no resolution — when GPS can't get a fix (indoors, location services
-// off, an emulator with no fake location configured, etc). Without a
-// timeout, any "استخدم موقعي الحالي" button that awaits it directly gets
-// stuck in its loading state forever. This wraps the call with a timeout and
-// falls back to the last known (cached) position, which is near-instant.
+// `Location.getCurrentPositionAsync` (and even the permission prompt itself
+// on some Android devices/OEM ROMs) can hang indefinitely — with no error and
+// no resolution — when GPS can't get a fix (indoors, location services
+// toggled off at the OS level, an emulator with no fake location configured,
+// etc). Without a hard ceiling around the WHOLE flow (not just the position
+// fetch), any "استخدم موقعي الحالي" button that awaits it directly gets stuck
+// in its loading state forever with no feedback to the customer. This wraps
+// every step with a timeout and falls back to the last known (cached)
+// position, which is near-instant.
 const FIX_TIMEOUT_MS = 8000;
+// Ceiling for the ENTIRE flow (permission prompt + services check + fix +
+// fallback) — guarantees the caller's loading spinner always resolves, even
+// if some native call below never settles on a flaky device.
+const OVERALL_TIMEOUT_MS = 12000;
 
 export interface Coords {
   latitude: number;
   longitude: number;
 }
 
-export async function getCurrentPositionSafe(): Promise<Coords | null> {
+export type LocationFailureReason = 'permission' | 'services' | 'unavailable';
+export type LocationResult =
+  | { ok: true; coords: Coords }
+  | { ok: false; reason: LocationFailureReason };
+
+function withTimeout<T>(promise: Promise<T>, ms: number): Promise<T> {
+  return Promise.race([
+    promise,
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), ms),
+    ),
+  ]);
+}
+
+function toCoords(pos: Location.LocationObject): Coords {
+  return { latitude: pos.coords.latitude, longitude: pos.coords.longitude };
+}
+
+// Verbose variant — used by the "استخدم موقعي الحالي" button so it can show
+// the customer a message that actually matches what went wrong (permission
+// denied vs. GPS/location services turned off vs. no fix available) instead
+// of one generic "تعذر تحديد موقعك" for every case.
+export async function getCurrentPositionVerbose(): Promise<LocationResult> {
+  try {
+    return await withTimeout(fetchPosition(), OVERALL_TIMEOUT_MS);
+  } catch {
+    // The overall ceiling tripped — treat exactly like "couldn't get a fix"
+    // so the button always recovers instead of spinning forever.
+    return { ok: false, reason: 'unavailable' };
+  }
+}
+
+async function fetchPosition(): Promise<LocationResult> {
   const permission = await Location.requestForegroundPermissionsAsync();
-  if (!permission.granted) return null;
+  if (!permission.granted) return { ok: false, reason: 'permission' };
+
+  // Cheap, near-instant check for the device-level GPS/location toggle —
+  // when it's off, getCurrentPositionAsync can hang far longer than a normal
+  // "no fix yet" case on some Android builds, so short-circuit here first.
+  const servicesEnabled = await Location.hasServicesEnabledAsync().catch(() => true);
+  if (!servicesEnabled) return { ok: false, reason: 'services' };
 
   try {
-    const position = await Promise.race([
+    const position = await withTimeout(
       Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced }),
-      new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('LOCATION_TIMEOUT')), FIX_TIMEOUT_MS),
-      ),
-    ]);
-    return { latitude: position.coords.latitude, longitude: position.coords.longitude };
+      FIX_TIMEOUT_MS,
+    );
+    return { ok: true, coords: toCoords(position) };
   } catch {
     try {
       const last = await Location.getLastKnownPositionAsync({});
-      if (last) {
-        return { latitude: last.coords.latitude, longitude: last.coords.longitude };
-      }
+      if (last) return { ok: true, coords: toCoords(last) };
     } catch {
-      // ignore — caller treats this the same as "no location available"
+      // ignore — falls through to "unavailable" below
     }
-    return null;
+    return { ok: false, reason: 'unavailable' };
   }
+}
+
+// Silent/background variant — used where we just want a best-effort fix
+// (e.g. capturing location right after login) without bothering the
+// customer with an error message when it doesn't work out.
+export async function getCurrentPositionSafe(): Promise<Coords | null> {
+  const result = await getCurrentPositionVerbose();
+  return result.ok ? result.coords : null;
 }

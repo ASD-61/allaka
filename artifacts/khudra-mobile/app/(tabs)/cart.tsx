@@ -65,6 +65,7 @@ function CartContent() {
   const [useWallet, setUseWallet] = useState(false);
   const [note, setNote] = useState('');
   const [placing, setPlacing] = useState(false);
+  const [locatingForCheckout, setLocatingForCheckout] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [initialCoords, setInitialCoords] = useState<LatLng | null>(null);
 
@@ -95,10 +96,19 @@ function CartContent() {
   // before the order is created — this way we never send an order with a
   // stale or missing location.
   const handleCheckout = async () => {
-    if (!customer) return;
-    const coords = await getCurrentPositionSafe();
-    setInitialCoords(coords);
-    setPickerVisible(true);
+    if (!customer || locatingForCheckout) return;
+    setLocatingForCheckout(true);
+    try {
+      // Best-effort only — if this fails/times out (permission denied,
+      // GPS off, no fix indoors...) the picker still opens with the default
+      // center so the customer can always drop the pin manually and finish
+      // the order instead of getting stuck.
+      const coords = await getCurrentPositionSafe();
+      setInitialCoords(coords);
+    } finally {
+      setLocatingForCheckout(false);
+      setPickerVisible(true);
+    }
   };
 
   const placeOrder = async (coords: LatLng) => {
@@ -413,13 +423,13 @@ function CartContent() {
       >
         <Pressable
           onPress={handleCheckout}
-          disabled={placing}
+          disabled={placing || locatingForCheckout}
           style={({ pressed }) => [
             styles.checkoutBtn,
-            { backgroundColor: colors.primary, opacity: pressed || placing ? 0.85 : 1 },
+            { backgroundColor: colors.primary, opacity: pressed || placing || locatingForCheckout ? 0.85 : 1 },
           ]}
         >
-          {placing ? (
+          {placing || locatingForCheckout ? (
             <ActivityIndicator color={colors.primaryForeground} />
           ) : (
             <>

@@ -34,10 +34,12 @@ function TabIcon({
       style={[
         styles.chip,
         focused
-          ? {
-              backgroundColor: colors.card,
-              boxShadow: `0px 4px 10px ${scheme === 'dark' ? 'rgba(0,0,0,0.45)' : 'rgba(15,26,20,0.14)'}`,
-            }
+          ? // A tinted fill of the active color itself (not `colors.card`, which
+            // is the exact same color as the tab bar's own surface in both
+            // themes and made the "chip" invisible whenever the drop shadow
+            // rendering was weak/absent) — this always reads as a distinct
+            // pill regardless of light/dark mode, with no reliance on shadows.
+            { backgroundColor: colors.primary + '1F' }
           : null,
       ]}
     >

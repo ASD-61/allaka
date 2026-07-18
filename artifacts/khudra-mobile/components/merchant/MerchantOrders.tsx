@@ -2,12 +2,19 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, Linking } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
-import { useListStoreOrders, useListStoreDrivers, useAssignOrderDriver } from '@workspace/api-client-react';
+import {
+  useListStoreOrders,
+  useListStoreDrivers,
+  useAssignOrderDriver,
+  useUpdateOrderStatus,
+} from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { EmptyState } from '@/components/EmptyState';
 import { shortenUrl } from '@/lib/shortenUrl';
+
+const ORDER_STATUSES = ['قيد التحضير', 'في الطريق', 'تم التسليم'] as const;
 
 // Builds the wa.me click-to-chat text sent to a delivery driver: everything
 // they need to pick up and deliver the order (no extra WhatsApp API/business
@@ -44,6 +51,7 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
   const query = useListStoreOrders(storeId);
   const driversQuery = useListStoreDrivers(storeId);
   const assignDriver = useAssignOrderDriver();
+  const updateStatus = useUpdateOrderStatus();
   const activeDrivers = (driversQuery.data ?? []).filter((d) => d.status === 'مفعّل');
   const [pickerForOrder, setPickerForOrder] = useState<number | null>(null);
   const [sendingTo, setSendingTo] = useState<number | null>(null);
@@ -79,11 +87,11 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
   };
 
   const statusColor = (status: string) =>
-    status === 'تم التوصيل' || status === 'مكتمل'
+    status === 'تم التسليم'
       ? colors.primary
-      : status === 'ملغي' || status === 'مرفوض'
-        ? colors.destructive
-        : colors.accent;
+      : status === 'في الطريق'
+        ? colors.accent
+        : colors.mutedForeground;
 
   const deliveryLabel = (type: string) =>
     type === 'express' ? 'توصيل سريع' : 'توصيل عادي';
@@ -163,6 +171,36 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
               <Text style={[styles.totalLabel, { color: colors.mutedForeground }]}>الإجمالي</Text>
             </View>
 
+            <Text style={[styles.statusLabel, { color: colors.mutedForeground }]}>حالة الطلب</Text>
+            <View style={styles.statusActionsRow}>
+              {ORDER_STATUSES.map((status) => {
+                const isActive = item.status === status;
+                return (
+                  <Pressable
+                    key={status}
+                    disabled={updateStatus.isPending}
+                    onPress={() => updateStatus.mutate({ id: item.id, data: { status } })}
+                    style={[
+                      styles.statusActionBtn,
+                      {
+                        backgroundColor: isActive ? colors.primary : colors.muted,
+                        opacity: isActive ? 1 : 0.85,
+                      },
+                    ]}
+                  >
+                    <Text
+                      style={[
+                        styles.statusActionText,
+                        { color: isActive ? colors.primaryForeground : colors.mutedForeground },
+                      ]}
+                    >
+                      {status}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+
             <Pressable
               onPress={() => handleSendPress(item)}
               style={({ pressed }) => [
@@ -178,13 +216,24 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
               <View style={[styles.driverPicker, { borderColor: colors.border }]}>
                 {activeDrivers.map((d) => {
                   const busy = d.activeOrderId != null && d.activeOrderId !== item.id;
+                  // The driver's OWN daily toggle (set from their personal
+                  // portal link) takes priority over the busy/free computed
+                  // status — if THEY marked themselves unavailable, the
+                  // merchant shouldn't be able to send them a new order.
+                  const unavailable = d.available === false;
+                  const disabled = unavailable || busy;
                   const sending = sendingTo === d.id;
+                  const tagLabel = unavailable ? 'غير متاح اليوم' : busy ? 'مشغول' : 'متاح';
+                  const tagColor = unavailable || busy ? colors.destructive : colors.primary;
                   return (
                     <Pressable
                       key={d.id}
-                      disabled={sending}
+                      disabled={sending || disabled}
                       onPress={() => sendToDriver(item, d)}
-                      style={[styles.driverOption, { backgroundColor: colors.muted, opacity: sending ? 0.6 : 1 }]}
+                      style={[
+                        styles.driverOption,
+                        { backgroundColor: colors.muted, opacity: sending ? 0.6 : disabled ? 0.5 : 1 },
+                      ]}
                     >
                       <View style={{ flex: 1, alignItems: 'flex-end' }}>
                         <Text style={[styles.driverOptionText, { color: colors.foreground }]}>{d.name}</Text>
@@ -195,9 +244,7 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
                       {sending ? (
                         <ActivityIndicator size="small" color={colors.primary} />
                       ) : (
-                        <Text style={[styles.driverBusyTag, { color: busy ? colors.destructive : colors.primary }]}>
-                          {busy ? 'مشغول' : 'متاح'}
-                        </Text>
+                        <Text style={[styles.driverBusyTag, { color: tagColor }]}>{tagLabel}</Text>
                       )}
                     </Pressable>
                   );
@@ -285,6 +332,27 @@ const styles = StyleSheet.create({
   totalValue: {
     fontFamily: fonts.bold,
     fontSize: 16,
+  },
+  statusLabel: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+    textAlign: 'right',
+    marginTop: 6,
+  },
+  statusActionsRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  statusActionBtn: {
+    flex: 1,
+    height: 40,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  statusActionText: {
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
   },
   driverBtn: {
     flexDirection: 'row-reverse',

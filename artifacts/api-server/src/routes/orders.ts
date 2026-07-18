@@ -321,10 +321,13 @@ router.post(
   },
 );
 
-// PATCH /orders/:id — admin only, update status
+// PATCH /orders/:id — update an order's status. Admin can update any order;
+// a merchant can only update the status of orders placed at their OWN store
+// (قيد التحضير → في الطريق → تم التسليم), so they can actually track a
+// delivery through to completion instead of it being stuck at whatever the
+// admin last set (or its default).
 router.patch(
   "/orders/:id",
-  requireAdmin,
   async (req: Request, res: Response): Promise<void> => {
     const id = parseInt(String(req.params.id), 10);
     if (Number.isNaN(id)) {
@@ -338,16 +341,30 @@ router.patch(
       return;
     }
 
+    const [existing] = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, id));
+    if (!existing) {
+      res.status(404).json({ error: "الطلب غير موجود" });
+      return;
+    }
+
+    const admin = isAdminRequest(req);
+    if (!admin) {
+      const store = await resolveOrderStore(existing.storeId);
+      const phone = getCustomerPhone(req);
+      if (!store || !phone || store.ownerPhone !== phone) {
+        res.status(401).json({ error: "لا تملك صلاحية تعديل حالة هذا الطلب" });
+        return;
+      }
+    }
+
     const [order] = await db
       .update(ordersTable)
       .set({ status: parsed.data.status })
       .where(eq(ordersTable.id, id))
       .returning();
-
-    if (!order) {
-      res.status(404).json({ error: "الطلب غير موجود" });
-      return;
-    }
 
     res.json(order);
   },

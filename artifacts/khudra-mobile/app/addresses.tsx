@@ -10,7 +10,7 @@ import {
 } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
-import { getCurrentPositionSafe } from '@/lib/location';
+import { getCurrentPositionVerbose } from '@/lib/location';
 import {
   useListAddresses,
   useCreateAddress,
@@ -46,10 +46,20 @@ function AddressesContent() {
   const [pickerVisible, setPickerVisible] = useState(false);
 
   const handleUseLocation = async () => {
+    if (locating) return;
     setLocating(true);
     try {
-      const coords = await getCurrentPositionSafe();
-      if (coords) setCoords(coords);
+      const result = await getCurrentPositionVerbose();
+      if (result.ok) {
+        setCoords(result.coords);
+      } else if (result.reason === 'permission') {
+        Alert.alert('الإذن مرفوض', 'التطبيق يحتاج إذن الوصول للموقع — فعّله من إعدادات الهاتف');
+      } else if (result.reason === 'services') {
+        Alert.alert('خدمة الموقع مغلقة', 'فعّل خدمة الموقع (GPS) من إعدادات الهاتف ثم حاول مرة أخرى');
+      }
+      // On "unavailable" we still open the map picker below (below with the
+      // default center) so the customer can drop the pin manually instead of
+      // getting stuck with no way forward.
     } finally {
       setLocating(false);
       setPickerVisible(true);

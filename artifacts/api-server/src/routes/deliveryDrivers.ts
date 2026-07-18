@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
+import { randomUUID } from "crypto";
 import { eq, desc, inArray, ne, and } from "drizzle-orm";
 import { db, deliveryDriversTable, storesTable, ordersTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
@@ -112,6 +113,8 @@ router.post(
         phone: parsed.data.phone.trim(),
         vehicleType: parsed.data.vehicleType.trim(),
         status: ACTIVE,
+        available: true,
+        portalToken: randomUUID(),
       })
       .returning();
 
@@ -176,6 +179,66 @@ router.patch(
       .returning();
 
     res.json(driver);
+  },
+);
+
+// GET /driver-portal/:token — public (token-gated, no login): the driver's
+// own view of their status, used by their personal portal page to render the
+// current toggle state.
+router.get(
+  "/driver-portal/:token",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = String(req.params.token);
+    const [row] = await db
+      .select({ driver: deliveryDriversTable, storeName: storesTable.name })
+      .from(deliveryDriversTable)
+      .innerJoin(storesTable, eq(deliveryDriversTable.storeId, storesTable.id))
+      .where(eq(deliveryDriversTable.portalToken, token));
+    if (!row) {
+      res.status(404).json({ error: "الرابط غير صالح" });
+      return;
+    }
+    const [withBusy] = await withBusyStatus([row.driver]);
+    res.json({
+      name: row.driver.name,
+      vehicleType: row.driver.vehicleType,
+      storeName: row.storeName,
+      status: row.driver.status,
+      available: row.driver.available,
+      activeOrderId: withBusy.activeOrderId,
+    });
+  },
+);
+
+const AvailabilityBody = z.object({ available: z.boolean() });
+
+// PATCH /driver-portal/:token — public (token-gated, no login): the driver
+// flips their OWN "متاح اليوم" / "غير متاح اليوم" toggle. This is the whole
+// point of the portal — no merchant/admin action is needed for a driver to
+// take themselves off (or back onto) the roster for the day.
+router.patch(
+  "/driver-portal/:token",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = String(req.params.token);
+    const parsed = AvailabilityBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "بيانات غير صالحة" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.portalToken, token));
+    if (!existing) {
+      res.status(404).json({ error: "الرابط غير صالح" });
+      return;
+    }
+    const [driver] = await db
+      .update(deliveryDriversTable)
+      .set({ available: parsed.data.available })
+      .where(eq(deliveryDriversTable.portalToken, token))
+      .returning();
+    res.json({ available: driver.available });
   },
 );
 

@@ -91,7 +91,11 @@ export function DriversTab() {
                     {isActive ? 'مفعّل' : 'موقوف'}
                   </Text>
                 </View>
-                {item.activeOrderId != null ? (
+                {item.available === false ? (
+                  <View style={[styles.pill, { backgroundColor: colors.mutedForeground + '20' }]}>
+                    <Text style={[styles.pillText, { color: colors.mutedForeground }]}>غير متاح (بنفسه)</Text>
+                  </View>
+                ) : item.activeOrderId != null ? (
                   <View style={[styles.pill, { backgroundColor: colors.accent + '20' }]}>
                     <Text style={[styles.pillText, { color: colors.accent }]}>مشغول — طلب #{item.activeOrderId}</Text>
                   </View>

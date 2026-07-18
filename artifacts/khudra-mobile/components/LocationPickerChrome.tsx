@@ -5,7 +5,22 @@ import { Feather } from '@expo/vector-icons';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { DEFAULT_MAP_CENTER, type LatLng } from '@/lib/locationPickerHtml';
-import { getCurrentPositionSafe } from '@/lib/location';
+import { getCurrentPositionVerbose, type LocationFailureReason } from '@/lib/location';
+
+const LOCATION_ERROR_MESSAGES: Record<LocationFailureReason, [string, string]> = {
+  permission: [
+    'الإذن مرفوض',
+    'التطبيق يحتاج إذن الوصول للموقع — فعّله من إعدادات الهاتف > التطبيقات > عـلاّكـة > الأذونات',
+  ],
+  services: [
+    'خدمة الموقع مغلقة',
+    'فعّل خدمة الموقع (GPS) من إعدادات الهاتف ثم حاول مرة أخرى',
+  ],
+  unavailable: [
+    'تعذر تحديد موقعك',
+    'ما كدرنا نحصل على إشارة GPS — جرّب بمكان مكشوف (بعيد عن الأبنية) أو حرّك الخارطة يدوياً لموقعك',
+  ],
+};
 
 export interface LocationPickerProps {
   visible: boolean;
@@ -43,15 +58,22 @@ export function LocationPickerChrome({
   }, [visible]);
 
   const useMyLocation = async () => {
+    if (locating) return;
     setLocating(true);
     try {
-      const coords = await getCurrentPositionSafe();
-      if (!coords) {
-        Alert.alert('تعذر تحديد موقعك', 'تأكد من تفعيل خدمة الموقع (GPS) وإعطاء الإذن، ثم حاول مرة أخرى');
+      const result = await getCurrentPositionVerbose();
+      if (!result.ok) {
+        const [title, message] = LOCATION_ERROR_MESSAGES[result.reason];
+        Alert.alert(title, message);
         return;
       }
-      setCenter(coords);
-      setPicked(coords);
+      setCenter(result.coords);
+      setPicked(result.coords);
+    } catch {
+      // getCurrentPositionVerbose already guarantees it resolves within a
+      // bounded time and never throws, but this keeps the button from ever
+      // getting stuck even if something unexpected slips through.
+      Alert.alert('تعذر تحديد موقعك', 'حدث خطأ غير متوقع، حاول مرة أخرى');
     } finally {
       setLocating(false);
     }

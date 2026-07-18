@@ -3,6 +3,7 @@ import {
   serial,
   text,
   integer,
+  boolean,
   timestamp,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
@@ -27,6 +28,19 @@ export const deliveryDriversTable = pgTable("delivery_drivers", {
   // "مفعّل" (active) is the only status new drivers get today; "موقوف" is kept
   // for an admin to disable an abusive driver without deleting their record.
   status: text("status").notNull().default("مفعّل"),
+  // The driver's OWN day-to-day toggle ("متاح لاستلام طلب" / "غير متاح
+  // اليوم") — separate from `status`, which is the merchant/admin's
+  // suspend/reactivate control. Defaults to available so existing drivers
+  // aren't hidden until they actively opt out. Controlled by the driver
+  // themselves via their personal portal link (see `portalToken`) — no
+  // merchant/admin action needed for a driver to take themselves off/on the
+  // roster for the day.
+  available: boolean("available").notNull().default(true),
+  // Unguessable token that identifies this driver's personal, login-free
+  // portal link (sent to them once via WhatsApp when the merchant adds them).
+  // Lets the driver control their own `available` toggle without needing a
+  // full account/login system.
+  portalToken: text("portal_token").notNull().unique(),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

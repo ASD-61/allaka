@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator, Linking } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -10,6 +10,7 @@ import {
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
+import { schemeForDomain, resolveApiDomain } from '@/lib/api-scheme';
 
 const STATUS_LABEL: Record<string, string> = {
   'مفعّل': 'مفعّل',
@@ -17,6 +18,11 @@ const STATUS_LABEL: Record<string, string> = {
 };
 
 const VEHICLE_TYPES = ['دراجة نارية', 'سيارة', 'دراجة هوائية'];
+
+function driverPortalUrl(portalToken: string): string {
+  const domain = resolveApiDomain();
+  return `${schemeForDomain(domain)}://${domain}/driver/${portalToken}`;
+}
 
 // Lets a merchant add their own delivery reps ("مندوبين") for this store —
 // the merchant themselves is the approver, so a driver is usable immediately
@@ -50,6 +56,17 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
 
   const statusColor = (status: string) => (status === 'مفعّل' ? colors.primary : colors.destructive);
 
+  const sendPortalLink = (driver: { phone: string; name: string; portalToken: string }) => {
+    const url = driverPortalUrl(driver.portalToken);
+    const text = encodeURIComponent(
+      `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت:\n${url}`,
+    );
+    const digits = driver.phone.replace(/\D/g, '');
+    Linking.openURL(`https://wa.me/${digits}?text=${text}`).catch(() =>
+      Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك'),
+    );
+  };
+
   const drivers = driversQuery.data ?? [];
 
   return (
@@ -62,7 +79,7 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
         <View style={{ marginBottom: 16 }}>
           <Text style={[styles.title, { color: colors.foreground }]}>مندوبو التوصيل</Text>
           <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-            أضف مندوبين للتوصيل حتى تقدر ترسل لهم تفاصيل أي طلب على الواتساب مباشرة. المندوب يصير جاهز للاستخدام فوراً بمجرد إضافته.
+            أضف مندوبين للتوصيل حتى تقدر ترسل لهم تفاصيل أي طلب على الواتساب مباشرة. المندوب يصير جاهز للاستخدام فوراً بمجرد إضافته، ويقدر هو نفسه يفعّل أو يوقف استلام الطلبات من رابطه الخاص (اضغط "إرسال رابط التحكم" تحت اسمه لإرساله له).
           </Text>
           <View style={[styles.addCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <TextInput
@@ -176,13 +193,17 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
               {item.vehicleType ? (
                 <Text style={[styles.phone, { color: colors.mutedForeground }]}>{item.vehicleType}</Text>
               ) : null}
-              <View style={{ flexDirection: 'row-reverse', gap: 6 }}>
+              <View style={{ flexDirection: 'row-reverse', gap: 6, flexWrap: 'wrap' }}>
                 <View style={[styles.statusPill, { backgroundColor: sc + '20' }]}>
                   <Text style={[styles.statusText, { color: sc }]}>
                     {STATUS_LABEL[item.status] ?? item.status}
                   </Text>
                 </View>
-                {item.activeOrderId != null ? (
+                {item.available === false ? (
+                  <View style={[styles.statusPill, { backgroundColor: colors.mutedForeground + '20' }]}>
+                    <Text style={[styles.statusText, { color: colors.mutedForeground }]}>غير متاح اليوم (بنفسه)</Text>
+                  </View>
+                ) : item.activeOrderId != null ? (
                   <View style={[styles.statusPill, { backgroundColor: colors.accent + '20' }]}>
                     <Text style={[styles.statusText, { color: colors.accent }]}>مشغول — طلب #{item.activeOrderId}</Text>
                   </View>
@@ -192,6 +213,18 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
                   </View>
                 )}
               </View>
+              {item.portalToken ? (
+                <Pressable
+                  hitSlop={6}
+                  onPress={() => sendPortalLink(item)}
+                  style={({ pressed }) => [styles.portalLinkBtn, { opacity: pressed ? 0.7 : 1 }]}
+                >
+                  <Feather name="link" size={12} color={colors.accent} />
+                  <Text style={[styles.portalLinkText, { color: colors.accent }]}>
+                    إرسال رابط التحكم بالحالة للمندوب
+                  </Text>
+                </Pressable>
+              ) : null}
             </View>
             <View style={[styles.iconWrap, { backgroundColor: colors.muted }]}>
               <Feather name="truck" size={18} color={colors.mutedForeground} />
@@ -298,5 +331,15 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: fonts.bold,
     fontSize: 10.5,
+  },
+  portalLinkBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  portalLinkText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11,
   },
 });
