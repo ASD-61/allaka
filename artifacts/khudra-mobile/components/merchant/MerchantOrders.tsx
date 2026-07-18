@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, ActivityIndicator, Pressable, Linking } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
-import { useListStoreOrders, useListStoreDrivers } from '@workspace/api-client-react';
+import { useListStoreOrders, useListStoreDrivers, useAssignOrderDriver } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { EmptyState } from '@/components/EmptyState';
+import { shortenUrl } from '@/lib/shortenUrl';
 
 // Builds the wa.me click-to-chat text sent to a delivery driver: everything
 // they need to pick up and deliver the order (no extra WhatsApp API/business
 // account required for this — the merchant taps and sends it themselves).
-function buildDriverMessage(item: {
+async function buildDriverMessage(item: {
   id: number;
   storeOrderNumber?: number | null;
   customerPhone: string;
@@ -20,13 +21,14 @@ function buildDriverMessage(item: {
   latitude?: number | null;
   longitude?: number | null;
   note?: string | null;
-}): string {
+}): Promise<string> {
   const displayNumber = item.storeOrderNumber ?? item.id;
   const lines = (item.items ?? []).map((i) => `• ${i.name} × ${i.qty}`).join('\n');
-  const mapsLink =
-    item.latitude != null && item.longitude != null
-      ? `\n📍 موقع الزبون: https://maps.google.com/?q=${item.latitude},${item.longitude}`
-      : '';
+  let mapsLink = '';
+  if (item.latitude != null && item.longitude != null) {
+    const shortUrl = await shortenUrl(`https://maps.google.com/?q=${item.latitude},${item.longitude}`);
+    mapsLink = `\n📍 فتح موقع الزبون:\n${shortUrl}`;
+  }
   return (
     `🚚 *طلب توصيل #${displayNumber}*\n` +
     `📞 الزبون: ${item.customerPhone}\n\n` +
@@ -41,24 +43,36 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
   const colors = useColors();
   const query = useListStoreOrders(storeId);
   const driversQuery = useListStoreDrivers(storeId);
-  const approvedDrivers = (driversQuery.data ?? []).filter((d) => d.status === 'مفعّل');
+  const assignDriver = useAssignOrderDriver();
+  const activeDrivers = (driversQuery.data ?? []).filter((d) => d.status === 'مفعّل');
   const [pickerForOrder, setPickerForOrder] = useState<number | null>(null);
+  const [sendingTo, setSendingTo] = useState<number | null>(null);
 
-  const sendToDriver = (order: Parameters<typeof buildDriverMessage>[0], driverPhone: string) => {
-    const text = encodeURIComponent(buildDriverMessage(order));
-    const digits = driverPhone.replace(/\D/g, '');
-    Linking.openURL(`https://wa.me/${digits}?text=${text}`).catch(() => {
-      Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك');
-    });
+  const sendToDriver = async (
+    order: Parameters<typeof buildDriverMessage>[0],
+    driver: { id: number; phone: string },
+  ) => {
+    setSendingTo(driver.id);
+    try {
+      // Persist the assignment first so the driver's busy/free status is
+      // accurate right away, then open the chat with the order's details.
+      await assignDriver.mutateAsync({ id: order.id, data: { driverId: driver.id } });
+      const text = encodeURIComponent(await buildDriverMessage(order));
+      const digits = driver.phone.replace(/\D/g, '');
+      await Linking.openURL(`https://wa.me/${digits}?text=${text}`);
+      setPickerForOrder(null);
+      query.refetch();
+      driversQuery.refetch();
+    } catch (err: any) {
+      Alert.alert('تعذر الإرسال', err?.data?.error ?? 'تأكد من تثبيت واتساب على جهازك');
+    } finally {
+      setSendingTo(null);
+    }
   };
 
   const handleSendPress = (order: Parameters<typeof buildDriverMessage>[0]) => {
-    if (approvedDrivers.length === 0) {
-      Alert.alert('لا يوجد مندوبين', 'أضف مندوب توصيل من تبويب "المندوبين" وانتظر موافقة الإدارة');
-      return;
-    }
-    if (approvedDrivers.length === 1) {
-      sendToDriver(order, approvedDrivers[0].phone);
+    if (activeDrivers.length === 0) {
+      Alert.alert('لا يوجد مندوبين', 'أضف مندوب توصيل من تبويب "المندوبين" أولاً');
       return;
     }
     setPickerForOrder(order.id);
@@ -162,19 +176,32 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
 
             {pickerForOrder === item.id ? (
               <View style={[styles.driverPicker, { borderColor: colors.border }]}>
-                {approvedDrivers.map((d) => (
-                  <Pressable
-                    key={d.id}
-                    onPress={() => {
-                      sendToDriver(item, d.phone);
-                      setPickerForOrder(null);
-                    }}
-                    style={[styles.driverOption, { backgroundColor: colors.muted }]}
-                  >
-                    <Text style={[styles.driverOptionText, { color: colors.foreground }]}>{d.name}</Text>
-                    <Text style={[styles.driverOptionPhone, { color: colors.mutedForeground }]}>{d.phone}</Text>
-                  </Pressable>
-                ))}
+                {activeDrivers.map((d) => {
+                  const busy = d.activeOrderId != null && d.activeOrderId !== item.id;
+                  const sending = sendingTo === d.id;
+                  return (
+                    <Pressable
+                      key={d.id}
+                      disabled={sending}
+                      onPress={() => sendToDriver(item, d)}
+                      style={[styles.driverOption, { backgroundColor: colors.muted, opacity: sending ? 0.6 : 1 }]}
+                    >
+                      <View style={{ flex: 1, alignItems: 'flex-end' }}>
+                        <Text style={[styles.driverOptionText, { color: colors.foreground }]}>{d.name}</Text>
+                        <Text style={[styles.driverOptionPhone, { color: colors.mutedForeground }]}>
+                          {d.phone}{d.vehicleType ? ` · ${d.vehicleType}` : ''}
+                        </Text>
+                      </View>
+                      {sending ? (
+                        <ActivityIndicator size="small" color={colors.primary} />
+                      ) : (
+                        <Text style={[styles.driverBusyTag, { color: busy ? colors.destructive : colors.primary }]}>
+                          {busy ? 'مشغول' : 'متاح'}
+                        </Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
               </View>
             ) : null}
           </View>
@@ -293,5 +320,9 @@ const styles = StyleSheet.create({
   driverOptionPhone: {
     fontFamily: fonts.regular,
     fontSize: 12,
+  },
+  driverBusyTag: {
+    fontFamily: fonts.bold,
+    fontSize: 11,
   },
 });
