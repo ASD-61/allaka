@@ -329,6 +329,10 @@ async function loadOwnedStore(
 }
 
 // GET /stores/:id/orders — the owner (or admin) sees this store's orders.
+// Each row also carries `storeOrderNumber`: the order's 1-based position
+// among this store's own orders (by creation order), so a merchant sees
+// "طلب #1، #2، #3..." starting from their own first order instead of a
+// confusing global (cross-store) database id.
 router.get(
   "/stores/:id/orders",
   async (req: Request, res: Response): Promise<void> => {
@@ -336,11 +340,14 @@ router.get(
     const store = await loadOwnedStore(req, res, id);
     if (!store) return;
     const rows = await db
-      .select()
+      .select({
+        order: ordersTable,
+        storeOrderNumber: sql<number>`row_number() over (order by ${ordersTable.id})`,
+      })
       .from(ordersTable)
       .where(eq(ordersTable.storeId, id))
       .orderBy(desc(ordersTable.createdAt));
-    res.json(rows);
+    res.json(rows.map((r) => ({ ...r.order, storeOrderNumber: Number(r.storeOrderNumber) })));
   },
 );
 

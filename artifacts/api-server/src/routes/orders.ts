@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq, desc, inArray } from "drizzle-orm";
+import { eq, desc, inArray, and, lte, sql } from "drizzle-orm";
 import {
   db,
   ordersTable,
@@ -70,6 +70,23 @@ async function resolveOrderStore(
   return store ?? null;
 }
 
+// Each merchant sees their own orders numbered 1, 2, 3... starting from
+// their first order, instead of the global (cross-store) order id — so a
+// brand-new store doesn't show a confusing "order #503". Computed on the fly
+// from creation order (ids are sequential) rather than stored, so it needs no
+// migration and is always consistent.
+async function resolveStoreOrderNumber(
+  storeId: number | null | undefined,
+  orderId: number,
+): Promise<number | null> {
+  if (storeId == null) return null;
+  const [row] = await db
+    .select({ count: sql<number>`count(*)::int` })
+    .from(ordersTable)
+    .where(and(eq(ordersTable.storeId, storeId), lte(ordersTable.id, orderId)));
+  return row?.count ?? null;
+}
+
 const POINTS_THRESHOLD = 100;
 // Redeeming 100 points gives a flat 2,000 IQD discount OR free express delivery
 // (express normally costs 3,000 IQD).
@@ -96,15 +113,28 @@ router.get("/orders", async (req: Request, res: Response): Promise<void> => {
     phoneFilter = ownPhone;
   }
 
+  // storeOrderNumber: each order's 1-based position among its own store's
+  // orders, so every merchant's admin/order views show "طلب #1، #2..."
+  // starting from their own first order rather than the global database id.
+  const storeOrderNumberCol = sql<number | null>`case when ${ordersTable.storeId} is null then null else row_number() over (partition by ${ordersTable.storeId} order by ${ordersTable.id}) end`;
+
   const rows = phoneFilter
     ? await db
-        .select()
+        .select({ order: ordersTable, storeOrderNumber: storeOrderNumberCol })
         .from(ordersTable)
         .where(eq(ordersTable.customerPhone, phoneFilter))
         .orderBy(desc(ordersTable.createdAt))
-    : await db.select().from(ordersTable).orderBy(desc(ordersTable.createdAt));
+    : await db
+        .select({ order: ordersTable, storeOrderNumber: storeOrderNumberCol })
+        .from(ordersTable)
+        .orderBy(desc(ordersTable.createdAt));
 
-  res.json(rows);
+  res.json(
+    rows.map((r) => ({
+      ...r.order,
+      storeOrderNumber: r.storeOrderNumber != null ? Number(r.storeOrderNumber) : null,
+    })),
+  );
 });
 
 // POST /orders — requires a logged-in customer; the order is always placed
@@ -246,8 +276,12 @@ router.post(
     // Notify both sides on WhatsApp (non-blocking): the store owner gets the
     // new-order alert, and the customer gets their own receipt with the store's
     // details + purchased items.
-    resolveOrderStore(order.storeId)
-      .then((store) => {
+    Promise.all([
+      resolveOrderStore(order.storeId),
+      resolveStoreOrderNumber(order.storeId, order.id),
+    ])
+      .then(([store, storeOrderNumber]) => {
+        const displayNumber = storeOrderNumber ?? order.id;
         void sendWhatsAppOrderNotification({
           orderId: order.id,
           customerPhone,
@@ -258,6 +292,7 @@ router.post(
           longitude: longitude ?? null,
           note: parsed.data.note?.trim() || null,
           pickupTime,
+          headline: `طلب جديد #${displayNumber}`,
           toPhone: store?.ownerPhone ?? null,
         });
         void sendWhatsAppOrderConfirmationToCustomer({
@@ -272,6 +307,7 @@ router.post(
           total,
           deliveryType,
           pickupTime,
+          headline: `تم استلام طلبك #${displayNumber}`,
         });
       })
       .catch((err) => console.warn("WhatsApp notification error:", err));
@@ -409,8 +445,12 @@ router.post(
 
     // Notify both sides that the order changed (merchant prepares the new
     // items; customer gets an updated receipt with the store letterhead).
-    resolveOrderStore(updated.storeId)
-      .then((store) => {
+    Promise.all([
+      resolveOrderStore(updated.storeId),
+      resolveStoreOrderNumber(updated.storeId, updated.id),
+    ])
+      .then(([store, storeOrderNumber]) => {
+        const displayNumber = storeOrderNumber ?? updated.id;
         void sendWhatsAppOrderNotification({
           orderId: updated.id,
           customerPhone,
@@ -421,7 +461,7 @@ router.post(
           longitude: updated.longitude,
           note: updated.note,
           pickupTime: updated.pickupTime,
-          headline: `تعديل الطلب #${updated.id} — إضافة أغراض`,
+          headline: `تعديل الطلب #${displayNumber} — إضافة أغراض`,
           toPhone: store?.ownerPhone ?? null,
         });
         void sendWhatsAppOrderConfirmationToCustomer({
@@ -436,7 +476,7 @@ router.post(
           total,
           deliveryType: updated.deliveryType,
           pickupTime: updated.pickupTime,
-          headline: `تم تحديث طلبك #${updated.id} — إضافة أغراض`,
+          headline: `تم تحديث طلبك #${displayNumber} — إضافة أغراض`,
         });
       })
       .catch((err) => console.warn("WhatsApp notification error:", err));

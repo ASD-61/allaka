@@ -1,6 +1,23 @@
 // Meta WhatsApp Cloud API (Graph API) version used for the messages endpoint.
 const GRAPH_VERSION = "v21.0";
 
+// Meta requires the full international number (country code + subscriber
+// number, digits only, no leading 0). Customers/merchants often register
+// with a local Iraqi number like "07811772240" (11 digits, leading 0, no
+// country code) — sent as-is to Meta this used to fail with a silent
+// "(#100) Invalid parameter" error, which is why merchant order alerts
+// (including the note) sometimes never arrived. Normalize to +964XXXXXXXXXX
+// before every send.
+function normalizeIraqiPhone(raw: string): string {
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("964")) return digits;
+  if (digits.startsWith("0")) return `964${digits.slice(1)}`;
+  // Bare local number without the leading 0 (e.g. "7811772240").
+  if (digits.length === 10 && digits.startsWith("7")) return `964${digits}`;
+  return digits;
+}
+
 // Sends a plain-text WhatsApp message via Meta's WhatsApp Cloud API.
 // Credentials come from the server environment (never the client bundle):
 //   WHATSAPP_PHONE_ID — the WhatsApp Business phone number ID
@@ -17,8 +34,7 @@ async function sendWhatsAppMessage(to: string, body: string): Promise<void> {
     throw new Error("WHATSAPP_UNAVAILABLE");
   }
 
-  // Meta expects the recipient as country code + number, digits only.
-  const toDigits = to.replace(/\D/g, "");
+  const toDigits = normalizeIraqiPhone(to);
 
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_VERSION}/${phoneId}/messages`,
@@ -65,7 +81,7 @@ async function sendWhatsAppAuthTemplate(
     throw new Error("WHATSAPP_TEMPLATE_UNAVAILABLE");
   }
 
-  const toDigits = to.replace(/\D/g, "");
+  const toDigits = normalizeIraqiPhone(to);
 
   const response = await fetch(
     `https://graph.facebook.com/${GRAPH_VERSION}/${phoneId}/messages`,
@@ -162,7 +178,7 @@ export async function sendWhatsAppOrderNotification(opts: {
 
   const mapsLink =
     latitude != null && longitude != null
-      ? `\n📍 الموقع: https://maps.google.com/?q=${latitude},${longitude}`
+      ? `\n📍 موقع الزبون: https://maps.google.com/?q=${latitude},${longitude}`
       : "";
 
   const deliveryLabel =
@@ -236,7 +252,7 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
 
   const storeMapsLink =
     storeLatitude != null && storeLongitude != null
-      ? `\n🗺️ الموقع على الخارطة: https://maps.google.com/?q=${storeLatitude},${storeLongitude}`
+      ? `\n📍 موقع المتجر: https://maps.google.com/?q=${storeLatitude},${storeLongitude}`
       : "";
 
   const storeBlock =

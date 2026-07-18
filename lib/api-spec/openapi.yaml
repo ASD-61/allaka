@@ -615,6 +615,159 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/drivers:
+    get:
+      operationId: listStoreDrivers
+      tags: [DeliveryDrivers]
+      summary: List a store's delivery drivers, any status (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: The store's delivery drivers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/DeliveryDriver"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    post:
+      operationId: createStoreDriver
+      tags: [DeliveryDrivers]
+      summary: Add a new delivery driver for a store, starts pending (owner or admin)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryDriverInput"
+      responses:
+        "201":
+          description: Created driver
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryDriver"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /drivers/pending:
+    get:
+      operationId: listPendingDrivers
+      tags: [DeliveryDrivers]
+      summary: List every store's pending delivery drivers (admin only)
+      responses:
+        "200":
+          description: Pending delivery drivers with their store name
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  allOf:
+                    - $ref: "#/components/schemas/DeliveryDriver"
+                    - type: object
+                      properties:
+                        storeName:
+                          type: string
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /drivers/{driverId}:
+    patch:
+      operationId: reviewDriver
+      tags: [DeliveryDrivers]
+      summary: Approve or reject a delivery driver (admin only)
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryDriverReviewInput"
+      responses:
+        "200":
+          description: Updated driver
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryDriver"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteDriver
+      tags: [DeliveryDrivers]
+      summary: Remove a delivery driver (owner or admin)
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /store-types:
     get:
       operationId: listStoreTypes
@@ -2047,6 +2200,9 @@ components:
           type: integer
         storeId:
           type: ["integer", "null"]
+        storeOrderNumber:
+          type: ["integer", "null"]
+          description: This order's 1-based position among its store's own orders (only present on store-scoped order lists, e.g. GET /stores/{id}/orders).
         createdAt:
           type: string
           format: date-time
@@ -2106,3 +2262,38 @@ components:
           minItems: 1
           items:
             $ref: "#/components/schemas/OrderItemInput"
+    DeliveryDriver:
+      type: object
+      required: [id, storeId, name, phone, status, createdAt]
+      properties:
+        id:
+          type: integer
+        storeId:
+          type: integer
+        name:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+          description: "قيد المراجعة | مفعّل | مرفوض"
+        createdAt:
+          type: string
+          format: date-time
+    DeliveryDriverInput:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 8
+    DeliveryDriverReviewInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approve, reject]

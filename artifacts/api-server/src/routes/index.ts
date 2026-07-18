@@ -13,6 +13,7 @@ import addressesRouter from "./addresses";
 import notificationsRouter from "./notifications";
 import broadcastsRouter from "./broadcasts";
 import refundsRouter from "./refunds";
+import deliveryDriversRouter from "./deliveryDrivers";
 
 const router: IRouter = Router();
 
@@ -30,5 +31,6 @@ router.use(addressesRouter);
 router.use(notificationsRouter);
 router.use(broadcastsRouter);
 router.use(refundsRouter);
+router.use(deliveryDriversRouter);
 
 export default router;

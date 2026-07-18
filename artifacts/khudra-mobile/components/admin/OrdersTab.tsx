@@ -55,7 +55,9 @@ export function OrdersTab() {
                 <View style={[styles.iconWrapper, { backgroundColor: colors.muted }]}>
                   <Feather name="shopping-bag" size={16} color={colors.foreground} />
                 </View>
-                <Text style={[styles.orderId, { color: colors.foreground }]}>طلب #{item.id}</Text>
+                <Text style={[styles.orderId, { color: colors.foreground }]}>
+                  طلب #{item.storeOrderNumber ?? item.id}
+                </Text>
               </View>
               <View style={[styles.statusBadge, { backgroundColor: cColor + '15' }]}>
                 <View style={[styles.statusDot, { backgroundColor: cColor }]} />
