@@ -32,9 +32,19 @@ export function NotificationWatcher() {
   // null = first load not processed yet (don't notify for historical items).
   const seenIds = useRef<Set<string> | null>(null);
 
-  // Ask for permission once the customer is logged in.
+  // Ask for permission once the customer is logged in. On Android, a
+  // notification channel MUST exist before any notification (local or push)
+  // can display — without one, scheduleNotificationAsync silently no-ops.
+  // The permission prompt itself also only appears once a channel exists.
   useEffect(() => {
     if (!customer || Platform.OS === 'web') return;
+    if (Platform.OS === 'android') {
+      Notifications.setNotificationChannelAsync('default', {
+        name: 'إشعارات عـلاّكـة',
+        importance: Notifications.AndroidImportance.HIGH,
+        sound: 'default',
+      }).catch(() => {});
+    }
     Notifications.requestPermissionsAsync().catch(() => {});
   }, [customer]);
 

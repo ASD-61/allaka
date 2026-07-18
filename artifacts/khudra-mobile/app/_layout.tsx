@@ -22,11 +22,11 @@ import { AdminProvider } from '@/context/admin-context';
 import { CartProvider } from '@/context/cart-context';
 import { ThemeProvider } from '@/context/theme-context';
 import { queryClient } from '@/lib/query-client';
-import { schemeForDomain } from '@/lib/api-scheme';
+import { schemeForDomain, resolveApiDomain } from '@/lib/api-scheme';
 
 // Expo bundles run outside the shared web proxy — set an absolute base URL
 // so requests reach the shared api-server.
-const apiDomain = process.env.EXPO_PUBLIC_DOMAIN ?? '';
+const apiDomain = resolveApiDomain();
 setBaseUrl(`${schemeForDomain(apiDomain)}://${apiDomain}`);
 
 SplashScreen.preventAutoHideAsync();

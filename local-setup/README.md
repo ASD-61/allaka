@@ -54,9 +54,34 @@ psql "$DATABASE_URL" -f local-setup/seed.sql
 # خادم الـ API
 pnpm --filter @workspace/api-server run dev
 
-# تطبيق الموبايل (بنافذة طرفية ثانية)
+# تطبيق الموبايل على المتصفح (بنافذة طرفية ثانية)
 pnpm --filter @workspace/khudra-mobile run dev
+
+# أو لتجربته على موبايل حقيقي عبر تطبيق Expo Go (اقرأ القسم أدناه)
+pnpm --filter @workspace/khudra-mobile run dev:lan
 ```
+
+### تشغيل التطبيق على موبايل حقيقي (Expo Go)
+
+سكربت `dev` الأساسي مبني لبيئة Replit (`--localhost` + متغيرات Replit)، وما
+يشتغل مع Expo Go على موبايل حقيقي لأنه يعلن عن عنوان "localhost" ما يكدر
+الموبايل يوصله. استخدم بدلاً عنه:
+
+```bash
+pnpm --filter @workspace/khudra-mobile run dev:lan
+```
+
+هذا يشغّل Metro مع `--lan` بحيث يعلن عن عنوان جهازك على الشبكة المحلية
+(مثل `192.168.1.5`) بدل "localhost". التطبيق نفسه يكتشف تلقائياً عنوان خادم
+الـ API المناسب من نفس عنوان Metro (بدون أي إعداد يدوي) — فقط تأكد:
+
+1. الموبايل والّلابتوب على نفس شبكة الواي-فاي.
+2. جدار حماية ويندوز (Windows Firewall) ما يحجب المنفذين `8081` (Expo) و
+   `3001` (API) — إذا ظهرت نافذة "Windows Defender Firewall" اسمح بالوصول
+   عند أول تشغيل.
+3. إذا استمرت المشكلة (شبكات بعض أجهزة التوجيه تمنع الأجهزة من التواصل مع
+   بعضها)، جرّب `pnpm --filter @workspace/khudra-mobile run dev:tunnel` بدلاً
+   من `dev:lan` (أبطأ لكنه يشتغل عبر أي شبكة).
 
 ---
 

@@ -13,6 +13,7 @@ import { MerchantOrders } from '@/components/merchant/MerchantOrders';
 import { MerchantCustomers } from '@/components/merchant/MerchantCustomers';
 import { MerchantRefunds } from '@/components/merchant/MerchantRefunds';
 import { MerchantSettings } from '@/components/merchant/MerchantSettings';
+import { MerchantDrivers } from '@/components/merchant/MerchantDrivers';
 
 type Tab =
   | 'overview'
@@ -21,6 +22,7 @@ type Tab =
   | 'categories'
   | 'customers'
   | 'refunds'
+  | 'drivers'
   | 'settings';
 
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>['name'] }[] = [
@@ -30,6 +32,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: 'categories', label: 'الفئات', icon: 'grid' },
   { key: 'customers', label: 'العملاء', icon: 'users' },
   { key: 'refunds', label: 'التعويضات', icon: 'rotate-ccw' },
+  { key: 'drivers', label: 'المندوبين', icon: 'truck' },
   { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
 
@@ -143,6 +146,7 @@ function DashboardContent() {
         {tab === 'categories' ? <MerchantCategories storeId={storeId} /> : null}
         {tab === 'customers' ? <MerchantCustomers storeId={storeId} /> : null}
         {tab === 'refunds' ? <MerchantRefunds storeId={storeId} /> : null}
+        {tab === 'drivers' ? <MerchantDrivers storeId={storeId} /> : null}
         {tab === 'settings' ? (
           <MerchantSettings store={store} onSaved={() => storeQuery.refetch()} />
         ) : null}

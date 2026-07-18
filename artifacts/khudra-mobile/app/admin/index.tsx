@@ -14,8 +14,18 @@ import { CustomersTab } from '@/components/admin/CustomersTab';
 import { RefundsTab } from '@/components/admin/RefundsTab';
 import { StoresTab } from '@/components/admin/StoresTab';
 import { StoreTypesTab } from '@/components/admin/StoreTypesTab';
+import { DriversTab } from '@/components/admin/DriversTab';
 
-type Tab = 'overview' | 'orders' | 'products' | 'categories' | 'customers' | 'refunds' | 'stores' | 'storeTypes';
+type Tab =
+  | 'overview'
+  | 'orders'
+  | 'products'
+  | 'categories'
+  | 'customers'
+  | 'refunds'
+  | 'stores'
+  | 'storeTypes'
+  | 'drivers';
 
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>['name'] }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'activity' },
@@ -26,6 +36,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: 'refunds', label: 'التعويضات', icon: 'rotate-ccw' },
   { key: 'stores', label: 'المتاجر', icon: 'shopping-bag' },
   { key: 'storeTypes', label: 'الأنواع', icon: 'grid' },
+  { key: 'drivers', label: 'المندوبين', icon: 'truck' },
 ];
 
 export default function AdminDashboardScreen() {
@@ -119,6 +130,7 @@ export default function AdminDashboardScreen() {
         {tab === 'refunds' ? <RefundsTab /> : null}
         {tab === 'stores' ? <StoresTab /> : null}
         {tab === 'storeTypes' ? <StoreTypesTab /> : null}
+        {tab === 'drivers' ? <DriversTab /> : null}
       </View>
     </View>
   );
