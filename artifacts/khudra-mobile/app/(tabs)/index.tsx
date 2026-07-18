@@ -117,16 +117,25 @@ export default function HomeScreen() {
           </View>
         </View>
 
-        <View style={[styles.searchBox, { backgroundColor: colors.muted }]}>
-          <Feather name="search" size={16} color={colors.mutedForeground} />
-          <TextInput
-            value={search}
-            onChangeText={setSearch}
-            placeholder="دوّر على نوع متجر..."
-            placeholderTextColor={colors.mutedForeground}
-            style={[styles.searchInput, { color: colors.foreground }]}
-            textAlign="right"
-          />
+        <View style={styles.searchRow}>
+          <View style={[styles.searchBox, { backgroundColor: colors.muted }]}>
+            <Feather name="search" size={16} color={colors.mutedForeground} />
+            <TextInput
+              value={search}
+              onChangeText={setSearch}
+              placeholder="دوّر على نوع متجر..."
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.searchInput, { color: colors.foreground }]}
+              textAlign="right"
+            />
+          </View>
+          <Pressable
+            onPress={() => router.push('/product-search')}
+            style={[styles.productSearchBtn, { backgroundColor: colors.primary }]}
+          >
+            <Feather name="shopping-bag" size={16} color="#fff" />
+            <Text style={styles.productSearchBtnText}>بحث عن سلعة</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -243,7 +252,13 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 11,
   },
+  searchRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
   searchBox: {
+    flex: 1,
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 8,
@@ -255,6 +270,19 @@ const styles = StyleSheet.create({
     flex: 1,
     fontFamily: fonts.regular,
     fontSize: 14,
+  },
+  productSearchBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    height: 44,
+    paddingHorizontal: 12,
+    borderRadius: 14,
+  },
+  productSearchBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    color: '#fff',
   },
   sectionTitle: {
     fontFamily: fonts.bold,

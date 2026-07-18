@@ -34,6 +34,8 @@ const VerifyOtpBody = z.object({
 const UpdateMeBody = z.object({
   name: z.string().min(1).nullable().optional(),
   avatarUrl: z.string().max(500).nullable().optional(),
+  latitude: z.number().nullable().optional(),
+  longitude: z.number().nullable().optional(),
 });
 
 function generateCode(): string {
@@ -145,6 +147,8 @@ router.post("/auth/otp/verify", async (req: Request, res: Response): Promise<voi
       points: customer.points,
       walletBalance: customer.walletBalance,
       hasProfile: !!customer.name,
+      latitude: customer.latitude,
+      longitude: customer.longitude,
     },
   });
 });
@@ -172,11 +176,14 @@ router.get(
       points: customer.points,
       walletBalance: customer.walletBalance,
       hasProfile: !!customer.name,
+      latitude: customer.latitude,
+      longitude: customer.longitude,
     });
   },
 );
 
-// PATCH /auth/me — update the current customer's profile (name, avatar)
+// PATCH /auth/me — update the current customer's profile (name, avatar,
+// last-known location)
 router.patch(
   "/auth/me",
   requireCustomer,
@@ -206,6 +213,8 @@ router.patch(
       points: customer.points,
       walletBalance: customer.walletBalance,
       hasProfile: !!customer.name,
+      latitude: customer.latitude,
+      longitude: customer.longitude,
     });
   },
 );

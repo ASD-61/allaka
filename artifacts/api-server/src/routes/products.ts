@@ -1,11 +1,12 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, desc, eq, isNotNull, lt, sql } from "drizzle-orm";
+import { and, desc, eq, ilike, isNotNull, lt, sql } from "drizzle-orm";
 import { db, productsTable, storesTable } from "@workspace/db";
 import {
   CreateProductBody,
   UpdateProductBody,
 } from "@workspace/api-zod";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
+import { haversineKm, parseLatLng } from "../lib/distance";
 
 const router: IRouter = Router();
 
@@ -158,6 +159,55 @@ router.post("/products", async (req, res): Promise<void> => {
     .returning();
 
   res.status(201).json(product);
+});
+
+// GET /products/search?q=&lat=&lng= — find in-stock products by name across
+// every active store's catalog (e.g. "رمان"), nearest store first when a
+// location is given. Placed before /products/:id so "search" is never parsed
+// as a numeric product id.
+router.get("/products/search", async (req: Request, res: Response): Promise<void> => {
+  await expireEndedOffers();
+
+  const q = typeof req.query.q === "string" ? req.query.q.trim() : "";
+  if (!q) {
+    res.status(400).json({ error: "أدخل اسم السلعة للبحث عنها" });
+    return;
+  }
+
+  const rows = await db
+    .select({ product: productsTable, store: storesTable })
+    .from(productsTable)
+    .innerJoin(storesTable, eq(productsTable.storeId, storesTable.id))
+    .where(
+      and(
+        ilike(productsTable.name, `%${q}%`),
+        eq(productsTable.inStock, true),
+        eq(storesTable.status, ACTIVE),
+      ),
+    )
+    .orderBy(desc(productsTable.createdAt));
+
+  const origin = parseLatLng(req.query.lat, req.query.lng);
+  const results = rows.map((r) => {
+    const distanceKm =
+      origin && r.store.latitude != null && r.store.longitude != null
+        ? haversineKm(origin.latitude, origin.longitude, r.store.latitude, r.store.longitude)
+        : null;
+    return { product: r.product, store: { ...r.store, distanceKm } };
+  });
+
+  if (origin) {
+    results.sort((a, b) => {
+      const da = a.store.distanceKm;
+      const db_ = b.store.distanceKm;
+      if (da == null && db_ == null) return 0;
+      if (da == null) return 1;
+      if (db_ == null) return -1;
+      return da - db_;
+    });
+  }
+
+  res.json(results);
 });
 
 router.get("/products/:id", async (req, res): Promise<void> => {

@@ -11,6 +11,7 @@ import {
 import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
+import { haversineKm, parseLatLng } from "../lib/distance";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -59,14 +60,36 @@ function cleanText(v: string | null | undefined): string | null {
 }
 
 // GET /stores — public: only active (approved) stores, so customers never see
-// pending or rejected shops.
-router.get("/stores", async (_req: Request, res: Response): Promise<void> => {
+// pending or rejected shops. With ?lat=&lng=, sorted nearest-first (stores
+// without a saved map pin are pushed to the end, in their usual newest-first
+// order) and each row gets a distanceKm.
+router.get("/stores", async (req: Request, res: Response): Promise<void> => {
   const rows = await db
     .select()
     .from(storesTable)
     .where(eq(storesTable.status, ACTIVE))
     .orderBy(desc(storesTable.createdAt));
-  res.json(rows);
+
+  const origin = parseLatLng(req.query.lat, req.query.lng);
+  if (!origin) {
+    res.json(rows);
+    return;
+  }
+
+  const withDistance = rows.map((s) => ({
+    ...s,
+    distanceKm:
+      s.latitude != null && s.longitude != null
+        ? haversineKm(origin.latitude, origin.longitude, s.latitude, s.longitude)
+        : null,
+  }));
+  withDistance.sort((a, b) => {
+    if (a.distanceKm == null && b.distanceKm == null) return 0;
+    if (a.distanceKm == null) return 1;
+    if (b.distanceKm == null) return -1;
+    return a.distanceKm - b.distanceKm;
+  });
+  res.json(withDistance);
 });
 
 // GET /stores/mine — the authenticated merchant's own stores (any status), so

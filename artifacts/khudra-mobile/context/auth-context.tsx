@@ -16,6 +16,7 @@ import {
 } from '@workspace/api-client-react';
 import { queryClient } from '@/lib/query-client';
 import { setCustomerSessionToken } from '@/lib/session';
+import { getCurrentPositionSafe } from '@/lib/location';
 
 const TOKEN_KEY = 'khudra-customer-token';
 
@@ -26,6 +27,8 @@ interface CustomerProfile {
   points: number;
   walletBalance?: number;
   hasProfile: boolean;
+  latitude?: number | null;
+  longitude?: number | null;
 }
 
 interface AuthContextValue {
@@ -73,6 +76,32 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const requestOtpMutation = useRequestOtp();
   const verifyOtpMutation = useVerifyOtp();
   const updateMeMutation = useUpdateMe();
+
+  // Silently capture the customer's location once right after login (no
+  // separate screen/prompt) so the stores list and product search can be
+  // sorted nearest-first immediately. Only attempted once per app session —
+  // if permission is denied or GPS has no fix, we just skip it quietly and
+  // the customer can still browse everything unsorted.
+  const locationAttempted = React.useRef(false);
+  useEffect(() => {
+    if (!token || !meQuery.data) return;
+    const profile = meQuery.data as CustomerProfile;
+    if (profile.latitude != null && profile.longitude != null) return;
+    if (locationAttempted.current) return;
+    locationAttempted.current = true;
+    (async () => {
+      const coords = await getCurrentPositionSafe();
+      if (!coords) return;
+      try {
+        await updateMeMutation.mutateAsync({
+          data: { latitude: coords.latitude, longitude: coords.longitude },
+        });
+        queryClient.invalidateQueries();
+      } catch {
+        // best-effort — a failed silent location save shouldn't interrupt anything
+      }
+    })();
+  }, [token, meQuery.data, updateMeMutation]);
 
   const requestOtp = useCallback(
     async (phone: string) => {

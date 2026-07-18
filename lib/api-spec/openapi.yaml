@@ -92,6 +92,48 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /products/search:
+    get:
+      operationId: searchProducts
+      tags: [Products]
+      summary: Find in-stock products by name across active stores, nearest-first
+      description: |
+        Searches product names (e.g. "رمان") across every active store's
+        catalog. Only in-stock items are returned. When lat/lng are given,
+        results are sorted by the store's distance from that point (stores
+        without a saved map pin are listed last); otherwise newest first.
+      parameters:
+        - name: q
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 1
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
+      responses:
+        "200":
+          description: Matching in-stock products with their store
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ProductSearchResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /products/{id}:
     get:
       operationId: getProduct
@@ -267,7 +309,19 @@ paths:
     get:
       operationId: listStores
       tags: [Stores]
-      summary: List active (approved) stores
+      summary: List active (approved) stores, nearest-first when a location is given
+      parameters:
+        - name: lat
+          in: query
+          required: false
+          schema:
+            type: number
+          description: Customer's latitude — when given (with lng), stores are sorted nearest-first and each gets a distanceKm.
+        - name: lng
+          in: query
+          required: false
+          schema:
+            type: number
       responses:
         "200":
           description: Active stores
@@ -1686,6 +1740,14 @@ components:
         createdAt:
           type: string
           format: date-time
+    ProductSearchResult:
+      type: object
+      required: [product, store]
+      properties:
+        product:
+          $ref: "#/components/schemas/Product"
+        store:
+          $ref: "#/components/schemas/Store"
     ProductInput:
       type: object
       required: [name, category, price, unit, imageUrl]
@@ -1855,6 +1917,9 @@ components:
         subscriptionExpiresAt:
           type: ["string", "null"]
           format: date-time
+        distanceKm:
+          type: ["number", "null"]
+          description: Distance from the customer's location, in km — only present when the request included lat/lng.
         createdAt:
           type: string
           format: date-time
@@ -2065,6 +2130,11 @@ components:
         hasProfile:
           type: boolean
           description: Whether the customer has completed profile setup (name).
+        latitude:
+          type: ["number", "null"]
+          description: Customer's last known location — captured automatically on login so nearby stores/products can be shown without asking every time.
+        longitude:
+          type: ["number", "null"]
     UpdateProfileInput:
       type: object
       properties:
@@ -2073,6 +2143,10 @@ components:
         avatarUrl:
           type: ["string", "null"]
           maxLength: 500
+        latitude:
+          type: ["number", "null"]
+        longitude:
+          type: ["number", "null"]
     AuthResponse:
       type: object
       required: [token, customer]

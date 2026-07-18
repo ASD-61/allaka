@@ -15,12 +15,24 @@ import { resolveImageUrl } from '@/lib/image-url';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
+import { useAuth } from '@/context/auth-context';
+
+function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} م`;
+  return `${km.toFixed(1)} كم`;
+}
 
 export default function StoresScreen() {
   const colors = useColors();
   const params = useLocalSearchParams<{ type?: string }>();
   const type = typeof params.type === 'string' && params.type ? params.type : undefined;
-  const storesQuery = useListStores();
+  const { customer } = useAuth();
+  const hasLocation = customer?.latitude != null && customer?.longitude != null;
+  // The saved location (captured silently at login) drives "nearest first" —
+  // the backend sorts by it directly, so the list here is already in order.
+  const storesQuery = useListStores(
+    hasLocation ? { lat: customer!.latitude!, lng: customer!.longitude! } : undefined,
+  );
 
   const stores = useMemo(() => {
     const list = storesQuery.data ?? [];
@@ -93,6 +105,11 @@ export default function StoresScreen() {
                   <Text style={[styles.address, { color: colors.mutedForeground }]} numberOfLines={1}>
                     {item.address}
                   </Text>
+                  {item.distanceKm != null ? (
+                    <Text style={[styles.distance, { color: colors.primary }]}>
+                      · {formatDistance(item.distanceKm)}
+                    </Text>
+                  ) : null}
                 </View>
               </View>
               <Feather name="chevron-left" size={20} color={colors.mutedForeground} />
@@ -153,6 +170,10 @@ const styles = StyleSheet.create({
   },
   address: {
     fontFamily: fonts.regular,
+    fontSize: 12,
+  },
+  distance: {
+    fontFamily: fonts.semibold,
     fontSize: 12,
   },
 });
