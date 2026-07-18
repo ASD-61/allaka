@@ -500,6 +500,8 @@ export const ListStoreOrdersResponseItem = zod.object({
   "pickupTime": zod.string().nullish(),
   "walletApplied": zod.number().optional(),
   "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
   "createdAt": zod.coerce.date()
 })
 export const ListStoreOrdersResponse = zod.array(ListStoreOrdersResponseItem)
@@ -573,6 +575,110 @@ export const DecideStoreRefundResponse = zod.object({
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
 })
+
+
+/**
+ * @summary List a store's delivery drivers, any status (owner or admin)
+ */
+export const ListStoreDriversParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ListStoreDriversResponseItem = zod.object({
+  "id": zod.number(),
+  "storeId": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
+  "status": zod.string().describe('مفعّل | موقوف'),
+  "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
+  "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "createdAt": zod.coerce.date()
+})
+export const ListStoreDriversResponse = zod.array(ListStoreDriversResponseItem)
+
+
+/**
+ * @summary Add a new delivery driver for a store — usable immediately (owner or admin)
+ */
+export const CreateStoreDriverParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const createStoreDriverBodyPhoneMin = 8;
+
+
+
+
+export const CreateStoreDriverBody = zod.object({
+  "name": zod.string().min(1),
+  "phone": zod.string().min(createStoreDriverBodyPhoneMin),
+  "vehicleType": zod.string().min(1)
+})
+
+export const CreateStoreDriverResponse = zod.object({
+  "id": zod.number(),
+  "storeId": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
+  "status": zod.string().describe('مفعّل | موقوف'),
+  "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
+  "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List every delivery driver across every store, with store name (admin only)
+ */
+export const ListAllDriversResponseItem = zod.object({
+  "id": zod.number(),
+  "storeId": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
+  "status": zod.string().describe('مفعّل | موقوف'),
+  "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
+  "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "createdAt": zod.coerce.date()
+})
+export const ListAllDriversResponse = zod.array(ListAllDriversResponseItem)
+
+
+/**
+ * @summary Suspend or reactivate a delivery driver (admin only)
+ */
+export const SetDriverStatusParams = zod.object({
+  "driverId": zod.coerce.number()
+})
+
+export const SetDriverStatusBody = zod.object({
+  "status": zod.enum(['مفعّل', 'موقوف'])
+})
+
+export const SetDriverStatusResponse = zod.object({
+  "id": zod.number(),
+  "storeId": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
+  "status": zod.string().describe('مفعّل | موقوف'),
+  "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
+  "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a delivery driver (owner or admin)
+ */
+export const DeleteDriverParams = zod.object({
+  "driverId": zod.coerce.number()
+})
+
+export const DeleteDriverResponse = zod.void()
 
 
 /**
@@ -744,6 +850,8 @@ export const ListOrdersResponseItem = zod.object({
   "pickupTime": zod.string().nullish(),
   "walletApplied": zod.number().optional(),
   "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
   "createdAt": zod.coerce.date()
 })
 export const ListOrdersResponse = zod.array(ListOrdersResponseItem)
@@ -808,6 +916,8 @@ export const CreateOrderResponse = zod.object({
   "pickupTime": zod.string().nullish(),
   "walletApplied": zod.number().optional(),
   "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
   "createdAt": zod.coerce.date()
 })
 
@@ -851,6 +961,53 @@ export const UpdateOrderStatusResponse = zod.object({
   "pickupTime": zod.string().nullish(),
   "walletApplied": zod.number().optional(),
   "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Forward an order to one of the store's delivery drivers (owner or admin)
+ */
+export const AssignOrderDriverParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AssignOrderDriverBody = zod.object({
+  "driverId": zod.number()
+})
+
+
+
+
+export const AssignOrderDriverResponse = zod.object({
+  "id": zod.number(),
+  "customerPhone": zod.string(),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "price": zod.number(),
+  "unit": zod.string(),
+  "qty": zod.number().min(1)
+})),
+  "subtotal": zod.number(),
+  "deliveryFee": zod.number(),
+  "deliveryType": zod.enum(['standard', 'express']),
+  "discountApplied": zod.number(),
+  "pointsEarned": zod.number(),
+  "pointsRedeemed": zod.number(),
+  "redemptionType": zod.string().nullish(),
+  "note": zod.string().nullish().describe('Optional customer note attached to the order.'),
+  "total": zod.number(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish(),
+  "status": zod.string(),
+  "pickupTime": zod.string().nullish(),
+  "walletApplied": zod.number().optional(),
+  "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
   "createdAt": zod.coerce.date()
 })
 
@@ -904,6 +1061,8 @@ export const AddOrderItemsResponse = zod.object({
   "pickupTime": zod.string().nullish(),
   "walletApplied": zod.number().optional(),
   "storeId": zod.number().nullish(),
+  "assignedDriverId": zod.number().nullish().describe('The delivery driver this order was forwarded to, if any.'),
+  "storeOrderNumber": zod.number().nullish().describe('This order\'s 1-based position among its store\'s own orders (only present on store-scoped order lists, e.g. GET \/stores\/{id}\/orders).'),
   "createdAt": zod.coerce.date()
 })
 
@@ -1160,6 +1319,30 @@ export const SendBroadcastBody = zod.object({
 export const SendBroadcastResponse = zod.object({
   "id": zod.number(),
   "message": zod.string(),
+  "storeId": zod.number().nullish().describe('Null for a global admin broadcast; set for a store-scoped merchant broadcast.'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Send an announcement to customers who ordered from this store (owner or admin)
+ */
+export const SendStoreBroadcastParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const sendStoreBroadcastBodyMessageMax = 500;
+
+
+
+export const SendStoreBroadcastBody = zod.object({
+  "message": zod.string().min(1).max(sendStoreBroadcastBodyMessageMax)
+})
+
+export const SendStoreBroadcastResponse = zod.object({
+  "id": zod.number(),
+  "message": zod.string(),
+  "storeId": zod.number().nullish().describe('Null for a global admin broadcast; set for a store-scoped merchant broadcast.'),
   "createdAt": zod.coerce.date()
 })
 

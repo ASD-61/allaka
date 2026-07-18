@@ -36,5 +36,15 @@ export interface Order {
   walletApplied?: number;
   /** @nullable */
   storeId?: number | null;
+  /**
+     * The delivery driver this order was forwarded to, if any.
+     * @nullable
+     */
+  assignedDriverId?: number | null;
+  /**
+     * This order's 1-based position among its store's own orders (only present on store-scoped order lists, e.g. GET /stores/{id}/orders).
+     * @nullable
+     */
+  storeOrderNumber?: number | null;
   createdAt: Date;
 }

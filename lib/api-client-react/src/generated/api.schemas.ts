@@ -415,6 +415,11 @@ export interface NotificationItem {
 export interface Broadcast {
   id: number;
   message: string;
+  /**
+     * Null for a global admin broadcast; set for a store-scoped merchant broadcast.
+     * @nullable
+     */
+  storeId?: number | null;
   createdAt: string;
 }
 
@@ -548,6 +553,16 @@ export interface Order {
   walletApplied?: number;
   /** @nullable */
   storeId?: number | null;
+  /**
+     * The delivery driver this order was forwarded to, if any.
+     * @nullable
+     */
+  assignedDriverId?: number | null;
+  /**
+     * This order's 1-based position among its store's own orders (only present on store-scoped order lists, e.g. GET /stores/{id}/orders).
+     * @nullable
+     */
+  storeOrderNumber?: number | null;
   createdAt: string;
 }
 
@@ -588,6 +603,50 @@ export interface RefundDecisionInput {
 export interface AddOrderItemsInput {
   /** @minItems 1 */
   items: OrderItemInput[];
+}
+
+export interface AssignDriverInput {
+  driverId: number;
+}
+
+export interface DeliveryDriver {
+  id: number;
+  storeId: number;
+  name: string;
+  phone: string;
+  /** e.g. دراجة نارية | سيارة | دراجة هوائية */
+  vehicleType: string;
+  /** مفعّل | موقوف */
+  status: string;
+  /**
+     * The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.
+     * @nullable
+     */
+  activeOrderId?: number | null;
+  /** Only present on the admin's cross-store drivers list. */
+  storeName?: string;
+  createdAt: string;
+}
+
+export interface DeliveryDriverInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 8 */
+  phone: string;
+  /** @minLength 1 */
+  vehicleType: string;
+}
+
+export type DeliveryDriverStatusInputStatus = typeof DeliveryDriverStatusInputStatus[keyof typeof DeliveryDriverStatusInputStatus];
+
+
+export const DeliveryDriverStatusInputStatus = {
+  مفعّل: 'مفعّل',
+  موقوف: 'موقوف',
+} as const;
+
+export interface DeliveryDriverStatusInput {
+  status: DeliveryDriverStatusInputStatus;
 }
 
 export type ListProductsParams = {

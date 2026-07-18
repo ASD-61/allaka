@@ -9,5 +9,10 @@
 export interface Broadcast {
   id: number;
   message: string;
+  /**
+     * Null for a global admin broadcast; set for a store-scoped merchant broadcast.
+     * @nullable
+     */
+  storeId?: number | null;
   createdAt: Date;
 }

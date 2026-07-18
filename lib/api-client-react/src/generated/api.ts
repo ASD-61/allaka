@@ -25,6 +25,7 @@ import type {
   AddressInput,
   AdminLoginInput,
   AdminSession,
+  AssignDriverInput,
   AuthResponse,
   Broadcast,
   BroadcastInput,
@@ -33,6 +34,9 @@ import type {
   Customer,
   CustomerProfile,
   CustomerSummary,
+  DeliveryDriver,
+  DeliveryDriverInput,
+  DeliveryDriverStatusInput,
   ErrorEnvelope,
   HealthStatus,
   ListCategoriesParams,
@@ -1742,6 +1746,375 @@ export const useDecideStoreRefund = <TError = ErrorType<ErrorEnvelope>,
       return useMutation(getDecideStoreRefundMutationOptions(options));
     }
 
+export const getListStoreDriversUrl = (id: number,) => {
+
+
+
+
+  return `/api/stores/${id}/drivers`
+}
+
+/**
+ * @summary List a store's delivery drivers, any status (owner or admin)
+ */
+export const listStoreDrivers = async (id: number, options?: RequestInit): Promise<DeliveryDriver[]> => {
+
+  return customFetch<DeliveryDriver[]>(getListStoreDriversUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListStoreDriversQueryKey = (id: number,) => {
+    return [
+    `/api/stores/${id}/drivers`
+    ] as const;
+    }
+
+
+export const getListStoreDriversQueryOptions = <TData = Awaited<ReturnType<typeof listStoreDrivers>>, TError = ErrorType<ErrorEnvelope>>(id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStoreDrivers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListStoreDriversQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStoreDrivers>>> = ({ signal }) => listStoreDrivers(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: id !== null && id !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listStoreDrivers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListStoreDriversQueryResult = NonNullable<Awaited<ReturnType<typeof listStoreDrivers>>>
+export type ListStoreDriversQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List a store's delivery drivers, any status (owner or admin)
+ */
+
+export function useListStoreDrivers<TData = Awaited<ReturnType<typeof listStoreDrivers>>, TError = ErrorType<ErrorEnvelope>>(
+ id: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStoreDrivers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListStoreDriversQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateStoreDriverUrl = (id: number,) => {
+
+
+
+
+  return `/api/stores/${id}/drivers`
+}
+
+/**
+ * @summary Add a new delivery driver for a store — usable immediately (owner or admin)
+ */
+export const createStoreDriver = async (id: number,
+    deliveryDriverInput: DeliveryDriverInput, options?: RequestInit): Promise<DeliveryDriver> => {
+
+  return customFetch<DeliveryDriver>(getCreateStoreDriverUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(deliveryDriverInput)
+  }
+);}
+
+
+
+
+
+export const getCreateStoreDriverMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStoreDriver>>, TError,{id: number;data: BodyType<DeliveryDriverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createStoreDriver>>, TError,{id: number;data: BodyType<DeliveryDriverInput>}, TContext> => {
+
+const mutationKey = ['createStoreDriver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createStoreDriver>>, {id: number;data: BodyType<DeliveryDriverInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  createStoreDriver(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateStoreDriverMutationResult = NonNullable<Awaited<ReturnType<typeof createStoreDriver>>>
+    export type CreateStoreDriverMutationBody = BodyType<DeliveryDriverInput>
+    export type CreateStoreDriverMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Add a new delivery driver for a store — usable immediately (owner or admin)
+ */
+export const useCreateStoreDriver = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createStoreDriver>>, TError,{id: number;data: BodyType<DeliveryDriverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createStoreDriver>>,
+        TError,
+        {id: number;data: BodyType<DeliveryDriverInput>},
+        TContext
+      > => {
+      return useMutation(getCreateStoreDriverMutationOptions(options));
+    }
+
+export const getListAllDriversUrl = () => {
+
+
+
+
+  return `/api/drivers`
+}
+
+/**
+ * @summary List every delivery driver across every store, with store name (admin only)
+ */
+export const listAllDrivers = async ( options?: RequestInit): Promise<DeliveryDriver[]> => {
+
+  return customFetch<DeliveryDriver[]>(getListAllDriversUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAllDriversQueryKey = () => {
+    return [
+    `/api/drivers`
+    ] as const;
+    }
+
+
+export const getListAllDriversQueryOptions = <TData = Awaited<ReturnType<typeof listAllDrivers>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllDrivers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAllDriversQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAllDrivers>>> = ({ signal }) => listAllDrivers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAllDrivers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAllDriversQueryResult = NonNullable<Awaited<ReturnType<typeof listAllDrivers>>>
+export type ListAllDriversQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List every delivery driver across every store, with store name (admin only)
+ */
+
+export function useListAllDrivers<TData = Awaited<ReturnType<typeof listAllDrivers>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAllDrivers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAllDriversQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSetDriverStatusUrl = (driverId: number,) => {
+
+
+
+
+  return `/api/drivers/${driverId}/status`
+}
+
+/**
+ * @summary Suspend or reactivate a delivery driver (admin only)
+ */
+export const setDriverStatus = async (driverId: number,
+    deliveryDriverStatusInput: DeliveryDriverStatusInput, options?: RequestInit): Promise<DeliveryDriver> => {
+
+  return customFetch<DeliveryDriver>(getSetDriverStatusUrl(driverId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(deliveryDriverStatusInput)
+  }
+);}
+
+
+
+
+
+export const getSetDriverStatusMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDriverStatus>>, TError,{driverId: number;data: BodyType<DeliveryDriverStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setDriverStatus>>, TError,{driverId: number;data: BodyType<DeliveryDriverStatusInput>}, TContext> => {
+
+const mutationKey = ['setDriverStatus'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setDriverStatus>>, {driverId: number;data: BodyType<DeliveryDriverStatusInput>}> = (props) => {
+          const {driverId,data} = props ?? {};
+
+          return  setDriverStatus(driverId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetDriverStatusMutationResult = NonNullable<Awaited<ReturnType<typeof setDriverStatus>>>
+    export type SetDriverStatusMutationBody = BodyType<DeliveryDriverStatusInput>
+    export type SetDriverStatusMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Suspend or reactivate a delivery driver (admin only)
+ */
+export const useSetDriverStatus = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setDriverStatus>>, TError,{driverId: number;data: BodyType<DeliveryDriverStatusInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setDriverStatus>>,
+        TError,
+        {driverId: number;data: BodyType<DeliveryDriverStatusInput>},
+        TContext
+      > => {
+      return useMutation(getSetDriverStatusMutationOptions(options));
+    }
+
+export const getDeleteDriverUrl = (driverId: number,) => {
+
+
+
+
+  return `/api/drivers/${driverId}`
+}
+
+/**
+ * @summary Remove a delivery driver (owner or admin)
+ */
+export const deleteDriver = async (driverId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteDriverUrl(driverId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteDriverMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDriver>>, TError,{driverId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteDriver>>, TError,{driverId: number}, TContext> => {
+
+const mutationKey = ['deleteDriver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteDriver>>, {driverId: number}> = (props) => {
+          const {driverId} = props ?? {};
+
+          return  deleteDriver(driverId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteDriverMutationResult = NonNullable<Awaited<ReturnType<typeof deleteDriver>>>
+
+    export type DeleteDriverMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Remove a delivery driver (owner or admin)
+ */
+export const useDeleteDriver = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteDriver>>, TError,{driverId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteDriver>>,
+        TError,
+        {driverId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteDriverMutationOptions(options));
+    }
+
 export const getListStoreTypesUrl = () => {
 
 
@@ -2631,6 +3004,78 @@ export const useUpdateOrderStatus = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getUpdateOrderStatusMutationOptions(options));
+    }
+
+export const getAssignOrderDriverUrl = (id: number,) => {
+
+
+
+
+  return `/api/orders/${id}/driver`
+}
+
+/**
+ * @summary Forward an order to one of the store's delivery drivers (owner or admin)
+ */
+export const assignOrderDriver = async (id: number,
+    assignDriverInput: AssignDriverInput, options?: RequestInit): Promise<Order> => {
+
+  return customFetch<Order>(getAssignOrderDriverUrl(id),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(assignDriverInput)
+  }
+);}
+
+
+
+
+
+export const getAssignOrderDriverMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignOrderDriver>>, TError,{id: number;data: BodyType<AssignDriverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignOrderDriver>>, TError,{id: number;data: BodyType<AssignDriverInput>}, TContext> => {
+
+const mutationKey = ['assignOrderDriver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignOrderDriver>>, {id: number;data: BodyType<AssignDriverInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  assignOrderDriver(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignOrderDriverMutationResult = NonNullable<Awaited<ReturnType<typeof assignOrderDriver>>>
+    export type AssignOrderDriverMutationBody = BodyType<AssignDriverInput>
+    export type AssignOrderDriverMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Forward an order to one of the store's delivery drivers (owner or admin)
+ */
+export const useAssignOrderDriver = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignOrderDriver>>, TError,{id: number;data: BodyType<AssignDriverInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignOrderDriver>>,
+        TError,
+        {id: number;data: BodyType<AssignDriverInput>},
+        TContext
+      > => {
+      return useMutation(getAssignOrderDriverMutationOptions(options));
     }
 
 export const getAddOrderItemsUrl = (id: number,) => {
@@ -3652,6 +4097,78 @@ export const useSendBroadcast = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getSendBroadcastMutationOptions(options));
+    }
+
+export const getSendStoreBroadcastUrl = (id: number,) => {
+
+
+
+
+  return `/api/stores/${id}/broadcasts`
+}
+
+/**
+ * @summary Send an announcement to customers who ordered from this store (owner or admin)
+ */
+export const sendStoreBroadcast = async (id: number,
+    broadcastInput: BroadcastInput, options?: RequestInit): Promise<Broadcast> => {
+
+  return customFetch<Broadcast>(getSendStoreBroadcastUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(broadcastInput)
+  }
+);}
+
+
+
+
+
+export const getSendStoreBroadcastMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendStoreBroadcast>>, TError,{id: number;data: BodyType<BroadcastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendStoreBroadcast>>, TError,{id: number;data: BodyType<BroadcastInput>}, TContext> => {
+
+const mutationKey = ['sendStoreBroadcast'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendStoreBroadcast>>, {id: number;data: BodyType<BroadcastInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  sendStoreBroadcast(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendStoreBroadcastMutationResult = NonNullable<Awaited<ReturnType<typeof sendStoreBroadcast>>>
+    export type SendStoreBroadcastMutationBody = BodyType<BroadcastInput>
+    export type SendStoreBroadcastMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Send an announcement to customers who ordered from this store (owner or admin)
+ */
+export const useSendStoreBroadcast = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendStoreBroadcast>>, TError,{id: number;data: BodyType<BroadcastInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendStoreBroadcast>>,
+        TError,
+        {id: number;data: BodyType<BroadcastInput>},
+        TContext
+      > => {
+      return useMutation(getSendStoreBroadcastMutationOptions(options));
     }
 
 export const getRequestUploadUrlUrl = () => {
