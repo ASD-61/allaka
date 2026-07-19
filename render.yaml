@@ -15,7 +15,9 @@ services:
     # `|| true` tolerates pnpm's ERR_PNPM_IGNORED_BUILDS strictness (it blocks
     # esbuild's postinstall for security); node_modules is still fully linked and
     # esbuild's linux-x64 binary ships as its own package, so the bundle works.
-    buildCommand: npm install -g pnpm@11.12.0 && (pnpm install --no-frozen-lockfile || true) && pnpm --filter @workspace/api-server run build
+    # We invoke build.mjs directly with node instead of `pnpm run` so pnpm's
+    # verify-deps-before-run does NOT trigger a second (failing) install check.
+    buildCommand: npm install -g pnpm@11.12.0 && (pnpm install --no-frozen-lockfile || true) && node artifacts/api-server/build.mjs
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
