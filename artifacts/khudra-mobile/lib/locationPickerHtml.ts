@@ -36,7 +36,33 @@ export function buildLocationPickerHtml(center: LatLng): string {
 <script>
   var map = L.map('map', { zoomControl: true, attributionControl: false })
     .setView([${center.latitude}, ${center.longitude}], 16);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map);
+
+  // Modern, high-detail base layers (replaces the flat/dated default OSM tiles).
+  // "خريطة" = CARTO Voyager: a clean, contemporary street map.
+  // "قمر صناعي" = Esri World Imagery: real satellite imagery, with a labels
+  // overlay so street/place names stay readable on top of the imagery.
+  var streets = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png',
+    { maxZoom: 20, subdomains: 'abcd' }
+  );
+  var satellite = L.tileLayer(
+    'https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',
+    { maxZoom: 20 }
+  );
+  var labels = L.tileLayer(
+    'https://{s}.basemaps.cartocdn.com/rastertiles/voyager_only_labels/{z}/{x}/{y}{r}.png',
+    { maxZoom: 20, subdomains: 'abcd' }
+  );
+  var satelliteHybrid = L.layerGroup([satellite, labels]);
+
+  streets.addTo(map);
+  L.control
+    .layers(
+      { 'خريطة': streets, 'قمر صناعي': satelliteHybrid },
+      {},
+      { position: 'topleft' }
+    )
+    .addTo(map);
 
   function send(lat, lng) {
     var msg = JSON.stringify({ latitude: lat, longitude: lng });
