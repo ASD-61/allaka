@@ -11,7 +11,7 @@ import {
   Switch,
 } from 'react-native';
 import { Alert } from '@/lib/alert';
-import { Image } from 'expo-image';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { Feather } from '@expo/vector-icons';
 import { isLiquidGlassAvailable } from 'expo-glass-effect';
 import { getCurrentPositionSafe } from '@/lib/location';
@@ -19,7 +19,7 @@ import { LocationPicker } from '@/components/LocationPicker';
 import type { LatLng } from '@/lib/locationPickerHtml';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
-import { useCreateOrder, useGetStore } from '@workspace/api-client-react';
+import { useCreateOrder, useGetStore, useGetStoreWallet } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
@@ -28,7 +28,6 @@ import { resolveImageUrl } from '@/lib/image-url';
 import { useCart } from '@/context/cart-context';
 import { useAuth } from '@/context/auth-context';
 import { EmptyState } from '@/components/EmptyState';
-import { RequireAuth } from '@/components/RequireAuth';
 
 const POINTS_THRESHOLD = 100;
 
@@ -44,11 +43,9 @@ const PICKUP_TIMES = [
 ];
 
 export default function CartScreen() {
-  return (
-    <RequireAuth message="سجّل دخولك لإتمام الطلب">
-      <CartContent />
-    </RequireAuth>
-  );
+  // Guests can browse and build their cart freely; login is only required at
+  // checkout (handled inside handleCheckout), so no RequireAuth gate here.
+  return <CartContent />;
 }
 
 function CartContent() {
@@ -58,6 +55,11 @@ function CartContent() {
   const { customer } = useAuth();
   const createOrder = useCreateOrder();
   const storeQuery = useGetStore(storeId ?? 0, { query: { enabled: storeId != null } } as any);
+  // Spendable wallet for this order = this store's refund credit + general
+  // (referral) balance. Only meaningful once logged in and a store is known.
+  const storeWalletQuery = useGetStoreWallet(storeId ?? 0, {
+    query: { enabled: storeId != null && !!customer },
+  } as any);
 
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('standard');
   const [redeem, setRedeem] = useState<Redeem>(null);
@@ -70,7 +72,9 @@ function CartContent() {
   const [initialCoords, setInitialCoords] = useState<LatLng | null>(null);
 
   const canRedeem = (customer?.points ?? 0) >= POINTS_THRESHOLD;
-  const walletBalance = customer?.walletBalance ?? 0;
+  const walletBalance =
+    (storeWalletQuery.data?.storeBalance ?? 0) +
+    (storeWalletQuery.data?.generalBalance ?? customer?.walletBalance ?? 0);
   // Redeeming for "free express delivery" upgrades the order to express and
   // waives its fee, so the effective delivery type follows the redemption.
   const effectiveDeliveryType: DeliveryType =
@@ -96,7 +100,16 @@ function CartContent() {
   // before the order is created — this way we never send an order with a
   // stale or missing location.
   const handleCheckout = async () => {
-    if (!customer || locatingForCheckout) return;
+    if (locatingForCheckout) return;
+    // Only now (at checkout) do we require an account — prompt the guest to
+    // sign in with WhatsApp, then they can come back and confirm the order.
+    if (!customer) {
+      Alert.alert('سجّل دخولك', 'حتى نكمل طلبك سجّل دخولك بسرعة عبر واتساب', [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'تسجيل الدخول', onPress: () => router.push('/login') },
+      ]);
+      return;
+    }
     setLocatingForCheckout(true);
     try {
       // Best-effort only — if this fails/times out (permission denied,
@@ -189,7 +202,7 @@ function CartContent() {
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
           <View style={[styles.cartRow, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Image source={{ uri: resolveImageUrl(item.imageUrl) }} style={styles.thumb} contentFit="cover" />
+            <ZoomableImage uri={resolveImageUrl(item.imageUrl)} wrapperStyle={styles.thumb} style={styles.thumb} contentFit="cover" />
             <View style={styles.cartInfo}>
               <Text style={[styles.itemName, { color: colors.foreground }]} numberOfLines={1}>
                 {item.name}

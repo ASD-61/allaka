@@ -12,6 +12,7 @@ import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
 import { haversineKm, parseLatLng } from "../lib/distance";
+import { creditStoreWallet } from "../lib/wallet";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -33,6 +34,10 @@ const StoreBody = z.object({
   imageUrl: z.string().nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
+  requestedSubscriptionMonths: z
+    .union([z.literal(3), z.literal(6), z.literal(12)])
+    .nullish(),
+  refundsEnabled: z.boolean().optional(),
 });
 
 const StoreUpdateBody = z.object({
@@ -43,6 +48,7 @@ const StoreUpdateBody = z.object({
   imageUrl: z.string().nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
+  refundsEnabled: z.boolean().optional(),
 });
 
 const ReviewBody = z.object({
@@ -142,6 +148,8 @@ router.post(
         imageUrl: cleanText(parsed.data.imageUrl),
         latitude: parsed.data.latitude ?? null,
         longitude: parsed.data.longitude ?? null,
+        requestedSubscriptionMonths: parsed.data.requestedSubscriptionMonths ?? null,
+        refundsEnabled: parsed.data.refundsEnabled ?? true,
         ownerPhone: req.customerPhone!,
         status: PENDING,
       })
@@ -220,6 +228,8 @@ router.patch(
       patch.latitude = parsed.data.latitude ?? null;
     if (parsed.data.longitude !== undefined)
       patch.longitude = parsed.data.longitude ?? null;
+    if (parsed.data.refundsEnabled !== undefined)
+      patch.refundsEnabled = parsed.data.refundsEnabled;
 
     if (Object.keys(patch).length === 0) {
       res.json(existing);
@@ -265,7 +275,15 @@ router.patch(
 
     let update: Record<string, unknown>;
     if (parsed.data.action === "approve") {
-      const months = parsed.data.subscriptionMonths ?? 3;
+      // Default to the plan the merchant asked for at registration (they
+      // already chose 3/6/12 and agreed to pay for it), so the admin can
+      // approve with a single tap without re-picking a duration. An explicit
+      // subscriptionMonths (e.g. the admin correcting/renewing later) still
+      // overrides it.
+      const months =
+        parsed.data.subscriptionMonths ??
+        existing.requestedSubscriptionMonths ??
+        3;
       const mode = parsed.data.subscriptionMode ?? "extend";
       // "set" counts the months from today (replacing the expiry), letting the
       // admin correct/reduce a subscription. "extend" stacks onto the later of
@@ -562,13 +580,8 @@ router.patch(
           .where(eq(refundsTable.id, refundId))
           .returning();
 
-        await tx
-          .update(customersTable)
-          .set({
-            walletBalance: sql`${customersTable.walletBalance} + ${creditAmount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(customersTable.phone, row.customerPhone));
+        // Credit the customer's per-store wallet (spendable only at this store).
+        await creditStoreWallet(tx, row.customerPhone, id, creditAmount);
 
         return updated;
       });

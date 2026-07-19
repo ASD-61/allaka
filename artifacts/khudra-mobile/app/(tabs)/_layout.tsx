@@ -1,5 +1,6 @@
 import React from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useColors } from '@/hooks/useColors';
 import { useTheme } from '@/context/theme-context';
 import { Feather } from '@expo/vector-icons';
@@ -81,8 +82,14 @@ function ClassicTabLayout() {
   const colors = useColors();
   const { totalCount } = useCart();
   const { scheme } = useTheme();
+  const insets = useSafeAreaInsets();
   const isIOS = Platform.OS === 'ios';
   const isWeb = Platform.OS === 'web';
+  // Give the bar an explicit height + bottom safe-area padding so it renders
+  // identically across phones and tablets/iPads (relying on the platform
+  // default made the bar taller/shorter and clipped icons on some devices,
+  // e.g. large Samsung/Android gesture-nav phones).
+  const barHeight = (isWeb ? 84 : 60) + insets.bottom;
   // The blur tint must follow the device's actual appearance — a light-tinted
   // blur behind dark-mode icon/label colors reads as low-contrast and "muddled".
   const blurTint = scheme === 'dark' ? 'dark' : 'light';
@@ -118,7 +125,8 @@ function ClassicTabLayout() {
           borderTopColor: colors.border,
           boxShadow: `0px -2px 12px ${scheme === 'dark' ? 'rgba(0,0,0,0.35)' : 'rgba(15,26,20,0.08)'}`,
           elevation: 12,
-          ...(isWeb ? { height: 84 } : {}),
+          height: barHeight,
+          paddingBottom: insets.bottom,
         },
         tabBarBackground: () =>
           isIOS ? (

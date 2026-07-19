@@ -14,6 +14,9 @@ import notificationsRouter from "./notifications";
 import broadcastsRouter from "./broadcasts";
 import refundsRouter from "./refunds";
 import deliveryDriversRouter from "./deliveryDrivers";
+import ratingsRouter from "./ratings";
+import walletRouter from "./wallet";
+import referralRouter from "./referral";
 
 const router: IRouter = Router();
 
@@ -32,5 +35,8 @@ router.use(notificationsRouter);
 router.use(broadcastsRouter);
 router.use(refundsRouter);
 router.use(deliveryDriversRouter);
+router.use(ratingsRouter);
+router.use(walletRouter);
+router.use(referralRouter);
 
 export default router;

@@ -66,12 +66,18 @@ export default function ProfileScreen() {
                 {customer.points} نقطة
               </Text>
             </View>
-            <View style={[styles.pointsBadge, { backgroundColor: colors.primary + '15' }]}>
+            <Pressable
+              onPress={() => router.push('/wallet')}
+              style={({ pressed }) => [
+                styles.pointsBadge,
+                { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
               <Feather name="credit-card" size={12} color={colors.primary} />
               <Text style={[styles.pointsText, { color: colors.primary }]}>
                 المحفظة: {customer.walletBalance ?? 0} د.ع
               </Text>
-            </View>
+            </Pressable>
           </View>
         </View>
       ) : (
@@ -101,6 +107,16 @@ export default function ProfileScreen() {
           icon="map-pin"
           label="عناوين التوصيل"
           onPress={() => (isAuthenticated ? router.push('/addresses') : router.push('/login'))}
+        />
+        <MenuItem
+          icon="credit-card"
+          label="محفظتي"
+          onPress={() => (isAuthenticated ? router.push('/wallet') : router.push('/login'))}
+        />
+        <MenuItem
+          icon="gift"
+          label="دعوة الأصدقاء"
+          onPress={() => (isAuthenticated ? router.push('/referral') : router.push('/login'))}
         />
         <MenuItem
           icon="bell"
@@ -154,23 +170,8 @@ export default function ProfileScreen() {
       ) : null}
 
       <View style={styles.footer}>
-        <Pressable
-          onPress={() => router.push('/admin/login')}
-          style={({ pressed }) => [
-            styles.adminLink,
-            {
-              backgroundColor: colors.card,
-              borderColor: colors.border,
-              opacity: pressed ? 0.7 : 1,
-            },
-          ]}
-        >
-          <View style={[styles.adminIconWrap, { backgroundColor: colors.primary + '18' }]}>
-            <Feather name="shield" size={14} color={colors.primary} />
-          </View>
-          <Text style={[styles.adminLinkText, { color: colors.foreground }]}>لوحة تحكم الإدارة</Text>
-        </Pressable>
-
+        {/* لوحة تحكم الإدارة صارت مخفية: تظهر فقط عند الضغط على شعار التطبيق
+            في الصفحة الرئيسية ١٠ مرات متتالية. */}
         <DeveloperCredit />
       </View>
     </ScrollView>

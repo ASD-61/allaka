@@ -793,6 +793,41 @@ paths:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
   /drivers/{driverId}:
+    patch:
+      operationId: updateDriver
+      tags: [DeliveryDrivers]
+      summary: Edit a delivery driver's name / phone / vehicle type (owner or admin)
+      parameters:
+        - name: driverId
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DeliveryDriverUpdate"
+      responses:
+        "200":
+          description: Updated driver
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DeliveryDriver"
+        "401":
+          description: Not authorized
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
     delete:
       operationId: deleteDriver
       tags: [DeliveryDrivers]
@@ -1255,6 +1290,174 @@ paths:
                 $ref: "#/components/schemas/ErrorEnvelope"
         "409":
           description: Already reviewed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /ratings/order/{orderId}:
+    get:
+      operationId: getOrderRatingStatus
+      tags: [Ratings]
+      summary: Get a delivered order's store + whether it was already rated (for the rate screen)
+      parameters:
+        - name: orderId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Rating status for the order
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OrderRatingStatus"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Order not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /ratings:
+    post:
+      operationId: createRating
+      tags: [Ratings]
+      summary: Rate a delivered order's store 1–5 stars (once per order)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RatingInput"
+      responses:
+        "201":
+          description: Rating saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingResult"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Already rated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /wallet:
+    get:
+      operationId: getWallet
+      tags: [Wallet]
+      summary: Get the customer's general balance + per-store credit breakdown
+      responses:
+        "200":
+          description: Wallet summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WalletSummary"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /wallet/store/{storeId}:
+    get:
+      operationId: getStoreWallet
+      tags: [Wallet]
+      summary: Get spendable wallet credit for an order from a specific store
+      parameters:
+        - name: storeId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Store wallet balance
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StoreWalletBalance"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /referral:
+    get:
+      operationId: getReferral
+      tags: [Referral]
+      summary: Get the customer's own referral code and redemption status
+      responses:
+        "200":
+          description: Referral info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralInfo"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /referral/redeem:
+    post:
+      operationId: redeemReferral
+      tags: [Referral]
+      summary: Redeem a friend's referral code (credits both, once)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReferralRedeemInput"
+      responses:
+        "200":
+          description: Redeemed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReferralRedeemResult"
+        "400":
+          description: Invalid code
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "404":
+          description: Code not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+        "409":
+          description: Already redeemed
           content:
             application/json:
               schema:
@@ -1917,6 +2120,18 @@ components:
         subscriptionExpiresAt:
           type: ["string", "null"]
           format: date-time
+        requestedSubscriptionMonths:
+          type: ["integer", "null"]
+          description: The plan (3/6/12 months) the merchant picked at registration — a request only; the admin's approval is what actually sets subscriptionExpiresAt.
+        refundsEnabled:
+          type: boolean
+          description: Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled).
+        ratingSum:
+          type: integer
+          description: Running sum of all customer star ratings (1–5) for this store.
+        ratingCount:
+          type: integer
+          description: How many ratings were given — average = ratingSum / ratingCount.
         distanceKm:
           type: ["number", "null"]
           description: Distance from the customer's location, in km — only present when the request included lat/lng.
@@ -1944,6 +2159,13 @@ components:
           type: ["number", "null"]
         longitude:
           type: ["number", "null"]
+        requestedSubscriptionMonths:
+          type: ["integer", "null"]
+          enum: [3, 6, 12, null]
+          description: The subscription plan (in months) the merchant is requesting — shown to the admin when reviewing, does not activate anything by itself.
+        refundsEnabled:
+          type: boolean
+          description: Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers.
     StoreUpdate:
       type: object
       properties:
@@ -1964,6 +2186,9 @@ components:
           type: ["number", "null"]
         longitude:
           type: ["number", "null"]
+        refundsEnabled:
+          type: boolean
+          description: Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers.
     StoreReviewInput:
       type: object
       required: [action]
@@ -2413,6 +2638,100 @@ components:
         amount:
           type: integer
           minimum: 0
+    OrderRatingStatus:
+      type: object
+      required: [orderId, delivered]
+      properties:
+        orderId:
+          type: integer
+        storeId:
+          type: ["integer", "null"]
+        storeName:
+          type: ["string", "null"]
+        delivered:
+          type: boolean
+          description: Whether the order has been delivered (rating only allowed after delivery).
+        stars:
+          type: ["integer", "null"]
+          description: The customer's existing rating for this order, if any.
+    RatingInput:
+      type: object
+      required: [orderId, stars]
+      properties:
+        orderId:
+          type: integer
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+    RatingResult:
+      type: object
+      required: [orderId, stars]
+      properties:
+        orderId:
+          type: integer
+        stars:
+          type: integer
+    StoreWalletEntry:
+      type: object
+      required: [storeId, storeName, balance]
+      properties:
+        storeId:
+          type: integer
+        storeName:
+          type: string
+        storeImageUrl:
+          type: ["string", "null"]
+        balance:
+          type: integer
+          description: Credit (IQD) spendable only at this store.
+    WalletSummary:
+      type: object
+      required: [generalBalance, stores]
+      properties:
+        generalBalance:
+          type: integer
+          description: General balance (referral/admin credit) spendable at any store.
+        stores:
+          type: array
+          items:
+            $ref: "#/components/schemas/StoreWalletEntry"
+    StoreWalletBalance:
+      type: object
+      required: [storeBalance, generalBalance]
+      properties:
+        storeBalance:
+          type: integer
+          description: Credit spendable only at this store.
+        generalBalance:
+          type: integer
+          description: General balance spendable anywhere.
+    ReferralInfo:
+      type: object
+      required: [code, reward]
+      properties:
+        code:
+          type: string
+          description: The customer's own share code.
+        referredBy:
+          type: ["string", "null"]
+          description: The code this customer already redeemed, if any.
+        reward:
+          type: integer
+          description: IQD credited to each side on redemption.
+    ReferralRedeemInput:
+      type: object
+      required: [code]
+      properties:
+        code:
+          type: string
+    ReferralRedeemResult:
+      type: object
+      required: [credited]
+      properties:
+        credited:
+          type: integer
+          description: IQD credited to the customer.
     AddOrderItemsInput:
       type: object
       required: [items]
@@ -2464,6 +2783,18 @@ components:
     DeliveryDriverInput:
       type: object
       required: [name, phone, vehicleType]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        phone:
+          type: string
+          minLength: 8
+        vehicleType:
+          type: string
+          minLength: 1
+    DeliveryDriverUpdate:
+      type: object
       properties:
         name:
           type: string

@@ -68,6 +68,7 @@ router.post(
 
   try {
     await sendWhatsAppOtp(phone, code);
+
     res.json({ sent: true });
   } catch (err) {
     console.warn("Failed to send WhatsApp OTP:", err);

@@ -5,8 +5,16 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { driverPortalPage } from "./lib/driverPortalPage";
+import { ratePage } from "./lib/ratePage";
 
 const app: Express = express();
+
+// Behind a reverse proxy / load balancer in production (Railway, Render, Nginx,
+// etc.) so req.ip and the x-forwarded-proto used for HSTS reflect the real
+// client instead of the proxy — important for correct rate-limiting by IP.
+if (process.env["NODE_ENV"] === "production") {
+  app.set("trust proxy", 1);
+}
 
 app.use(
   pinoHttp({
@@ -53,6 +61,12 @@ app.use(express.urlencoded({ extended: true, limit: "1mb" }));
 // phone's normal browser — no app install needed.
 app.get("/driver/:token", (req, res) => {
   res.type("html").send(driverPortalPage(req.params.token));
+});
+
+// Bridge page for the WhatsApp "rate the store" link — forwards into the app's
+// deep link so the customer lands on the rating screen for their order.
+app.get("/rate/:orderId", (req, res) => {
+  res.type("html").send(ratePage(req.params.orderId));
 });
 
 app.use("/api", router);

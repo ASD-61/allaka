@@ -42,7 +42,15 @@ function secureFontSource(source: unknown): unknown {
   try {
     const uri = Asset.fromModule(source).uri;
     if (typeof uri === 'string' && uri.startsWith('http://')) {
-      return uri.replace(/^http:\/\//, 'https://');
+      // Only upgrade real remote hosts to https (the Replit dev proxy serves
+      // garbage over http). A local LAN dev server (dev:lan → http://<ip>:8081)
+      // is http-only, so forcing https there would FAIL to load the font and
+      // leave icons invisible on device — keep those as http.
+      const host = uri.replace(/^http:\/\//, '').split('/')[0].split(':')[0];
+      const isLocal = /^(localhost|127\.0\.0\.1|\d{1,3}(\.\d{1,3}){3})$/.test(host);
+      if (!isLocal) {
+        return uri.replace(/^http:\/\//, 'https://');
+      }
     }
   } catch {
     // fall through to the original module source
@@ -73,6 +81,9 @@ function RootLayoutNav() {
       <Stack.Screen name="admin/index" options={{ headerShown: false }} />
       <Stack.Screen name="stores" options={{ title: 'المتاجر' }} />
       <Stack.Screen name="store/[id]" options={{ title: 'المتجر' }} />
+      <Stack.Screen name="rate/[orderId]" options={{ title: 'تقييم المتجر' }} />
+      <Stack.Screen name="wallet" options={{ title: 'محفظتي' }} />
+      <Stack.Screen name="referral" options={{ title: 'دعوة الأصدقاء' }} />
       <Stack.Screen name="register-store" options={{ title: 'تسجيل متجر' }} />
       <Stack.Screen name="my-store/index" options={{ title: 'متاجري' }} />
       <Stack.Screen name="my-store/[id]" options={{ title: 'متجري' }} />

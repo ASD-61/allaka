@@ -21,4 +21,6 @@ export interface StoreUpdate {
   latitude?: number | null;
   /** @nullable */
   longitude?: number | null;
+  /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
+  refundsEnabled?: boolean;
 }

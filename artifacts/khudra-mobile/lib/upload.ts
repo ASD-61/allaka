@@ -1,9 +1,31 @@
 import * as ImagePicker from 'expo-image-picker';
+import { Alert } from '@/lib/alert';
 
 export interface PickedImage {
   uri: string;
   name: string;
   mimeType: string;
+}
+
+/**
+ * Prompts the user to pick an image source (camera or gallery) and returns the
+ * picked image. Use this everywhere a picture is uploaded so every screen
+ * offers both options (not just gallery).
+ */
+export async function pickImageWithChoice(): Promise<PickedImage | null> {
+  return new Promise((resolve) => {
+    Alert.alert('إضافة صورة', 'اختر مصدر الصورة', [
+      {
+        text: 'التقاط بالكاميرا',
+        onPress: async () => resolve(await takePhoto()),
+      },
+      {
+        text: 'اختيار من الاستديو',
+        onPress: async () => resolve(await pickImage()),
+      },
+      { text: 'إلغاء', style: 'cancel', onPress: () => resolve(null) },
+    ]);
+  });
 }
 
 export async function pickImage(): Promise<PickedImage | null> {
@@ -72,5 +94,8 @@ export async function uploadPickedImage(
     throw new Error('فشل رفع الصورة');
   }
 
-  return `/api/storage${objectPath}`;
+  // With direct-to-bucket (S3/R2) storage the server returns an absolute public
+  // URL — store it as-is. Otherwise it's a relative object path served through
+  // the API server, so prefix the storage route.
+  return /^https?:\/\//.test(objectPath) ? objectPath : `/api/storage${objectPath}`;
 }

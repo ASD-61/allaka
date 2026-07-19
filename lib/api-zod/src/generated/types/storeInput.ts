@@ -5,6 +5,7 @@
  * API specification
  * OpenAPI spec version: 0.1.0
  */
+import type { StoreInputRequestedSubscriptionMonths } from './storeInputRequestedSubscriptionMonths';
 
 export interface StoreInput {
   /** @minLength 1 */
@@ -21,4 +22,11 @@ export interface StoreInput {
   latitude?: number | null;
   /** @nullable */
   longitude?: number | null;
+  /**
+     * The subscription plan (in months) the merchant is requesting — shown to the admin when reviewing, does not activate anything by itself.
+     * @nullable
+     */
+  requestedSubscriptionMonths?: StoreInputRequestedSubscriptionMonths;
+  /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
+  refundsEnabled?: boolean;
 }

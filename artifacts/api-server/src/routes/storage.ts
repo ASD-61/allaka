@@ -13,6 +13,7 @@ import {
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
+import { s3Enabled, createS3Upload } from '../lib/s3Storage';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -68,6 +69,21 @@ router.post(
 
     try {
       const { name, size, contentType } = parsed.data;
+
+      // Production: presign a direct-to-bucket upload (S3/R2/Supabase/...). The
+      // stored objectPath is the bucket's PUBLIC url, so images are served
+      // straight from the bucket/CDN and never touch this server's disk.
+      if (s3Enabled()) {
+        const { uploadURL, publicUrl } = await createS3Upload(name, contentType);
+        res.json(
+          RequestUploadUrlResponse.parse({
+            uploadURL,
+            objectPath: publicUrl,
+            metadata: { name, size, contentType },
+          }),
+        );
+        return;
+      }
 
       // Local dev: hand back a PUT URL on this same server that writes to disk.
       if (localStorageEnabled()) {

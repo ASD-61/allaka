@@ -7,6 +7,7 @@ import {
   TextInput,
   Pressable,
   ActivityIndicator,
+  Switch,
 } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Image } from 'expo-image';
@@ -15,7 +16,7 @@ import { useUpdateStore, useRequestUploadUrl, type Store } from '@workspace/api-
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { resolveImageUrl } from '@/lib/image-url';
-import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { LocationPicker } from '@/components/LocationPicker';
 import type { LatLng } from '@/lib/locationPickerHtml';
 
@@ -32,6 +33,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [refundsEnabled, setRefundsEnabled] = useState(store.refundsEnabled ?? true);
   const [coords, setCoords] = useState<LatLng | null>(
     store.latitude != null && store.longitude != null
       ? { latitude: store.latitude, longitude: store.longitude }
@@ -49,7 +51,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
         : colors.accent;
 
   const handlePickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setImagePreview(picked.uri);
     setUploading(true);
@@ -75,6 +77,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
       description: description.trim() || null,
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
+      refundsEnabled,
     };
     if (imagePath) data.imageUrl = imagePath;
     setSaving(true);
@@ -171,6 +174,21 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
         colors={colors}
         multiline
       />
+
+      <View style={[styles.toggleCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Switch
+          value={refundsEnabled}
+          onValueChange={setRefundsEnabled}
+          trackColor={{ false: colors.muted, true: colors.primary }}
+          thumbColor="#fff"
+        />
+        <View style={{ flex: 1 }}>
+          <Text style={[styles.toggleTitle, { color: colors.foreground }]}>خاصية "البضاعة بيها خلل؟"</Text>
+          <Text style={[styles.toggleSub, { color: colors.mutedForeground }]}>
+            لمن تكون مفعّلة، يقدر الزبون يبلّغ عن سلعة تالفة بصورة بعد استلام الطلب وترجعلك للمراجعة. أطفيها إذا ما تريد استقبال طلبات التعويض.
+          </Text>
+        </View>
+      </View>
 
       <Pressable
         onPress={handleSave}
@@ -358,6 +376,27 @@ const styles = StyleSheet.create({
   locationBtnText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
+  },
+  toggleCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 8,
+  },
+  toggleTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  toggleSub: {
+    fontFamily: fonts.regular,
+    fontSize: 11.5,
+    textAlign: 'right',
+    lineHeight: 17,
+    marginTop: 2,
   },
   submitBtn: {
     flexDirection: 'row-reverse',

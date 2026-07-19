@@ -11,13 +11,13 @@ import {
   View,
 } from 'react-native';
 import { Feather } from '@expo/vector-icons';
-import { Image } from 'expo-image';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useGetStore, useListProducts, useListStoreTypes } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { ProductCard } from '@/components/ProductCard';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { CategoryChip } from '@/components/CategoryChip';
 import { EmptyState } from '@/components/EmptyState';
 import { ClearanceSection } from '@/components/ClearanceSection';
@@ -96,8 +96,8 @@ export default function StoreDetailScreen() {
           <>
             <View style={styles.hero}>
               {store?.imageUrl ? (
-                <Image
-                  source={{ uri: resolveImageUrl(store.imageUrl) }}
+                <ZoomableImage
+                  uri={resolveImageUrl(store.imageUrl)}
                   style={styles.heroImage}
                   contentFit="cover"
                 />
@@ -114,6 +114,27 @@ export default function StoreDetailScreen() {
                   <View style={[styles.typePill, { backgroundColor: colors.secondary }]}>
                     <Text style={[styles.typeText, { color: colors.secondaryForeground }]}>
                       {store.storeType}
+                    </Text>
+                  </View>
+                ) : null}
+                {store && (store.ratingCount ?? 0) > 0 ? (
+                  <View style={styles.ratingRow}>
+                    <Text style={[styles.ratingCount, { color: colors.mutedForeground }]}>
+                      ({store.ratingCount})
+                    </Text>
+                    {[1, 2, 3, 4, 5].map((n) => {
+                      const avg = (store.ratingSum ?? 0) / (store.ratingCount ?? 1);
+                      return (
+                        <Feather
+                          key={n}
+                          name="star"
+                          size={13}
+                          color={n <= Math.round(avg) ? colors.accent : colors.muted}
+                        />
+                      );
+                    })}
+                    <Text style={[styles.ratingAvg, { color: colors.accent }]}>
+                      {((store.ratingSum ?? 0) / (store.ratingCount ?? 1)).toFixed(1)}
                     </Text>
                   </View>
                 ) : null}
@@ -240,6 +261,22 @@ const styles = StyleSheet.create({
   typeText: {
     fontFamily: fonts.semibold,
     fontSize: 11,
+  },
+  ratingRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
+    marginTop: 2,
+  },
+  ratingAvg: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
+    marginRight: 4,
+  },
+  ratingCount: {
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    marginLeft: 2,
   },
   desc: {
     fontFamily: fonts.regular,

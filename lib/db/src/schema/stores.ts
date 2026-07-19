@@ -4,6 +4,8 @@ import {
   text,
   timestamp,
   real,
+  integer,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -31,6 +33,23 @@ export const storesTable = pgTable("stores", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", {
     withTimezone: true,
   }),
+  // The plan (in months: 3/6/12) the MERCHANT picked when registering — a
+  // request, not a confirmed activation (only the admin's approval actually
+  // sets `subscriptionExpiresAt`, since payment is still collected offline).
+  // Lets the admin see what the merchant asked/expects to pay for instead of
+  // guessing a duration when approving.
+  requestedSubscriptionMonths: integer("requested_subscription_months"),
+  // Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to
+  // its customers. Each merchant decides for their own store — some don't want
+  // to deal with refund claims at all, so they can turn the customer-facing
+  // button off entirely. Defaults on so existing stores keep the feature.
+  refundsEnabled: boolean("refunds_enabled").notNull().default(true),
+  // Running total of customer star ratings (1–5) and how many were given, so
+  // the average = ratingSum / ratingCount can be shown on the store card
+  // without scanning a separate table. Updated when a customer rates a
+  // delivered order.
+  ratingSum: integer("rating_sum").notNull().default(0),
+  ratingCount: integer("rating_count").notNull().default(0),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

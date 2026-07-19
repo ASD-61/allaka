@@ -5,12 +5,14 @@ import { Feather } from '@expo/vector-icons';
 import {
   useListStoreDrivers,
   useCreateStoreDriver,
+  useUpdateDriver,
   useDeleteDriver,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
 import { schemeForDomain, resolveApiDomain } from '@/lib/api-scheme';
+import { toWhatsAppDigits } from '@/lib/phone';
 
 const STATUS_LABEL: Record<string, string> = {
   'مفعّل': 'مفعّل',
@@ -34,34 +36,59 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
   const colors = useColors();
   const driversQuery = useListStoreDrivers(storeId);
   const createDriver = useCreateStoreDriver();
+  const updateDriver = useUpdateDriver();
   const deleteDriver = useDeleteDriver();
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [vehicleType, setVehicleType] = useState(VEHICLE_TYPES[0]);
+  const [editingId, setEditingId] = useState<number | null>(null);
+
+  const resetForm = () => {
+    setName('');
+    setPhone('');
+    setVehicleType(VEHICLE_TYPES[0]);
+    setEditingId(null);
+  };
 
   const handleAdd = async () => {
     if (!name.trim() || !phone.trim() || !vehicleType.trim()) return;
     try {
-      await createDriver.mutateAsync({
-        id: storeId,
-        data: { name: name.trim(), phone: phone.trim(), vehicleType: vehicleType.trim() },
-      });
-      setName('');
-      setPhone('');
+      if (editingId != null) {
+        await updateDriver.mutateAsync({
+          driverId: editingId,
+          data: { name: name.trim(), phone: phone.trim(), vehicleType: vehicleType.trim() },
+        });
+      } else {
+        await createDriver.mutateAsync({
+          id: storeId,
+          data: { name: name.trim(), phone: phone.trim(), vehicleType: vehicleType.trim() },
+        });
+      }
+      resetForm();
       driversQuery.refetch();
     } catch (err: any) {
-      Alert.alert('خطأ', err?.data?.error ?? 'تعذر إضافة المندوب');
+      Alert.alert('خطأ', err?.data?.error ?? 'تعذر حفظ بيانات المندوب');
     }
   };
 
+  const startEdit = (driver: { id: number; name: string; phone: string; vehicleType?: string | null }) => {
+    setEditingId(driver.id);
+    setName(driver.name);
+    setPhone(driver.phone);
+    setVehicleType(driver.vehicleType || VEHICLE_TYPES[0]);
+  };
+
   const statusColor = (status: string) => (status === 'مفعّل' ? colors.primary : colors.destructive);
+
+  const busy = createDriver.isPending || updateDriver.isPending;
 
   const sendPortalLink = (driver: { phone: string; name: string; portalToken: string }) => {
     const url = driverPortalUrl(driver.portalToken);
     const text = encodeURIComponent(
       `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت:\n${url}`,
     );
-    const digits = driver.phone.replace(/\D/g, '');
+    // Accept any local form the merchant typed ("077...", "+964...", etc).
+    const digits = toWhatsAppDigits(driver.phone);
     Linking.openURL(`https://wa.me/${digits}?text=${text}`).catch(() =>
       Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك'),
     );
@@ -123,27 +150,39 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
                 </Pressable>
               ))}
             </View>
-            <Pressable
-              onPress={handleAdd}
-              disabled={createDriver.isPending || !name.trim() || !phone.trim() || !vehicleType.trim()}
-              style={[
-                styles.addBtn,
-                {
-                  backgroundColor: colors.primary,
-                  opacity:
-                    createDriver.isPending || !name.trim() || !phone.trim() || !vehicleType.trim() ? 0.5 : 1,
-                },
-              ]}
-            >
-              {createDriver.isPending ? (
-                <ActivityIndicator color={colors.primaryForeground} size="small" />
-              ) : (
-                <>
-                  <Feather name="plus" size={16} color={colors.primaryForeground} />
-                  <Text style={[styles.addBtnText, { color: colors.primaryForeground }]}>إضافة مندوب</Text>
-                </>
-              )}
-            </Pressable>
+            <View style={{ flexDirection: 'row-reverse', gap: 8 }}>
+              <Pressable
+                onPress={handleAdd}
+                disabled={busy || !name.trim() || !phone.trim() || !vehicleType.trim()}
+                style={[
+                  styles.addBtn,
+                  {
+                    flex: 1,
+                    backgroundColor: colors.primary,
+                    opacity: busy || !name.trim() || !phone.trim() || !vehicleType.trim() ? 0.5 : 1,
+                  },
+                ]}
+              >
+                {busy ? (
+                  <ActivityIndicator color={colors.primaryForeground} size="small" />
+                ) : (
+                  <>
+                    <Feather name={editingId != null ? 'check' : 'plus'} size={16} color={colors.primaryForeground} />
+                    <Text style={[styles.addBtnText, { color: colors.primaryForeground }]}>
+                      {editingId != null ? 'حفظ التعديلات' : 'إضافة مندوب'}
+                    </Text>
+                  </>
+                )}
+              </Pressable>
+              {editingId != null ? (
+                <Pressable
+                  onPress={resetForm}
+                  style={[styles.cancelBtn, { borderColor: colors.border }]}
+                >
+                  <Text style={[styles.cancelBtnText, { color: colors.mutedForeground }]}>إلغاء</Text>
+                </Pressable>
+              ) : null}
+            </View>
           </View>
         </View>
       }
@@ -160,33 +199,45 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
         const sc = statusColor(item.status);
         return (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <Pressable
-              hitSlop={8}
-              onPress={() =>
-                Alert.alert('حذف المندوب', `هل تريد حذف "${item.name}"؟`, [
-                  { text: 'إلغاء', style: 'cancel' },
-                  {
-                    text: 'حذف',
-                    style: 'destructive',
-                    onPress: () =>
-                      deleteDriver.mutate(
-                        { driverId: item.id },
-                        {
-                          onSuccess: () => driversQuery.refetch(),
-                          onError: (err: any) =>
-                            Alert.alert('تعذر الحذف', err?.data?.error ?? 'تعذر حذف المندوب'),
-                        },
-                      ),
-                  },
-                ])
-              }
-              style={({ pressed }) => [
-                styles.deleteBtn,
-                { backgroundColor: colors.destructive + '15', opacity: pressed ? 0.7 : 1 },
-              ]}
-            >
-              <Feather name="trash-2" size={16} color={colors.destructive} />
-            </Pressable>
+            <View style={styles.cardActions}>
+              <Pressable
+                hitSlop={8}
+                onPress={() =>
+                  Alert.alert('حذف المندوب', `هل تريد حذف "${item.name}"؟`, [
+                    { text: 'إلغاء', style: 'cancel' },
+                    {
+                      text: 'حذف',
+                      style: 'destructive',
+                      onPress: () =>
+                        deleteDriver.mutate(
+                          { driverId: item.id },
+                          {
+                            onSuccess: () => driversQuery.refetch(),
+                            onError: (err: any) =>
+                              Alert.alert('تعذر الحذف', err?.data?.error ?? 'تعذر حذف المندوب'),
+                          },
+                        ),
+                    },
+                  ])
+                }
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  { backgroundColor: colors.destructive + '15', opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Feather name="trash-2" size={16} color={colors.destructive} />
+              </Pressable>
+              <Pressable
+                hitSlop={8}
+                onPress={() => startEdit(item)}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
+                ]}
+              >
+                <Feather name="edit-2" size={15} color={colors.primary} />
+              </Pressable>
+            </View>
             <View style={{ flex: 1, alignItems: 'flex-end', gap: 4 }}>
               <Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
               <Text style={[styles.phone, { color: colors.mutedForeground }]}>{item.phone}</Text>
@@ -215,14 +266,14 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
               </View>
               {item.portalToken ? (
                 <Pressable
-                  hitSlop={6}
                   onPress={() => sendPortalLink(item)}
-                  style={({ pressed }) => [styles.portalLinkBtn, { opacity: pressed ? 0.7 : 1 }]}
+                  style={({ pressed }) => [
+                    styles.portalLinkBtn,
+                    { backgroundColor: '#25D366', opacity: pressed ? 0.85 : 1 },
+                  ]}
                 >
-                  <Feather name="link" size={12} color={colors.accent} />
-                  <Text style={[styles.portalLinkText, { color: colors.accent }]}>
-                    إرسال رابط التحكم بالحالة للمندوب
-                  </Text>
+                  <Feather name="send" size={13} color="#fff" />
+                  <Text style={styles.portalLinkText}>إرسال رابط التحكم على واتساب</Text>
                 </Pressable>
               ) : null}
             </View>
@@ -298,12 +349,27 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     padding: 14,
   },
-  deleteBtn: {
+  cardActions: {
+    gap: 8,
+  },
+  iconBtn: {
     width: 36,
     height: 36,
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  cancelBtn: {
+    height: 46,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  cancelBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: 13,
   },
   iconWrap: {
     width: 44,
@@ -335,11 +401,17 @@ const styles = StyleSheet.create({
   portalLinkBtn: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 4,
-    marginTop: 6,
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    alignSelf: 'flex-end',
   },
   portalLinkText: {
-    fontFamily: fonts.semibold,
-    fontSize: 11,
+    fontFamily: fonts.bold,
+    fontSize: 11.5,
+    color: '#fff',
   },
 });

@@ -151,6 +151,10 @@ export const SearchProductsResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -343,6 +347,10 @@ export const ListStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -364,7 +372,9 @@ export const CreateStoreBody = zod.object({
   "description": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "latitude": zod.number().nullish(),
-  "longitude": zod.number().nullish()
+  "longitude": zod.number().nullish(),
+  "requestedSubscriptionMonths": zod.union([zod.literal(3),zod.literal(6),zod.literal(12),zod.literal(null)]).nullish().describe('The subscription plan (in months) the merchant is requesting — shown to the admin when reviewing, does not activate anything by itself.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether to offer the \"البضاعة بيها خلل؟\" quality-refund flow to customers.')
 })
 
 export const CreateStoreResponse = zod.object({
@@ -379,6 +389,10 @@ export const CreateStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -399,6 +413,10 @@ export const ListMyStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -420,6 +438,10 @@ export const ListAllStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -445,6 +467,10 @@ export const GetStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -469,7 +495,8 @@ export const UpdateStoreBody = zod.object({
   "description": zod.string().nullish(),
   "imageUrl": zod.string().nullish(),
   "latitude": zod.number().nullish(),
-  "longitude": zod.number().nullish()
+  "longitude": zod.number().nullish(),
+  "refundsEnabled": zod.boolean().optional().describe('Whether to offer the \"البضاعة بيها خلل؟\" quality-refund flow to customers.')
 })
 
 export const UpdateStoreResponse = zod.object({
@@ -484,6 +511,10 @@ export const UpdateStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -528,6 +559,10 @@ export const ReviewStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
   "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
@@ -733,6 +768,40 @@ export const SetDriverStatusBody = zod.object({
 })
 
 export const SetDriverStatusResponse = zod.object({
+  "id": zod.number(),
+  "storeId": zod.number(),
+  "name": zod.string(),
+  "phone": zod.string(),
+  "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
+  "status": zod.string().describe('مفعّل | موقوف'),
+  "available": zod.boolean().describe('The driver\'s OWN day-to-day toggle (متاح\/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant\/admin suspend control).'),
+  "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
+  "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
+  "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Edit a delivery driver's name / phone / vehicle type (owner or admin)
+ */
+export const UpdateDriverParams = zod.object({
+  "driverId": zod.coerce.number()
+})
+
+
+export const updateDriverBodyPhoneMin = 8;
+
+
+
+
+export const UpdateDriverBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "phone": zod.string().min(updateDriverBodyPhoneMin).optional(),
+  "vehicleType": zod.string().min(1).optional()
+})
+
+export const UpdateDriverResponse = zod.object({
   "id": zod.number(),
   "storeId": zod.number(),
   "name": zod.string(),
@@ -1212,6 +1281,89 @@ export const UpdateRefundResponse = zod.object({
   "status": zod.string(),
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
+})
+
+
+/**
+ * @summary Get a delivered order's store + whether it was already rated (for the rate screen)
+ */
+export const GetOrderRatingStatusParams = zod.object({
+  "orderId": zod.coerce.number()
+})
+
+export const GetOrderRatingStatusResponse = zod.object({
+  "orderId": zod.number(),
+  "storeId": zod.number().nullish(),
+  "storeName": zod.string().nullish(),
+  "delivered": zod.boolean().describe('Whether the order has been delivered (rating only allowed after delivery).'),
+  "stars": zod.number().nullish().describe('The customer\'s existing rating for this order, if any.')
+})
+
+
+/**
+ * @summary Rate a delivered order's store 1–5 stars (once per order)
+ */
+export const createRatingBodyStarsMax = 5;
+
+
+
+export const CreateRatingBody = zod.object({
+  "orderId": zod.number(),
+  "stars": zod.number().min(1).max(createRatingBodyStarsMax)
+})
+
+export const CreateRatingResponse = zod.object({
+  "orderId": zod.number(),
+  "stars": zod.number()
+})
+
+
+/**
+ * @summary Get the customer's general balance + per-store credit breakdown
+ */
+export const GetWalletResponse = zod.object({
+  "generalBalance": zod.number().describe('General balance (referral\/admin credit) spendable at any store.'),
+  "stores": zod.array(zod.object({
+  "storeId": zod.number(),
+  "storeName": zod.string(),
+  "storeImageUrl": zod.string().nullish(),
+  "balance": zod.number().describe('Credit (IQD) spendable only at this store.')
+}))
+})
+
+
+/**
+ * @summary Get spendable wallet credit for an order from a specific store
+ */
+export const GetStoreWalletParams = zod.object({
+  "storeId": zod.coerce.number()
+})
+
+export const GetStoreWalletResponse = zod.object({
+  "storeBalance": zod.number().describe('Credit spendable only at this store.'),
+  "generalBalance": zod.number().describe('General balance spendable anywhere.')
+})
+
+
+/**
+ * @summary Get the customer's own referral code and redemption status
+ */
+export const GetReferralResponse = zod.object({
+  "code": zod.string().describe('The customer\'s own share code.'),
+  "referredBy": zod.string().nullish().describe('The code this customer already redeemed, if any.'),
+  "reward": zod.number().describe('IQD credited to each side on redemption.')
+})
+
+
+/**
+ * @summary Redeem a friend's referral code (credits both, once)
+ */
+export const RedeemReferralBody = zod.object({
+  "code": zod.string()
+})
+
+export const RedeemReferralResponse = zod.object({
+  "credited": zod.number().describe('IQD credited to the customer.')
 })
 
 

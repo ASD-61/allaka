@@ -34,6 +34,21 @@ export default function HomeScreen() {
   const storesQuery = useListStores();
   const typesQuery = useListStoreTypes();
 
+  // Hidden admin entry: the admin dashboard button was removed from the
+  // profile screen; instead, tapping the app logo 10 times quickly reveals the
+  // admin login. The counter resets if the taps are too far apart.
+  const logoTaps = React.useRef(0);
+  const lastTapAt = React.useRef(0);
+  const handleLogoTap = () => {
+    const now = Date.now();
+    logoTaps.current = now - lastTapAt.current < 1500 ? logoTaps.current + 1 : 1;
+    lastTapAt.current = now;
+    if (logoTaps.current >= 10) {
+      logoTaps.current = 0;
+      router.push('/admin/login');
+    }
+  };
+
   // Landing shows a card per store type. Every admin-curated type appears
   // (with its real photo + display order) even before any store joins it, so a
   // newly-added type shows up immediately. Types that only exist on stores but
@@ -88,11 +103,13 @@ export default function HomeScreen() {
       >
         <View style={styles.headerTop}>
           <View style={styles.brandRow}>
-            <Image
-              source={require('@/assets/images/logo.png')}
-              style={styles.logoCircle}
-              contentFit="cover"
-            />
+            <Pressable onPress={handleLogoTap} hitSlop={6}>
+              <Image
+                source={require('@/assets/images/logo.png')}
+                style={styles.logoCircle}
+                contentFit="cover"
+              />
+            </Pressable>
             <View>
               <Text style={[styles.brand, { color: colors.foreground }]}>عـلاّكـة</Text>
               <Text style={[styles.brandSub, { color: colors.mutedForeground }]}>
@@ -107,13 +124,16 @@ export default function HomeScreen() {
                 {customer?.points ?? 0}
               </Text>
             </View>
-            <Feather
-              name="bell"
-              size={20}
-              color={colors.foreground}
+            <Pressable
               onPress={() => router.push('/notifications')}
-              suppressHighlighting
-            />
+              hitSlop={10}
+              style={({ pressed }) => [
+                styles.bellBtn,
+                { backgroundColor: colors.muted, opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather name="bell" size={19} color={colors.foreground} />
+            </Pressable>
           </View>
         </View>
 
@@ -238,7 +258,14 @@ const styles = StyleSheet.create({
   headerActions: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
-    gap: 14,
+    gap: 10,
+  },
+  bellBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pointsPill: {
     flexDirection: 'row-reverse',

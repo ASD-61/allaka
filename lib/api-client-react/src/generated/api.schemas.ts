@@ -83,6 +83,17 @@ export interface Store {
   /** @nullable */
   subscriptionExpiresAt?: string | null;
   /**
+     * The plan (3/6/12 months) the merchant picked at registration — a request only; the admin's approval is what actually sets subscriptionExpiresAt.
+     * @nullable
+     */
+  requestedSubscriptionMonths?: number | null;
+  /** Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled). */
+  refundsEnabled?: boolean;
+  /** Running sum of all customer star ratings (1–5) for this store. */
+  ratingSum?: number;
+  /** How many ratings were given — average = ratingSum / ratingCount. */
+  ratingCount?: number;
+  /**
      * Distance from the customer's location, in km — only present when the request included lat/lng.
      * @nullable
      */
@@ -208,6 +219,19 @@ export interface CategoryInput {
   storeId?: number | null;
 }
 
+/**
+ * The subscription plan (in months) the merchant is requesting — shown to the admin when reviewing, does not activate anything by itself.
+ * @nullable
+ */
+export type StoreInputRequestedSubscriptionMonths = typeof StoreInputRequestedSubscriptionMonths[keyof typeof StoreInputRequestedSubscriptionMonths] | null;
+
+
+export const StoreInputRequestedSubscriptionMonths = {
+  NUMBER_3: 3,
+  NUMBER_6: 6,
+  NUMBER_12: 12,
+} as const;
+
 export interface StoreInput {
   /** @minLength 1 */
   name: string;
@@ -223,6 +247,13 @@ export interface StoreInput {
   latitude?: number | null;
   /** @nullable */
   longitude?: number | null;
+  /**
+     * The subscription plan (in months) the merchant is requesting — shown to the admin when reviewing, does not activate anything by itself.
+     * @nullable
+     */
+  requestedSubscriptionMonths?: StoreInputRequestedSubscriptionMonths;
+  /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
+  refundsEnabled?: boolean;
 }
 
 export interface StoreUpdate {
@@ -240,6 +271,8 @@ export interface StoreUpdate {
   latitude?: number | null;
   /** @nullable */
   longitude?: number | null;
+  /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
+  refundsEnabled?: boolean;
 }
 
 export type StoreReviewInputAction = typeof StoreReviewInputAction[keyof typeof StoreReviewInputAction];
@@ -621,6 +654,78 @@ export interface RefundDecisionInput {
   amount?: number;
 }
 
+export interface OrderRatingStatus {
+  orderId: number;
+  /** @nullable */
+  storeId?: number | null;
+  /** @nullable */
+  storeName?: string | null;
+  /** Whether the order has been delivered (rating only allowed after delivery). */
+  delivered: boolean;
+  /**
+     * The customer's existing rating for this order, if any.
+     * @nullable
+     */
+  stars?: number | null;
+}
+
+export interface RatingInput {
+  orderId: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  stars: number;
+}
+
+export interface RatingResult {
+  orderId: number;
+  stars: number;
+}
+
+export interface StoreWalletEntry {
+  storeId: number;
+  storeName: string;
+  /** @nullable */
+  storeImageUrl?: string | null;
+  /** Credit (IQD) spendable only at this store. */
+  balance: number;
+}
+
+export interface WalletSummary {
+  /** General balance (referral/admin credit) spendable at any store. */
+  generalBalance: number;
+  stores: StoreWalletEntry[];
+}
+
+export interface StoreWalletBalance {
+  /** Credit spendable only at this store. */
+  storeBalance: number;
+  /** General balance spendable anywhere. */
+  generalBalance: number;
+}
+
+export interface ReferralInfo {
+  /** The customer's own share code. */
+  code: string;
+  /**
+     * The code this customer already redeemed, if any.
+     * @nullable
+     */
+  referredBy?: string | null;
+  /** IQD credited to each side on redemption. */
+  reward: number;
+}
+
+export interface ReferralRedeemInput {
+  code: string;
+}
+
+export interface ReferralRedeemResult {
+  /** IQD credited to the customer. */
+  credited: number;
+}
+
 export interface AddOrderItemsInput {
   /** @minItems 1 */
   items: OrderItemInput[];
@@ -660,6 +765,15 @@ export interface DeliveryDriverInput {
   phone: string;
   /** @minLength 1 */
   vehicleType: string;
+}
+
+export interface DeliveryDriverUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @minLength 8 */
+  phone?: string;
+  /** @minLength 1 */
+  vehicleType?: string;
 }
 
 export type DeliveryDriverStatusInputStatus = typeof DeliveryDriverStatusInputStatus[keyof typeof DeliveryDriverStatusInputStatus];

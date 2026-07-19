@@ -1,7 +1,6 @@
 import React from 'react';
 import { StyleSheet, Text, View, Pressable } from 'react-native';
 import { Alert } from '@/lib/alert';
-import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import * as Haptics from 'expo-haptics';
 import type { Product } from '@workspace/api-client-react';
@@ -9,6 +8,7 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/image-url';
+import { ZoomableImage } from '@/components/ZoomableImage';
 import { useCart } from '@/context/cart-context';
 import { qtyStepForUnit } from '@/lib/quantity';
 
@@ -71,8 +71,9 @@ export function ProductCard({ product }: { product: Product }) {
       ]}
     >
       <View style={styles.imageWrap}>
-        <Image
-          source={{ uri: resolveImageUrl(product.imageUrl) }}
+        <ZoomableImage
+          uri={resolveImageUrl(product.imageUrl)}
+          wrapperStyle={styles.image}
           style={styles.image}
           contentFit="cover"
           transition={150}

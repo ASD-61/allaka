@@ -14,7 +14,7 @@
       "backgroundColor": "#ffffff"
     },
     "ios": {
-      "supportsTablet": false,
+      "supportsTablet": true,
       "bundleIdentifier": "com.allaka.khudra"
     },
     "android": {
@@ -40,6 +40,13 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "يستخدم التطبيق موقعك لتحديد عنوان التوصيل بدقة وإرساله للمتجر مع طلبك."
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "يستخدم التطبيق مكتبة الصور لرفع صور المنتجات والمتجر وبلاغات التعويض.",
+          "cameraPermission": "يستخدم التطبيق الكاميرا لالتقاط صور المنتجات والمتجر وبلاغات التعويض."
         }
       ]
     ],

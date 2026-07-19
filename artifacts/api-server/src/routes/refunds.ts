@@ -3,6 +3,7 @@ import { eq, and, desc, sql } from "drizzle-orm";
 import { db, refundsTable, ordersTable, customersTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
+import { creditStoreWallet } from "../lib/wallet";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -191,14 +192,14 @@ router.patch(
           .where(eq(refundsTable.id, id))
           .returning();
 
-        // Atomic wallet credit (no read-modify-write race).
-        await tx
-          .update(customersTable)
-          .set({
-            walletBalance: sql`${customersTable.walletBalance} + ${creditAmount}`,
-            updatedAt: new Date(),
-          })
-          .where(eq(customersTable.phone, row.customerPhone));
+        // Credit the customer's per-store wallet so the refund can only be
+        // spent at the store that issued it (atomic upsert, no race).
+        await creditStoreWallet(
+          tx,
+          row.customerPhone,
+          order?.storeId ?? null,
+          creditAmount,
+        );
 
         return updated;
       });

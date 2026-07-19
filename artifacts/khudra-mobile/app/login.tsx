@@ -16,7 +16,7 @@ import { useRequestUploadUrl } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
-import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { resolveImageUrl } from '@/lib/image-url';
 
 type Step = 'phone' | 'code' | 'name';
@@ -83,7 +83,7 @@ export default function LoginScreen() {
 
   const handlePickAvatar = async () => {
     try {
-      const picked = await pickImage();
+      const picked = await pickImageWithChoice();
       if (!picked) return;
       setUploading(true);
       const path = await uploadPickedImage(picked, (args) =>

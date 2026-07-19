@@ -17,7 +17,7 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/image-url';
-import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { EmptyState } from '@/components/EmptyState';
 
 export function ProductsTab() {
@@ -119,7 +119,7 @@ export function ProductsTab() {
   );
 
   const handleEditPickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setEditImagePreview(picked.uri);
     setEditUploading(true);
@@ -242,7 +242,7 @@ export function ProductsTab() {
   };
 
   const handlePickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setImagePreview(picked.uri);
     setUploading(true);
@@ -489,6 +489,20 @@ export function ProductsTab() {
                 >
                   <Feather name="percent" size={16} color={hasOffer || isEditingOffer ? colors.warning : colors.mutedForeground} />
                 </Pressable>
+                <Pressable
+                  hitSlop={8}
+                  onPress={() => handleToggleStock(item.id, !item.inStock)}
+                  style={[
+                    styles.iconBtn,
+                    { backgroundColor: item.inStock ? colors.success + '18' : colors.destructive + '18' },
+                  ]}
+                >
+                  <Feather
+                    name={item.inStock ? 'check-circle' : 'slash'}
+                    size={16}
+                    color={item.inStock ? colors.success : colors.destructive}
+                  />
+                </Pressable>
               </View>
 
               <View style={styles.infoBox}>
@@ -512,15 +526,11 @@ export function ProductsTab() {
 
               <View style={styles.thumbBox}>
                 <Image source={{ uri: resolveImageUrl(item.imageUrl) }} style={styles.thumbImg} contentFit="cover" />
-                <Pressable
-                  onPress={() => handleToggleStock(item.id, !item.inStock)}
-                  style={[
-                    styles.stockBadge,
-                    { backgroundColor: item.inStock ? colors.success : colors.destructive }
-                  ]}
-                >
-                  <Feather name={item.inStock ? "check" : "x"} size={10} color="#fff" />
-                </Pressable>
+                {!item.inStock ? (
+                  <View style={styles.outOfStockOverlay}>
+                    <Text style={styles.outOfStockText}>نفذت</Text>
+                  </View>
+                ) : null}
               </View>
             </View>
 
@@ -822,23 +832,24 @@ const styles = StyleSheet.create({
     height: 64,
     borderRadius: 12,
     backgroundColor: '#f5f5f5',
+    overflow: 'hidden',
   },
   thumbImg: {
     width: '100%',
     height: '100%',
     borderRadius: 12,
   },
-  stockBadge: {
-    position: 'absolute',
-    top: -4,
-    right: -4,
-    width: 20,
-    height: 20,
-    borderRadius: 10,
+  outOfStockOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.5)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 2,
-    borderColor: '#fff',
+    borderRadius: 12,
+  },
+  outOfStockText: {
+    color: '#fff',
+    fontFamily: fonts.bold,
+    fontSize: 11,
   },
   infoBox: {
     flex: 1,

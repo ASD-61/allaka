@@ -9,14 +9,35 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { Alert } from '@/lib/alert';
+import { Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useCreateStore, useListMyStores, useListStoreTypes } from '@workspace/api-client-react';
+import { waMeLink } from '@/lib/phone';
+import {
+  useCreateStore,
+  useListMyStores,
+  useListStoreTypes,
+  useRequestUploadUrl,
+} from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { RequireAuth } from '@/components/RequireAuth';
 import { LocationPicker } from '@/components/LocationPicker';
 import type { LatLng } from '@/lib/locationPickerHtml';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
+
+// Flat rate: ١٠٠ ألف دينار لكل ٣ أشهر (same rate the admin uses when
+// approving), scaled linearly for the longer options.
+const SUBSCRIPTION_PLANS: { months: 3 | 6 | 12; label: string; price: string }[] = [
+  { months: 3, label: '٣ أشهر', price: '١٠٠ ألف د.ع' },
+  { months: 6, label: '٦ أشهر', price: '٢٠٠ ألف د.ع' },
+  { months: 12, label: '١٢ شهر', price: '٤٠٠ ألف د.ع' },
+];
+
+// The admin's WhatsApp for arranging the (offline/electronic) registration
+// payment — same number shown on the help/support screen.
+const ADMIN_WHATSAPP = '9647731355623';
 
 export default function RegisterStoreScreen() {
   return (
@@ -38,6 +59,7 @@ function RegisterStoreContent() {
   const myStores = useListMyStores();
   const storeTypes = useListStoreTypes();
   const createStore = useCreateStore();
+  const requestUploadUrl = useRequestUploadUrl();
 
   const [name, setName] = useState('');
   const [storeType, setStoreType] = useState('');
@@ -45,6 +67,37 @@ function RegisterStoreContent() {
   const [description, setDescription] = useState('');
   const [coords, setCoords] = useState<LatLng | null>(null);
   const [pickerVisible, setPickerVisible] = useState(false);
+  const [imagePath, setImagePath] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [subscriptionMonths, setSubscriptionMonths] = useState<3 | 6 | 12>(3);
+  // Set after a successful submit so we can show a "pay via WhatsApp" CTA.
+  const [submittedStore, setSubmittedStore] = useState<{ name: string; price: string } | null>(null);
+
+  const messageAdmin = () => {
+    const price = submittedStore?.price ?? '';
+    const msg =
+      `مرحباً، سجّلت متجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة ` +
+      `واخترت اشتراك بقيمة ${price}. أريد أرسل مبلغ التسجيل إلكترونياً، شلون نتفق؟`;
+    Linking.openURL(waMeLink(ADMIN_WHATSAPP, msg)).catch(() =>
+      Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك'),
+    );
+  };
+
+  const handlePickImage = async () => {
+    const picked = await pickImageWithChoice();
+    if (!picked) return;
+    setImagePreview(picked.uri);
+    setUploading(true);
+    try {
+      const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
+      setImagePath(path);
+    } catch {
+      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const canSubmit =
     name.trim().length > 0 &&
@@ -53,15 +106,20 @@ function RegisterStoreContent() {
 
   const handleSubmit = async () => {
     if (!canSubmit) return;
+    const planPrice =
+      SUBSCRIPTION_PLANS.find((p) => p.months === subscriptionMonths)?.price ?? '';
+    const submittedName = name.trim();
     try {
       await createStore.mutateAsync({
         data: {
-          name: name.trim(),
+          name: submittedName,
           storeType: storeType.trim(),
           address: address.trim(),
           description: description.trim() || null,
+          imageUrl: imagePath,
           latitude: coords?.latitude ?? null,
           longitude: coords?.longitude ?? null,
+          requestedSubscriptionMonths: subscriptionMonths,
         },
       });
       setName('');
@@ -69,11 +127,11 @@ function RegisterStoreContent() {
       setAddress('');
       setDescription('');
       setCoords(null);
+      setImagePath(null);
+      setImagePreview(null);
+      setSubscriptionMonths(3);
       myStores.refetch();
-      Alert.alert(
-        'تم إرسال الطلب',
-        'متجرك قيد المراجعة من الإدارة. راح نعلمك عند التفعيل.',
-      );
+      setSubmittedStore({ name: submittedName, price: planPrice });
     } catch (err: any) {
       Alert.alert('تعذر التسجيل', err?.data?.error ?? 'صار خطأ، حاول مرة ثانية');
     }
@@ -93,6 +151,25 @@ function RegisterStoreContent() {
           سجّل متجرك ويا علاّكة
         </Text>
       </View>
+
+      {submittedStore ? (
+        <View style={[styles.successCard, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}>
+          <View style={styles.successHeader}>
+            <Feather name="check-circle" size={20} color={colors.primary} />
+            <Text style={[styles.successTitle, { color: colors.foreground }]}>تم إرسال طلب "{submittedStore.name}"</Text>
+          </View>
+          <Text style={[styles.successText, { color: colors.mutedForeground }]}>
+            متجرك قيد المراجعة. تقدر تراسل الإدارة على الواتساب لدفع مبلغ التسجيل ({submittedStore.price}) إلكترونياً والاتفاق على التفعيل.
+          </Text>
+          <Pressable onPress={messageAdmin} style={[styles.waBtn, { backgroundColor: '#25D366' }]}>
+            <Feather name="message-circle" size={18} color="#fff" />
+            <Text style={styles.waBtnText}>مراسلة الإدارة على واتساب لدفع الاشتراك</Text>
+          </Pressable>
+          <Pressable onPress={() => setSubmittedStore(null)} hitSlop={6} style={{ alignSelf: 'center', paddingVertical: 6 }}>
+            <Text style={[styles.successDismiss, { color: colors.mutedForeground }]}>تسجيل متجر آخر</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {(myStores.data?.length ?? 0) > 0 ? (
         <View style={{ marginBottom: 22 }}>
@@ -119,6 +196,27 @@ function RegisterStoreContent() {
       ) : null}
 
       <Text style={[styles.sectionLabel, { color: colors.foreground }]}>معلومات المتجر</Text>
+
+      <Pressable
+        onPress={handlePickImage}
+        style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}
+      >
+        {imagePreview ? (
+          <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="cover" />
+        ) : (
+          <View style={styles.imagePickerPlaceholder}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>
+              <Feather name="camera" size={24} color={colors.primary} />
+            </View>
+            <Text style={[styles.imagePickerText, { color: colors.mutedForeground }]}>صورة المتجر (اختياري)</Text>
+          </View>
+        )}
+        {uploading ? (
+          <View style={styles.uploadOverlay}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        ) : null}
+      </Pressable>
 
       <Field label="اسم المتجر" value={name} onChangeText={setName} placeholder="مثال: بقالية النور" colors={colors} />
 
@@ -184,6 +282,43 @@ function RegisterStoreContent() {
         colors={colors}
         multiline
       />
+
+      <View style={{ marginBottom: 14 }}>
+        <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>مدة الاشتراك المطلوبة</Text>
+        <View style={styles.planRow}>
+          {SUBSCRIPTION_PLANS.map((plan) => {
+            const selected = subscriptionMonths === plan.months;
+            return (
+              <Pressable
+                key={plan.months}
+                onPress={() => setSubscriptionMonths(plan.months)}
+                style={[
+                  styles.planChip,
+                  {
+                    backgroundColor: selected ? colors.primary : colors.card,
+                    borderColor: selected ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text style={[styles.planChipLabel, { color: selected ? colors.primaryForeground : colors.foreground }]}>
+                  {plan.label}
+                </Text>
+                <Text
+                  style={[
+                    styles.planChipPrice,
+                    { color: selected ? colors.primaryForeground : colors.mutedForeground },
+                  ]}
+                >
+                  {plan.price}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+        <Text style={[styles.chipHint, { color: colors.mutedForeground }]}>
+          هذا طلب فقط — الإدارة تراجع طلبك وتفعّل الاشتراك بعد التواصل معك واستلام الدفعة
+        </Text>
+      </View>
 
       <Pressable
         onPress={handleSubmit}
@@ -269,6 +404,47 @@ const styles = StyleSheet.create({
     lineHeight: 21,
     textAlign: 'right',
   },
+  successCard: {
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 16,
+    gap: 12,
+    marginBottom: 22,
+  },
+  successHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  successTitle: {
+    flex: 1,
+    fontFamily: fonts.bold,
+    fontSize: 15,
+    textAlign: 'right',
+  },
+  successText: {
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    lineHeight: 20,
+    textAlign: 'right',
+  },
+  waBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 50,
+    borderRadius: 14,
+  },
+  waBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 13.5,
+    color: '#fff',
+  },
+  successDismiss: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
+  },
   sectionLabel: {
     fontFamily: fonts.bold,
     fontSize: 15,
@@ -343,6 +519,61 @@ const styles = StyleSheet.create({
   locationBtnText: {
     fontFamily: fonts.semibold,
     fontSize: 13,
+  },
+  imagePicker: {
+    height: 140,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  previewImg: {
+    width: '100%',
+    height: '100%',
+  },
+  imagePickerPlaceholder: {
+    alignItems: 'center',
+    gap: 10,
+  },
+  iconCircle: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  imagePickerText: {
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
+  uploadOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.4)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  planRow: {
+    flexDirection: 'row-reverse',
+    gap: 8,
+  },
+  planChip: {
+    flex: 1,
+    alignItems: 'center',
+    gap: 2,
+    paddingVertical: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+  },
+  planChipLabel: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  planChipPrice: {
+    fontFamily: fonts.medium,
+    fontSize: 11,
   },
   input: {
     borderWidth: 1,

@@ -41,6 +41,15 @@ testem.log
 .DS_Store
 Thumbs.db
 
+# Secrets — never commit real env files
+.env
+.env.*
+!.env.example
+
+# Locally uploaded images (dev filesystem storage)
+local-storage/
+.local-storage/
+
 .cursor/rules/nx-rules.mdc
 .github/instructions/nx.instructions.md
 

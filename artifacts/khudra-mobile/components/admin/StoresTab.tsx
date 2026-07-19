@@ -23,7 +23,7 @@ import { useAdminRequest } from '@/hooks/useAdminRequest';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { resolveImageUrl } from '@/lib/image-url';
-import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { EmptyState } from '@/components/EmptyState';
 
 const STATUS_PENDING = 'قيد المراجعة';
@@ -95,16 +95,41 @@ export function StoresTab() {
       mode === 'extend'
         ? 'المدة راح تنضاف على تاريخ الانتهاء الحالي'
         : 'المدة راح تصير من اليوم (تصحيح / تقليل الاشتراك)';
+    // The merchant's requested plan (chosen at registration) is shown first
+    // and labeled, so the admin doesn't have to guess/ask what they signed up
+    // for — it's still just a suggestion; the admin can pick any duration.
+    const requested = store.requestedSubscriptionMonths;
+    const planLabel = (months: number) =>
+      months === requested ? `${months === 3 ? '٣' : months === 6 ? '٦' : '١٢'} أشهر (طلب التاجر)` : `${months === 3 ? '٣' : months === 6 ? '٦' : '١٢'} أشهر`;
+    const months = requested === 6 || requested === 12 ? [requested, ...[3, 6, 12].filter((m) => m !== requested)] : [3, 6, 12];
     Alert.alert(title, `${modeHint}\n(١٠٠ ألف دينار لكل ٣ أشهر)`, [
-      { text: '٣ أشهر', onPress: () => doReview(store.id, 'approve', 3, mode) },
-      { text: '٦ أشهر', onPress: () => doReview(store.id, 'approve', 6, mode) },
-      { text: '١٢ شهر', onPress: () => doReview(store.id, 'approve', 12, mode) },
-      { text: 'إلغاء', style: 'cancel' },
+      ...months.map((m) => ({
+        text: planLabel(m),
+        onPress: () => doReview(store.id, 'approve', m, mode),
+      })),
+      { text: 'إلغاء', style: 'cancel' as const },
     ]);
   };
 
   const approve = (store: Store, renew: boolean) => {
-    pickSubscription(store, renew ? 'تجديد الاشتراك' : 'تفعيل المتجر', 'extend');
+    // Renewals still let the admin pick a duration. But for the FIRST
+    // activation the merchant already chose their plan at registration, so we
+    // don't show the subscription-type picker — just confirm and activate with
+    // the requested plan (falls back to 3 months if none was requested).
+    if (renew) {
+      pickSubscription(store, 'تجديد الاشتراك', 'extend');
+      return;
+    }
+    const months = store.requestedSubscriptionMonths ?? 3;
+    const monthsLabel = months === 3 ? '٣' : months === 6 ? '٦' : months === 12 ? '١٢' : String(months);
+    Alert.alert(
+      'تفعيل المتجر',
+      `تفعيل متجر "${store.name}" باشتراك ${monthsLabel} أشهر (حسب طلب التاجر).`,
+      [
+        { text: 'إلغاء', style: 'cancel' },
+        { text: 'تفعيل', onPress: () => doReview(store.id, 'approve', months, 'extend') },
+      ],
+    );
   };
 
   const correctSubscription = (store: Store) => {
@@ -177,7 +202,7 @@ export function StoresTab() {
   };
 
   const handleEditPickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setEditImagePreview(picked.uri);
     setEditUploading(true);
@@ -325,6 +350,14 @@ export function StoresTab() {
             </View>
             {item.description ? (
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>{item.description}</Text>
+            ) : null}
+            {isPending && item.requestedSubscriptionMonths ? (
+              <View style={[styles.requestedPlanBox, { backgroundColor: colors.accent + '15' }]}>
+                <Feather name="tag" size={13} color={colors.accent} />
+                <Text style={[styles.requestedPlanText, { color: colors.accent }]}>
+                  التاجر طلب اشتراك {item.requestedSubscriptionMonths} أشهر
+                </Text>
+              </View>
             ) : null}
             {isActive && item.subscriptionExpiresAt ? (
               <View style={styles.detailRow}>
@@ -549,6 +582,19 @@ const styles = StyleSheet.create({
     fontSize: 12,
     textAlign: 'right',
     lineHeight: 19,
+  },
+  requestedPlanBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    borderRadius: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    alignSelf: 'flex-end',
+  },
+  requestedPlanText: {
+    fontFamily: fonts.semibold,
+    fontSize: 11.5,
   },
   actions: {
     flexDirection: 'row-reverse',

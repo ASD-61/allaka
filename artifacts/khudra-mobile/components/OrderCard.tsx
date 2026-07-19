@@ -6,7 +6,7 @@ import type { Order } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD, formatDate } from '@/lib/format';
-import { useListProducts } from '@workspace/api-client-react';
+import { useListProducts, useGetStore } from '@workspace/api-client-react';
 import { useCart } from '@/context/cart-context';
 
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -26,6 +26,12 @@ export function OrderCard({ order }: { order: Order }) {
   const [expanded, setExpanded] = useState(false);
   const step = statusIndex(order.status);
   const productsQuery = useListProducts();
+  // Only fetch the store when the card is expanded (to know whether the
+  // merchant enabled the "البضاعة بيها خلل؟" refund flow).
+  const storeQuery = useGetStore(order.storeId ?? 0, {
+    query: { enabled: expanded && order.storeId != null },
+  } as any);
+  const refundsEnabled = storeQuery.data?.refundsEnabled !== false;
 
   const toggle = () => {
     LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
@@ -169,6 +175,16 @@ export function OrderCard({ order }: { order: Order }) {
 
           <View style={styles.actionsRow}>
             {order.status === 'تم التسليم' && (
+              <Pressable
+                onPress={() => router.push({ pathname: '/rate/[orderId]', params: { orderId: String(order.id) } })}
+                style={[styles.actionBtn, { backgroundColor: colors.accent + '18' }]}
+              >
+                <Feather name="star" size={14} color={colors.accent} />
+                <Text style={[styles.actionBtnText, { color: colors.accent }]}>قيّم المتجر</Text>
+              </Pressable>
+            )}
+
+            {order.status === 'تم التسليم' && refundsEnabled && (
               <Pressable
                 onPress={() => router.push({ pathname: '/refund', params: { orderId: order.id, items: JSON.stringify(order.items) } })}
                 style={[styles.actionBtn, { backgroundColor: colors.destructive + '15' }]}

@@ -15,7 +15,7 @@ import { useAdminRequest } from '@/hooks/useAdminRequest';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { resolveImageUrl } from '@/lib/image-url';
-import { pickImage, uploadPickedImage } from '@/lib/upload';
+import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { EmptyState } from '@/components/EmptyState';
 
 export function StoreTypesTab() {
@@ -46,7 +46,7 @@ export function StoreTypesTab() {
   const [editSaving, setEditSaving] = useState(false);
 
   const handlePickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setImagePreview(picked.uri);
     setUploading(true);
@@ -102,7 +102,7 @@ export function StoreTypesTab() {
   };
 
   const handleEditPickImage = async () => {
-    const picked = await pickImage();
+    const picked = await pickImageWithChoice();
     if (!picked) return;
     setEditImagePreview(picked.uri);
     setEditUploading(true);

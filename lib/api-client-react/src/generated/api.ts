@@ -37,6 +37,7 @@ import type {
   DeliveryDriver,
   DeliveryDriverInput,
   DeliveryDriverStatusInput,
+  DeliveryDriverUpdate,
   ErrorEnvelope,
   HealthStatus,
   ListCategoriesParams,
@@ -46,11 +47,17 @@ import type {
   NotificationItem,
   Order,
   OrderInput,
+  OrderRatingStatus,
   OrderStatusUpdate,
   Product,
   ProductInput,
   ProductSearchResult,
   ProductUpdate,
+  RatingInput,
+  RatingResult,
+  ReferralInfo,
+  ReferralRedeemInput,
+  ReferralRedeemResult,
   Refund,
   RefundDecisionInput,
   RefundInput,
@@ -66,10 +73,12 @@ import type {
   StoreTypeInput,
   StoreTypeUpdate,
   StoreUpdate,
+  StoreWalletBalance,
   UpdateProfileInput,
   UploadUrlRequest,
   UploadUrlResponse,
-  VerifyOtpInput
+  VerifyOtpInput,
+  WalletSummary
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
@@ -2142,6 +2151,78 @@ export const useSetDriverStatus = <TError = ErrorType<ErrorEnvelope>,
       return useMutation(getSetDriverStatusMutationOptions(options));
     }
 
+export const getUpdateDriverUrl = (driverId: number,) => {
+
+
+
+
+  return `/api/drivers/${driverId}`
+}
+
+/**
+ * @summary Edit a delivery driver's name / phone / vehicle type (owner or admin)
+ */
+export const updateDriver = async (driverId: number,
+    deliveryDriverUpdate: DeliveryDriverUpdate, options?: RequestInit): Promise<DeliveryDriver> => {
+
+  return customFetch<DeliveryDriver>(getUpdateDriverUrl(driverId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(deliveryDriverUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateDriverMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDriver>>, TError,{driverId: number;data: BodyType<DeliveryDriverUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateDriver>>, TError,{driverId: number;data: BodyType<DeliveryDriverUpdate>}, TContext> => {
+
+const mutationKey = ['updateDriver'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateDriver>>, {driverId: number;data: BodyType<DeliveryDriverUpdate>}> = (props) => {
+          const {driverId,data} = props ?? {};
+
+          return  updateDriver(driverId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateDriverMutationResult = NonNullable<Awaited<ReturnType<typeof updateDriver>>>
+    export type UpdateDriverMutationBody = BodyType<DeliveryDriverUpdate>
+    export type UpdateDriverMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Edit a delivery driver's name / phone / vehicle type (owner or admin)
+ */
+export const useUpdateDriver = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateDriver>>, TError,{driverId: number;data: BodyType<DeliveryDriverUpdate>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateDriver>>,
+        TError,
+        {driverId: number;data: BodyType<DeliveryDriverUpdate>},
+        TContext
+      > => {
+      return useMutation(getUpdateDriverMutationOptions(options));
+    }
+
 export const getDeleteDriverUrl = (driverId: number,) => {
 
 
@@ -3466,6 +3547,456 @@ export const useUpdateRefund = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getUpdateRefundMutationOptions(options));
+    }
+
+export const getGetOrderRatingStatusUrl = (orderId: number,) => {
+
+
+
+
+  return `/api/ratings/order/${orderId}`
+}
+
+/**
+ * @summary Get a delivered order's store + whether it was already rated (for the rate screen)
+ */
+export const getOrderRatingStatus = async (orderId: number, options?: RequestInit): Promise<OrderRatingStatus> => {
+
+  return customFetch<OrderRatingStatus>(getGetOrderRatingStatusUrl(orderId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetOrderRatingStatusQueryKey = (orderId: number,) => {
+    return [
+    `/api/ratings/order/${orderId}`
+    ] as const;
+    }
+
+
+export const getGetOrderRatingStatusQueryOptions = <TData = Awaited<ReturnType<typeof getOrderRatingStatus>>, TError = ErrorType<ErrorEnvelope>>(orderId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrderRatingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetOrderRatingStatusQueryKey(orderId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getOrderRatingStatus>>> = ({ signal }) => getOrderRatingStatus(orderId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: orderId !== null && orderId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getOrderRatingStatus>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetOrderRatingStatusQueryResult = NonNullable<Awaited<ReturnType<typeof getOrderRatingStatus>>>
+export type GetOrderRatingStatusQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Get a delivered order's store + whether it was already rated (for the rate screen)
+ */
+
+export function useGetOrderRatingStatus<TData = Awaited<ReturnType<typeof getOrderRatingStatus>>, TError = ErrorType<ErrorEnvelope>>(
+ orderId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getOrderRatingStatus>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetOrderRatingStatusQueryOptions(orderId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateRatingUrl = () => {
+
+
+
+
+  return `/api/ratings`
+}
+
+/**
+ * @summary Rate a delivered order's store 1–5 stars (once per order)
+ */
+export const createRating = async (ratingInput: RatingInput, options?: RequestInit): Promise<RatingResult> => {
+
+  return customFetch<RatingResult>(getCreateRatingUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(ratingInput)
+  }
+);}
+
+
+
+
+
+export const getCreateRatingMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRating>>, TError,{data: BodyType<RatingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createRating>>, TError,{data: BodyType<RatingInput>}, TContext> => {
+
+const mutationKey = ['createRating'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createRating>>, {data: BodyType<RatingInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  createRating(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateRatingMutationResult = NonNullable<Awaited<ReturnType<typeof createRating>>>
+    export type CreateRatingMutationBody = BodyType<RatingInput>
+    export type CreateRatingMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Rate a delivered order's store 1–5 stars (once per order)
+ */
+export const useCreateRating = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createRating>>, TError,{data: BodyType<RatingInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createRating>>,
+        TError,
+        {data: BodyType<RatingInput>},
+        TContext
+      > => {
+      return useMutation(getCreateRatingMutationOptions(options));
+    }
+
+export const getGetWalletUrl = () => {
+
+
+
+
+  return `/api/wallet`
+}
+
+/**
+ * @summary Get the customer's general balance + per-store credit breakdown
+ */
+export const getWallet = async ( options?: RequestInit): Promise<WalletSummary> => {
+
+  return customFetch<WalletSummary>(getGetWalletUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetWalletQueryKey = () => {
+    return [
+    `/api/wallet`
+    ] as const;
+    }
+
+
+export const getGetWalletQueryOptions = <TData = Awaited<ReturnType<typeof getWallet>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetWalletQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getWallet>>> = ({ signal }) => getWallet({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getWallet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetWalletQueryResult = NonNullable<Awaited<ReturnType<typeof getWallet>>>
+export type GetWalletQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Get the customer's general balance + per-store credit breakdown
+ */
+
+export function useGetWallet<TData = Awaited<ReturnType<typeof getWallet>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetWalletQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetStoreWalletUrl = (storeId: number,) => {
+
+
+
+
+  return `/api/wallet/store/${storeId}`
+}
+
+/**
+ * @summary Get spendable wallet credit for an order from a specific store
+ */
+export const getStoreWallet = async (storeId: number, options?: RequestInit): Promise<StoreWalletBalance> => {
+
+  return customFetch<StoreWalletBalance>(getGetStoreWalletUrl(storeId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetStoreWalletQueryKey = (storeId: number,) => {
+    return [
+    `/api/wallet/store/${storeId}`
+    ] as const;
+    }
+
+
+export const getGetStoreWalletQueryOptions = <TData = Awaited<ReturnType<typeof getStoreWallet>>, TError = ErrorType<ErrorEnvelope>>(storeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetStoreWalletQueryKey(storeId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getStoreWallet>>> = ({ signal }) => getStoreWallet(storeId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: storeId !== null && storeId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getStoreWallet>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetStoreWalletQueryResult = NonNullable<Awaited<ReturnType<typeof getStoreWallet>>>
+export type GetStoreWalletQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Get spendable wallet credit for an order from a specific store
+ */
+
+export function useGetStoreWallet<TData = Awaited<ReturnType<typeof getStoreWallet>>, TError = ErrorType<ErrorEnvelope>>(
+ storeId: number, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getStoreWallet>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetStoreWalletQueryOptions(storeId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGetReferralUrl = () => {
+
+
+
+
+  return `/api/referral`
+}
+
+/**
+ * @summary Get the customer's own referral code and redemption status
+ */
+export const getReferral = async ( options?: RequestInit): Promise<ReferralInfo> => {
+
+  return customFetch<ReferralInfo>(getGetReferralUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetReferralQueryKey = () => {
+    return [
+    `/api/referral`
+    ] as const;
+    }
+
+
+export const getGetReferralQueryOptions = <TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetReferralQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getReferral>>> = ({ signal }) => getReferral({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetReferralQueryResult = NonNullable<Awaited<ReturnType<typeof getReferral>>>
+export type GetReferralQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Get the customer's own referral code and redemption status
+ */
+
+export function useGetReferral<TData = Awaited<ReturnType<typeof getReferral>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getReferral>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetReferralQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getRedeemReferralUrl = () => {
+
+
+
+
+  return `/api/referral/redeem`
+}
+
+/**
+ * @summary Redeem a friend's referral code (credits both, once)
+ */
+export const redeemReferral = async (referralRedeemInput: ReferralRedeemInput, options?: RequestInit): Promise<ReferralRedeemResult> => {
+
+  return customFetch<ReferralRedeemResult>(getRedeemReferralUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(referralRedeemInput)
+  }
+);}
+
+
+
+
+
+export const getRedeemReferralMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext> => {
+
+const mutationKey = ['redeemReferral'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof redeemReferral>>, {data: BodyType<ReferralRedeemInput>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  redeemReferral(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RedeemReferralMutationResult = NonNullable<Awaited<ReturnType<typeof redeemReferral>>>
+    export type RedeemReferralMutationBody = BodyType<ReferralRedeemInput>
+    export type RedeemReferralMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Redeem a friend's referral code (credits both, once)
+ */
+export const useRedeemReferral = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof redeemReferral>>, TError,{data: BodyType<ReferralRedeemInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof redeemReferral>>,
+        TError,
+        {data: BodyType<ReferralRedeemInput>},
+        TContext
+      > => {
+      return useMutation(getRedeemReferralMutationOptions(options));
     }
 
 export const getRequestOtpUrl = () => {

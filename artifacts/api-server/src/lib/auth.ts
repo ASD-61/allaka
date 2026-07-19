@@ -1,7 +1,23 @@
 import jwt from "jsonwebtoken";
 import type { Request } from "express";
 
-const SECRET = process.env["SESSION_SECRET"] ?? "khudra-fallback-secret";
+// In production a real SESSION_SECRET is mandatory — without it JWTs would be
+// signed with a public constant and anyone could forge admin/customer tokens.
+// We refuse to start rather than run insecurely. In development a fallback is
+// allowed only for local convenience.
+const SECRET = (() => {
+  const fromEnv = process.env["SESSION_SECRET"];
+  if (fromEnv && fromEnv.length >= 16) return fromEnv;
+  if (process.env["NODE_ENV"] === "production") {
+    throw new Error(
+      "SESSION_SECRET must be set to a strong value (>= 16 chars) in production",
+    );
+  }
+  console.warn(
+    "[auth] SESSION_SECRET not set — using an insecure dev-only fallback. Set it before deploying.",
+  );
+  return "khudra-fallback-secret-dev-only";
+})();
 // Long-lived sessions: a customer who logs in stays signed in for a year, and
 // their account data (profile, addresses, points, wallet, orders) lives in the
 // database keyed by phone — so logging out and back in always restores it.

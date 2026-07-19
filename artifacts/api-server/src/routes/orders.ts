@@ -7,6 +7,7 @@ import {
   productsTable,
   storesTable,
   deliveryDriversTable,
+  customerStoreWalletsTable,
 } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
@@ -14,6 +15,7 @@ import { isAdminRequest, getCustomerPhone } from "../lib/auth";
 import {
   sendWhatsAppOrderNotification,
   sendWhatsAppOrderConfirmationToCustomer,
+  sendWhatsAppRatingRequest,
 } from "../lib/whatsapp";
 import { z } from "zod";
 
@@ -224,22 +226,44 @@ router.post(
 
     const grossTotal = subtotal - discountApplied + deliveryFee;
 
-    // Apply in-app wallet credit (from quality refunds), clamped to the
-    // customer's balance and the order's gross total so it can never overdraw
-    // the wallet or push the total below zero.
+    // Wallet credit comes from two sources: this store's own balance (quality
+    // refunds, spendable only here) plus the general balance (referral/admin
+    // credit, spendable anywhere). Spend the store balance first.
+    const orderStoreId = parsed.data.storeId ?? null;
+    let storeWalletBalance = 0;
+    if (orderStoreId != null) {
+      const [sw] = await db
+        .select()
+        .from(customerStoreWalletsTable)
+        .where(
+          and(
+            eq(customerStoreWalletsTable.customerPhone, customerPhone),
+            eq(customerStoreWalletsTable.storeId, orderStoreId),
+          ),
+        );
+      storeWalletBalance = sw?.balance ?? 0;
+    }
+    const availableWallet = customer.walletBalance + storeWalletBalance;
+
+    // Clamp to what's available and the order's gross total so it can never
+    // overdraw the wallet or push the total below zero.
     const walletApplied = Math.max(
       0,
-      Math.min(walletRequested, customer.walletBalance, grossTotal),
+      Math.min(walletRequested, availableWallet, grossTotal),
     );
     const total = grossTotal - walletApplied;
+
+    // Deduct store balance first, remainder from the general balance.
+    const fromStore = Math.min(walletApplied, storeWalletBalance);
+    const fromGeneral = walletApplied - fromStore;
 
     // Loyalty: 1 point per 1,000 IQD of the order value before wallet credit
     // (wallet is spent like cash), floored.
     const pointsEarned = Math.floor(grossTotal / 1000);
     const newPoints = customer.points - pointsRedeemed + pointsEarned;
-    const newWalletBalance = customer.walletBalance - walletApplied;
+    const newWalletBalance = customer.walletBalance - fromGeneral;
 
-    // Update customer points and wallet balance
+    // Update customer points and general wallet balance
     await db
       .update(customersTable)
       .set({
@@ -248,6 +272,22 @@ router.post(
         updatedAt: new Date(),
       })
       .where(eq(customersTable.phone, customerPhone));
+
+    // Deduct the store-specific portion from the per-store wallet.
+    if (fromStore > 0 && orderStoreId != null) {
+      await db
+        .update(customerStoreWalletsTable)
+        .set({
+          balance: sql`${customerStoreWalletsTable.balance} - ${fromStore}`,
+          updatedAt: new Date(),
+        })
+        .where(
+          and(
+            eq(customerStoreWalletsTable.customerPhone, customerPhone),
+            eq(customerStoreWalletsTable.storeId, orderStoreId),
+          ),
+        );
+    }
 
     // Insert order
     const [order] = await db
@@ -365,6 +405,30 @@ router.patch(
       .set({ status: parsed.data.status })
       .where(eq(ordersTable.id, id))
       .returning();
+
+    // Once delivered, ask the customer to rate the store (non-blocking). Only
+    // on the transition TO "تم التسليم" so re-saving the same status doesn't
+    // spam them. The link opens the app's rating screen for this order.
+    if (
+      parsed.data.status === "تم التسليم" &&
+      existing.status !== "تم التسليم"
+    ) {
+      const base = `${req.protocol}://${req.get("host")}`;
+      Promise.all([
+        resolveOrderStore(order.storeId),
+        resolveStoreOrderNumber(order.storeId, order.id),
+      ])
+        .then(([store, storeOrderNumber]) => {
+          void sendWhatsAppRatingRequest({
+            customerPhone: order.customerPhone,
+            storeName: store?.name ?? null,
+            orderId: order.id,
+            storeOrderNumber,
+            rateUrl: `${base}/rate/${order.id}`,
+          });
+        })
+        .catch((err) => console.warn("Rating request error:", err));
+    }
 
     res.json(order);
   },

@@ -242,6 +242,60 @@ router.patch(
   },
 );
 
+const DriverUpdateBody = z.object({
+  name: z.string().min(1).optional(),
+  phone: z.string().min(8).optional(),
+  vehicleType: z.string().min(1).optional(),
+});
+
+// PATCH /drivers/:id — the owning store's merchant (or admin) edits a driver's
+// name / phone / vehicle type (e.g. to fix a typo in the WhatsApp number).
+router.patch(
+  "/drivers/:id",
+  async (req: Request, res: Response): Promise<void> => {
+    const id = parseInt(String(req.params.id), 10);
+    if (Number.isNaN(id)) {
+      res.status(400).json({ error: "Invalid id" });
+      return;
+    }
+    const parsed = DriverUpdateBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "بيانات غير صالحة" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.id, id));
+    if (!existing) {
+      res.status(404).json({ error: "المندوب غير موجود" });
+      return;
+    }
+    const store = await loadOwnedStore(req, res, existing.storeId);
+    if (!store) return;
+
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.name !== undefined) patch.name = parsed.data.name.trim();
+    if (parsed.data.phone !== undefined) patch.phone = parsed.data.phone.trim();
+    if (parsed.data.vehicleType !== undefined)
+      patch.vehicleType = parsed.data.vehicleType.trim();
+
+    if (Object.keys(patch).length === 0) {
+      const [withBusy] = await withBusyStatus([existing]);
+      res.json(withBusy);
+      return;
+    }
+
+    const [driver] = await db
+      .update(deliveryDriversTable)
+      .set(patch)
+      .where(eq(deliveryDriversTable.id, id))
+      .returning();
+    const [withBusy] = await withBusyStatus([driver]);
+    res.json(withBusy);
+  },
+);
+
 // DELETE /drivers/:id — the owning store's merchant (or admin) removes a
 // delivery rep.
 router.delete(

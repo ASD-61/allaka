@@ -29,6 +29,17 @@ export interface Store {
   /** @nullable */
   subscriptionExpiresAt?: Date | null;
   /**
+     * The plan (3/6/12 months) the merchant picked at registration — a request only; the admin's approval is what actually sets subscriptionExpiresAt.
+     * @nullable
+     */
+  requestedSubscriptionMonths?: number | null;
+  /** Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled). */
+  refundsEnabled?: boolean;
+  /** Running sum of all customer star ratings (1–5) for this store. */
+  ratingSum?: number;
+  /** How many ratings were given — average = ratingSum / ratingCount. */
+  ratingCount?: number;
+  /**
      * Distance from the customer's location, in km — only present when the request included lat/lng.
      * @nullable
      */
