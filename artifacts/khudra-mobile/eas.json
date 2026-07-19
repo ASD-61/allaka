@@ -14,7 +14,7 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "REPLACE_WITH_RENDER_DOMAIN"
+        "EXPO_PUBLIC_DOMAIN": "allaka-2.onrender.com"
       }
     },
     "production": {
@@ -23,7 +23,7 @@
         "buildType": "app-bundle"
       },
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "REPLACE_WITH_RENDER_DOMAIN"
+        "EXPO_PUBLIC_DOMAIN": "allaka-2.onrender.com"
       }
     }
   },
