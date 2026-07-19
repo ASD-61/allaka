@@ -8,7 +8,7 @@ const router: IRouter = Router();
 
 // IQD credited to BOTH the referrer and the friend when a referral code is
 // redeemed for the first time.
-const REFERRAL_REWARD = 2000;
+const REFERRAL_REWARD = 1000;
 
 const RedeemBody = z.object({ code: z.string().min(4).max(16) });
 

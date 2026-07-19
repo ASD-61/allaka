@@ -30,7 +30,7 @@ function ReferralContent() {
   const [code, setCode] = useState('');
 
   const myCode = referralQuery.data?.code ?? '';
-  const reward = referralQuery.data?.reward ?? 2000;
+  const reward = referralQuery.data?.reward ?? 1000;
   const alreadyReferred = !!referralQuery.data?.referredBy;
 
   const shareApp = async () => {
