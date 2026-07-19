@@ -1,6 +1,7 @@
 import React, { useState, useRef } from 'react';
 import {
   ActivityIndicator,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -18,8 +19,15 @@ import { fonts } from '@/constants/fonts';
 import { useAuth } from '@/context/auth-context';
 import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { resolveImageUrl } from '@/lib/image-url';
+import { waMeLink } from '@/lib/phone';
 
 type Step = 'phone' | 'code' | 'name';
+
+// The WhatsApp number that SENDS the OTP (the WasenderAPI session number).
+// WhatsApp blocks a fresh sender's first message to strangers, so if the code
+// doesn't arrive the user messages this number once — that opens a 2-way window
+// and the resent code goes through. Update this if the sender number changes.
+const OTP_WHATSAPP = '9647770867660';
 
 export default function LoginScreen() {
   const colors = useColors();
@@ -235,9 +243,37 @@ export default function LoginScreen() {
       ) : null}
 
       {step === 'code' ? (
-        <Pressable onPress={() => setStep('phone')} style={styles.backLink}>
-          <Text style={[styles.backLinkText, { color: colors.primary }]}>تغيير الرقم</Text>
-        </Pressable>
+        <>
+          <View style={[styles.waHelper, { backgroundColor: '#25D366' + '14', borderColor: '#25D366' + '55' }]}>
+            <Text style={[styles.waHelperTitle, { color: colors.foreground }]}>
+              ما وصلك الرمز؟
+            </Text>
+            <Text style={[styles.waHelperText, { color: colors.mutedForeground }]}>
+              إذا رقمك جديد، راسلنا مرة وحدة على واتساب (يكفي "مرحبا") بعدها اضغط "إعادة إرسال الرمز".
+            </Text>
+            <Pressable
+              onPress={() =>
+                Linking.openURL(
+                  waMeLink(OTP_WHATSAPP, 'مرحبا، أرغب باستلام رمز الدخول لتطبيق علّاكة'),
+                ).catch(() => setError('تعذر فتح واتساب'))
+              }
+              style={({ pressed }) => [
+                styles.waButton,
+                { backgroundColor: '#25D366', opacity: pressed ? 0.85 : 1 },
+              ]}
+            >
+              <Feather name="message-circle" size={16} color="#FFFFFF" />
+              <Text style={styles.waButtonText}>مراسلتنا على واتساب</Text>
+            </Pressable>
+          </View>
+
+          <Pressable onPress={handleSendCode} disabled={loading} style={styles.backLink}>
+            <Text style={[styles.backLinkText, { color: colors.primary }]}>إعادة إرسال الرمز</Text>
+          </Pressable>
+          <Pressable onPress={() => setStep('phone')} style={styles.backLink}>
+            <Text style={[styles.backLinkText, { color: colors.mutedForeground }]}>تغيير الرقم</Text>
+          </Pressable>
+        </>
       ) : null}
     </KeyboardAwareScrollViewCompat>
   );
@@ -341,5 +377,37 @@ const styles = StyleSheet.create({
   backLinkText: {
     fontFamily: fonts.medium,
     fontSize: 13,
+  },
+  waHelper: {
+    marginTop: 22,
+    borderRadius: 16,
+    borderWidth: 1,
+    padding: 14,
+    gap: 6,
+  },
+  waHelperTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  waHelperText: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    lineHeight: 19,
+    textAlign: 'right',
+  },
+  waButton: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: 12,
+    marginTop: 6,
+  },
+  waButtonText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    color: '#FFFFFF',
   },
 });
