@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { Text as RNText, TextInput as RNTextInput } from 'react-native';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { KeyboardProvider } from 'react-native-keyboard-controller';
@@ -23,6 +24,24 @@ import { CartProvider } from '@/context/cart-context';
 import { ThemeProvider } from '@/context/theme-context';
 import { queryClient } from '@/lib/query-client';
 import { schemeForDomain, resolveApiDomain } from '@/lib/api-scheme';
+
+// Pin text to the app's design sizes regardless of the device's system
+// font/display-size setting. Some phones (e.g. Honor X8, Samsung with large
+// display size) scale text up, which overflowed fixed-height rows and the tab
+// labels so glyphs got clipped ("العروض" → "العرو", half-cut product names).
+// Disabling font scaling app-wide makes the layout render identically on every
+// device. Kept as a small allowance (1.15x) via maxFontSizeMultiplier so
+// accessibility isn't fully ignored where a line can grow.
+{
+  const t = RNText as unknown as { defaultProps?: Record<string, unknown> };
+  t.defaultProps = t.defaultProps || {};
+  t.defaultProps.allowFontScaling = false;
+  t.defaultProps.maxFontSizeMultiplier = 1.15;
+  const ti = RNTextInput as unknown as { defaultProps?: Record<string, unknown> };
+  ti.defaultProps = ti.defaultProps || {};
+  ti.defaultProps.allowFontScaling = false;
+  ti.defaultProps.maxFontSizeMultiplier = 1.15;
+}
 
 // Expo bundles run outside the shared web proxy — set an absolute base URL
 // so requests reach the shared api-server.

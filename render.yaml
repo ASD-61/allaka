@@ -9,7 +9,7 @@ services:
     runtime: node
     plan: starter
     region: frankfurt
-    branch: master
+    branch: main
     buildCommand: corepack enable && pnpm install && pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz

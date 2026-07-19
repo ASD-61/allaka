@@ -45,7 +45,13 @@ function TabIcon({
       ]}
     >
       <Feather name={name} size={19} color={tint} style={{ opacity: 1 }} />
-      <Text style={[styles.chipLabel, { color: tint }]}>{label}</Text>
+      <Text
+        numberOfLines={1}
+        allowFontScaling={false}
+        style={[styles.chipLabel, { color: tint }]}
+      >
+        {label}
+      </Text>
     </View>
   );
 }
@@ -182,14 +188,15 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 3,
-    paddingHorizontal: 10,
+    paddingHorizontal: 8,
     paddingVertical: 6,
     borderRadius: 14,
-    minWidth: 56,
+    minWidth: 62,
   },
   chipLabel: {
     fontFamily: 'Cairo_600SemiBold',
     fontSize: 11,
+    lineHeight: 16,
     textAlign: 'center',
   },
 });
