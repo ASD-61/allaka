@@ -143,7 +143,7 @@ export default function HomeScreen() {
             <TextInput
               value={search}
               onChangeText={setSearch}
-              placeholder="دوّر على نوع متجر..."
+              placeholder="ابحث عن متجر..."
               placeholderTextColor={colors.mutedForeground}
               style={[styles.searchInput, { color: colors.foreground }]}
               textAlign="right"

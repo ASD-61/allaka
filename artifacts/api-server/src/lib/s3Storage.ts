@@ -37,6 +37,13 @@ function getClient(): S3Client {
       region,
       endpoint,
       forcePathStyle,
+      // AWS SDK v3 (>=3.729) adds x-amz-checksum-* / x-amz-sdk-checksum-algorithm
+      // headers to presigned PUTs by default. Cloudflare R2 rejects those on
+      // presigned uploads, so the client PUT fails with 400/403 and images never
+      // upload. Forcing checksums to "when required" restores plain presigned
+      // PUTs that R2 accepts.
+      requestChecksumCalculation: "WHEN_REQUIRED",
+      responseChecksumValidation: "WHEN_REQUIRED",
       credentials: { accessKeyId: accessKeyId!, secretAccessKey: secretAccessKey! },
     });
   }

@@ -120,7 +120,7 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
             <TextInput
               value={phone}
               onChangeText={setPhone}
-              placeholder="رقم واتساب المندوب (مثال: 07811772240)"
+              placeholder="رقم واتساب المندوب (مثال: 07XXXXXXXXX)"
               placeholderTextColor={colors.mutedForeground}
               keyboardType="phone-pad"
               style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground }]}

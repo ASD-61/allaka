@@ -36,7 +36,7 @@ export default function ProfileScreen() {
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
-      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: 40 }}
+      contentContainerStyle={{ paddingTop: insets.top + 16, paddingBottom: insets.bottom + 120 }}
     >
       <Text style={[styles.title, { color: colors.foreground }]}>حسابي</Text>
 
