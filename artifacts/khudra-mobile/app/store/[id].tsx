@@ -28,6 +28,19 @@ import { useCart } from '@/context/cart-context';
 const ALL = 'الكل';
 const WHOLESALE = 'قسم الجملة';
 
+/** Opens the store's GPS location in the maps app (coords first, else address). */
+function openStoreLocation(store: { latitude?: number | null; longitude?: number | null; address?: string | null }): void {
+  let url: string;
+  if (store.latitude != null && store.longitude != null) {
+    url = `https://www.google.com/maps/search/?api=1&query=${store.latitude},${store.longitude}`;
+  } else if (store.address) {
+    url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(store.address)}`;
+  } else {
+    return;
+  }
+  Linking.openURL(url).catch(() => {});
+}
+
 export default function StoreDetailScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -149,11 +162,33 @@ export default function StoreDetailScreen() {
               <Feather name="map-pin" size={14} color={colors.mutedForeground} />
               <Text style={[styles.metaText, { color: colors.mutedForeground }]}>{store?.address}</Text>
             </View>
-            {phone ? (
-              <Pressable style={styles.metaRow} onPress={() => Linking.openURL(`tel:${phone}`)}>
-                <Feather name="phone" size={14} color={colors.primary} />
-                <Text style={[styles.metaText, { color: colors.primary }]}>{phone}</Text>
-              </Pressable>
+            {phone || (store && (store.latitude != null || store.address)) ? (
+              <View style={styles.contactRow}>
+                {phone ? (
+                  <Pressable
+                    onPress={() => Linking.openURL(`tel:${phone}`)}
+                    style={({ pressed }) => [
+                      styles.contactBtn,
+                      { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <Feather name="phone" size={14} color={colors.primary} />
+                    <Text style={[styles.contactText, { color: colors.primary }]}>{phone}</Text>
+                  </Pressable>
+                ) : null}
+                {store && (store.latitude != null || store.address) ? (
+                  <Pressable
+                    onPress={() => openStoreLocation(store)}
+                    style={({ pressed }) => [
+                      styles.contactBtn,
+                      { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
+                    ]}
+                  >
+                    <Feather name="map-pin" size={14} color={colors.primary} />
+                    <Text style={[styles.contactText, { color: colors.primary }]}>الموقع على الخريطة</Text>
+                  </Pressable>
+                ) : null}
+              </View>
             ) : null}
 
             <View style={[styles.searchBox, { backgroundColor: colors.muted }]}>
@@ -295,6 +330,25 @@ const styles = StyleSheet.create({
     fontFamily: fonts.medium,
     fontSize: 13,
     textAlign: 'right',
+  },
+  contactRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+    paddingHorizontal: 16,
+    marginTop: 6,
+  },
+  contactBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    height: 36,
+    borderRadius: 12,
+  },
+  contactText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12,
   },
   searchBox: {
     flexDirection: 'row-reverse',
