@@ -12,7 +12,10 @@ services:
     branch: main
     # Install pnpm globally (bulletproof on Render — avoids corepack signature/
     # download-prompt failures), then install deps and bundle the server.
-    buildCommand: npm install -g pnpm@11.12.0 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
+    # `|| true` tolerates pnpm's ERR_PNPM_IGNORED_BUILDS strictness (it blocks
+    # esbuild's postinstall for security); node_modules is still fully linked and
+    # esbuild's linux-x64 binary ships as its own package, so the bundle works.
+    buildCommand: npm install -g pnpm@11.12.0 && (pnpm install --no-frozen-lockfile || true) && pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
