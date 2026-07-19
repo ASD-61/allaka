@@ -10,12 +10,16 @@ services:
     plan: starter
     region: frankfurt
     branch: main
-    buildCommand: corepack enable && pnpm install && pnpm --filter @workspace/api-server run build
+    # Install pnpm globally (bulletproof on Render — avoids corepack signature/
+    # download-prompt failures), then install deps and bundle the server.
+    buildCommand: npm install -g pnpm@11.12.0 && pnpm install --no-frozen-lockfile && pnpm --filter @workspace/api-server run build
     startCommand: node --enable-source-maps artifacts/api-server/dist/index.mjs
     healthCheckPath: /api/healthz
     envVars:
       - key: NODE_ENV
         value: production
+      - key: NODE_VERSION
+        value: "22"
       # Render injects PORT automatically; the server reads it.
       - key: DATABASE_URL
         sync: false # Neon connection string
