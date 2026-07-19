@@ -121,17 +121,17 @@ const styles = StyleSheet.create({
     marginBottom: 48,
   },
   iconWrapper: {
-    width: 72,
-    height: 72,
-    borderRadius: 24,
+    width: 116,
+    height: 116,
+    borderRadius: 58,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 16,
     overflow: 'hidden',
   },
   logoImg: {
-    width: 72,
-    height: 72,
+    width: 116,
+    height: 116,
   },
   title: {
     fontFamily: fonts.bold,
