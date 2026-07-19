@@ -28,5 +28,10 @@ export interface Store {
   status: string;
   /** @nullable */
   subscriptionExpiresAt?: Date | null;
+  /**
+     * Distance from the customer's location, in km — only present when the request included lat/lng.
+     * @nullable
+     */
+  distanceKm?: number | null;
   createdAt: Date;
 }

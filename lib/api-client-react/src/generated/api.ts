@@ -42,18 +42,21 @@ import type {
   ListCategoriesParams,
   ListOrdersParams,
   ListProductsParams,
+  ListStoresParams,
   NotificationItem,
   Order,
   OrderInput,
   OrderStatusUpdate,
   Product,
   ProductInput,
+  ProductSearchResult,
   ProductUpdate,
   Refund,
   RefundDecisionInput,
   RefundInput,
   RequestOtp200,
   RequestOtpInput,
+  SearchProductsParams,
   Store,
   StoreCustomer,
   StoreInput,
@@ -328,6 +331,94 @@ export const useCreateProduct = <TError = ErrorType<ErrorEnvelope>,
       > => {
       return useMutation(getCreateProductMutationOptions(options));
     }
+
+export const getSearchProductsUrl = (params: SearchProductsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/products/search?${stringifiedParams}` : `/api/products/search`
+}
+
+/**
+ * Searches product names (e.g. "رمان") across every active store's
+ * catalog. Only in-stock items are returned. When lat/lng are given,
+ * results are sorted by the store's distance from that point (stores
+ * without a saved map pin are listed last); otherwise newest first.
+ * @summary Find in-stock products by name across active stores, nearest-first
+ */
+export const searchProducts = async (params: SearchProductsParams, options?: RequestInit): Promise<ProductSearchResult[]> => {
+
+  return customFetch<ProductSearchResult[]>(getSearchProductsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getSearchProductsQueryKey = (params?: SearchProductsParams,) => {
+    return [
+    `/api/products/search`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getSearchProductsQueryOptions = <TData = Awaited<ReturnType<typeof searchProducts>>, TError = ErrorType<ErrorEnvelope>>(params: SearchProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getSearchProductsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof searchProducts>>> = ({ signal }) => searchProducts(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof searchProducts>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type SearchProductsQueryResult = NonNullable<Awaited<ReturnType<typeof searchProducts>>>
+export type SearchProductsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary Find in-stock products by name across active stores, nearest-first
+ */
+
+export function useSearchProducts<TData = Awaited<ReturnType<typeof searchProducts>>, TError = ErrorType<ErrorEnvelope>>(
+ params: SearchProductsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof searchProducts>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getSearchProductsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
 
 export const getGetProductUrl = (id: number,) => {
 
@@ -847,20 +938,27 @@ export const useDeleteCategory = <TError = ErrorType<ErrorEnvelope>,
       return useMutation(getDeleteCategoryMutationOptions(options));
     }
 
-export const getListStoresUrl = () => {
+export const getListStoresUrl = (params?: ListStoresParams,) => {
+  const normalizedParams = new URLSearchParams();
 
+  Object.entries(params || {}).forEach(([key, value]) => {
 
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
 
+  const stringifiedParams = normalizedParams.toString();
 
-  return `/api/stores`
+  return stringifiedParams.length > 0 ? `/api/stores?${stringifiedParams}` : `/api/stores`
 }
 
 /**
- * @summary List active (approved) stores
+ * @summary List active (approved) stores, nearest-first when a location is given
  */
-export const listStores = async ( options?: RequestInit): Promise<Store[]> => {
+export const listStores = async (params?: ListStoresParams, options?: RequestInit): Promise<Store[]> => {
 
-  return customFetch<Store[]>(getListStoresUrl(),
+  return customFetch<Store[]>(getListStoresUrl(params),
   {
     ...options,
     method: 'GET'
@@ -873,23 +971,23 @@ export const listStores = async ( options?: RequestInit): Promise<Store[]> => {
 
 
 
-export const getListStoresQueryKey = () => {
+export const getListStoresQueryKey = (params?: ListStoresParams,) => {
     return [
-    `/api/stores`
+    `/api/stores`, ...(params ? [params] : [])
     ] as const;
     }
 
 
-export const getListStoresQueryOptions = <TData = Awaited<ReturnType<typeof listStores>>, TError = ErrorType<unknown>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStores>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+export const getListStoresQueryOptions = <TData = Awaited<ReturnType<typeof listStores>>, TError = ErrorType<unknown>>(params?: ListStoresParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStores>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 ) => {
 
 const {query: queryOptions, request: requestOptions} = options ?? {};
 
-  const queryKey =  queryOptions?.queryKey ?? getListStoresQueryKey();
+  const queryKey =  queryOptions?.queryKey ?? getListStoresQueryKey(params);
 
 
 
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStores>>> = ({ signal }) => listStores({ signal, ...requestOptions });
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listStores>>> = ({ signal }) => listStores(params, { signal, ...requestOptions });
 
 
 
@@ -903,15 +1001,15 @@ export type ListStoresQueryError = ErrorType<unknown>
 
 
 /**
- * @summary List active (approved) stores
+ * @summary List active (approved) stores, nearest-first when a location is given
  */
 
 export function useListStores<TData = Awaited<ReturnType<typeof listStores>>, TError = ErrorType<unknown>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStores>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+ params?: ListStoresParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listStores>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
 
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
-  const queryOptions = getListStoresQueryOptions(options)
+  const queryOptions = getListStoresQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

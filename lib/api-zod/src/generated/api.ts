@@ -103,6 +103,62 @@ export const CreateProductResponse = zod.object({
 
 
 /**
+ * Searches product names (e.g. "رمان") across every active store's
+ * catalog. Only in-stock items are returned. When lat/lng are given,
+ * results are sorted by the store's distance from that point (stores
+ * without a saved map pin are listed last); otherwise newest first.
+ * @summary Find in-stock products by name across active stores, nearest-first
+ */
+
+
+
+export const SearchProductsQueryParams = zod.object({
+  "q": zod.coerce.string().min(1),
+  "lat": zod.coerce.number().optional(),
+  "lng": zod.coerce.number().optional()
+})
+
+export const SearchProductsResponseItem = zod.object({
+  "product": zod.object({
+  "id": zod.number(),
+  "name": zod.string().describe('Vegetable name in Arabic'),
+  "category": zod.string().describe('Category name in Arabic'),
+  "price": zod.number().describe('Price in Iraqi Dinar (IQD)'),
+  "originalPrice": zod.number().nullish().describe('Original price before discount, in IQD'),
+  "unit": zod.string().describe('Unit of sale, e.g. \"1 كغم\"'),
+  "imageUrl": zod.string().describe('Public URL or storage object path for the product image'),
+  "description": zod.string().nullish().describe('Extra details about the vegetable'),
+  "rating": zod.number(),
+  "isVip": zod.boolean().optional(),
+  "discountPercent": zod.number().nullish(),
+  "discountExpiresAt": zod.coerce.date().nullish().describe('When the current offer price expires; the server reverts the price automatically after this time.'),
+  "inStock": zod.boolean().optional().describe('Whether the product is currently available to order'),
+  "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
+  "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
+  "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
+  "createdAt": zod.coerce.date()
+}),
+  "store": zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "description": zod.string().nullish(),
+  "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
+  "ownerPhone": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
+  "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
+  "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
+  "createdAt": zod.coerce.date()
+})
+})
+export const SearchProductsResponse = zod.array(SearchProductsResponseItem)
+
+
+/**
  * @summary Get a single product
  */
 export const GetProductParams = zod.object({
@@ -268,8 +324,13 @@ export const DeleteCategoryResponse = zod.void()
 
 
 /**
- * @summary List active (approved) stores
+ * @summary List active (approved) stores, nearest-first when a location is given
  */
+export const ListStoresQueryParams = zod.object({
+  "lat": zod.coerce.number().optional().describe('Customer\'s latitude — when given (with lng), stores are sorted nearest-first and each gets a distanceKm.'),
+  "lng": zod.coerce.number().optional()
+})
+
 export const ListStoresResponseItem = zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -282,6 +343,7 @@ export const ListStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 export const ListStoresResponse = zod.array(ListStoresResponseItem)
@@ -317,6 +379,7 @@ export const CreateStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -336,6 +399,7 @@ export const ListMyStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 export const ListMyStoresResponse = zod.array(ListMyStoresResponseItem)
@@ -356,6 +420,7 @@ export const ListAllStoresResponseItem = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 export const ListAllStoresResponse = zod.array(ListAllStoresResponseItem)
@@ -380,6 +445,7 @@ export const GetStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -418,6 +484,7 @@ export const UpdateStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -461,6 +528,7 @@ export const ReviewStoreResponse = zod.object({
   "longitude": zod.number().nullish(),
   "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
   "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -591,6 +659,8 @@ export const ListStoreDriversResponseItem = zod.object({
   "phone": zod.string(),
   "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
   "status": zod.string().describe('مفعّل | موقوف'),
+  "available": zod.boolean().describe('The driver\'s OWN day-to-day toggle (متاح\/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant\/admin suspend control).'),
+  "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
   "createdAt": zod.coerce.date()
@@ -624,6 +694,8 @@ export const CreateStoreDriverResponse = zod.object({
   "phone": zod.string(),
   "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
   "status": zod.string().describe('مفعّل | موقوف'),
+  "available": zod.boolean().describe('The driver\'s OWN day-to-day toggle (متاح\/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant\/admin suspend control).'),
+  "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
   "createdAt": zod.coerce.date()
@@ -640,6 +712,8 @@ export const ListAllDriversResponseItem = zod.object({
   "phone": zod.string(),
   "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
   "status": zod.string().describe('مفعّل | موقوف'),
+  "available": zod.boolean().describe('The driver\'s OWN day-to-day toggle (متاح\/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant\/admin suspend control).'),
+  "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
   "createdAt": zod.coerce.date()
@@ -665,6 +739,8 @@ export const SetDriverStatusResponse = zod.object({
   "phone": zod.string(),
   "vehicleType": zod.string().describe('e.g. دراجة نارية | سيارة | دراجة هوائية'),
   "status": zod.string().describe('مفعّل | موقوف'),
+  "available": zod.boolean().describe('The driver\'s OWN day-to-day toggle (متاح\/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant\/admin suspend control).'),
+  "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
   "createdAt": zod.coerce.date()
@@ -1177,7 +1253,9 @@ export const VerifyOtpResponse = zod.object({
   "avatarUrl": zod.string().nullish().describe('Stored path of the customer\'s profile picture.'),
   "points": zod.number(),
   "walletBalance": zod.number().optional().describe('In-app wallet credit balance in IQD.'),
-  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).')
+  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).'),
+  "latitude": zod.number().nullish().describe('Customer\'s last known location — captured automatically on login so nearby stores\/products can be shown without asking every time.'),
+  "longitude": zod.number().nullish()
 })
 })
 
@@ -1191,7 +1269,9 @@ export const GetMeResponse = zod.object({
   "avatarUrl": zod.string().nullish().describe('Stored path of the customer\'s profile picture.'),
   "points": zod.number(),
   "walletBalance": zod.number().optional().describe('In-app wallet credit balance in IQD.'),
-  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).')
+  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).'),
+  "latitude": zod.number().nullish().describe('Customer\'s last known location — captured automatically on login so nearby stores\/products can be shown without asking every time.'),
+  "longitude": zod.number().nullish()
 })
 
 
@@ -1204,7 +1284,9 @@ export const updateMeBodyAvatarUrlMax = 500;
 
 export const UpdateMeBody = zod.object({
   "name": zod.string().nullish(),
-  "avatarUrl": zod.string().max(updateMeBodyAvatarUrlMax).nullish()
+  "avatarUrl": zod.string().max(updateMeBodyAvatarUrlMax).nullish(),
+  "latitude": zod.number().nullish(),
+  "longitude": zod.number().nullish()
 })
 
 export const UpdateMeResponse = zod.object({
@@ -1213,7 +1295,9 @@ export const UpdateMeResponse = zod.object({
   "avatarUrl": zod.string().nullish().describe('Stored path of the customer\'s profile picture.'),
   "points": zod.number(),
   "walletBalance": zod.number().optional().describe('In-app wallet credit balance in IQD.'),
-  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).')
+  "hasProfile": zod.boolean().describe('Whether the customer has completed profile setup (name).'),
+  "latitude": zod.number().nullish().describe('Customer\'s last known location — captured automatically on login so nearby stores\/products can be shown without asking every time.'),
+  "longitude": zod.number().nullish()
 })
 
 

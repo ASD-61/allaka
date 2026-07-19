@@ -60,6 +60,41 @@ export interface Product {
   createdAt: string;
 }
 
+export interface Store {
+  id: number;
+  name: string;
+  address: string;
+  /** @nullable */
+  description?: string | null;
+  /** Kind of shop, e.g. "خضار وفواكه", "بقالة", "لحوم". */
+  storeType: string;
+  ownerPhone: string;
+  /** @nullable */
+  imageUrl?: string | null;
+  /**
+     * Store's map pin, used to build a Google Maps link for customers.
+     * @nullable
+     */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
+  /** قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً */
+  status: string;
+  /** @nullable */
+  subscriptionExpiresAt?: string | null;
+  /**
+     * Distance from the customer's location, in km — only present when the request included lat/lng.
+     * @nullable
+     */
+  distanceKm?: number | null;
+  createdAt: string;
+}
+
+export interface ProductSearchResult {
+  product: Product;
+  store: Store;
+}
+
 export interface ProductInput {
   /** @minLength 1 */
   name: string;
@@ -171,31 +206,6 @@ export interface CategoryInput {
      * @nullable
      */
   storeId?: number | null;
-}
-
-export interface Store {
-  id: number;
-  name: string;
-  address: string;
-  /** @nullable */
-  description?: string | null;
-  /** Kind of shop, e.g. "خضار وفواكه", "بقالة", "لحوم". */
-  storeType: string;
-  ownerPhone: string;
-  /** @nullable */
-  imageUrl?: string | null;
-  /**
-     * Store's map pin, used to build a Google Maps link for customers.
-     * @nullable
-     */
-  latitude?: number | null;
-  /** @nullable */
-  longitude?: number | null;
-  /** قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً */
-  status: string;
-  /** @nullable */
-  subscriptionExpiresAt?: string | null;
-  createdAt: string;
 }
 
 export interface StoreInput {
@@ -364,6 +374,13 @@ export interface CustomerProfile {
   walletBalance?: number;
   /** Whether the customer has completed profile setup (name). */
   hasProfile: boolean;
+  /**
+     * Customer's last known location — captured automatically on login so nearby stores/products can be shown without asking every time.
+     * @nullable
+     */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
 
 export interface UpdateProfileInput {
@@ -374,6 +391,10 @@ export interface UpdateProfileInput {
      * @nullable
      */
   avatarUrl?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }
 
 export interface AuthResponse {
@@ -618,6 +639,10 @@ export interface DeliveryDriver {
   vehicleType: string;
   /** مفعّل | موقوف */
   status: string;
+  /** The driver's OWN day-to-day toggle (متاح/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant/admin suspend control). */
+  available: boolean;
+  /** Token identifying this driver's personal, login-free portal link (share as `/driver/{portalToken}`) where they control their own `available` toggle. */
+  portalToken: string;
   /**
      * The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.
      * @nullable
@@ -660,11 +685,28 @@ category?: string;
 storeId?: number;
 };
 
+export type SearchProductsParams = {
+/**
+ * @minLength 1
+ */
+q: string;
+lat?: number;
+lng?: number;
+};
+
 export type ListCategoriesParams = {
 /**
  * The store whose categories to list. Admin callers may omit this to get their own store's categories; other callers must pass it.
  */
 storeId?: number;
+};
+
+export type ListStoresParams = {
+/**
+ * Customer's latitude — when given (with lng), stores are sorted nearest-first and each gets a distanceKm.
+ */
+lat?: number;
+lng?: number;
 };
 
 export type ListOrdersParams = {

@@ -20,4 +20,11 @@ export interface CustomerProfile {
   walletBalance?: number;
   /** Whether the customer has completed profile setup (name). */
   hasProfile: boolean;
+  /**
+     * Customer's last known location — captured automatically on login so nearby stores/products can be shown without asking every time.
+     * @nullable
+     */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }

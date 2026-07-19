@@ -14,4 +14,8 @@ export interface UpdateProfileInput {
      * @nullable
      */
   avatarUrl?: string | null;
+  /** @nullable */
+  latitude?: number | null;
+  /** @nullable */
+  longitude?: number | null;
 }

@@ -15,6 +15,10 @@ export interface DeliveryDriver {
   vehicleType: string;
   /** مفعّل | موقوف */
   status: string;
+  /** The driver's OWN day-to-day toggle (متاح/غير متاح), controlled by the driver themselves via their personal portal link — separate from `status` (the merchant/admin suspend control). */
+  available: boolean;
+  /** Token identifying this driver's personal, login-free portal link (share as `/driver/{portalToken}`) where they control their own `available` toggle. */
+  portalToken: string;
   /**
      * The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.
      * @nullable
