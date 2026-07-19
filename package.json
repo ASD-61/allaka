@@ -16,11 +16,14 @@
   "dependencies": {
     "@replit/connectors-sdk": "^0.4.1"
   },
+  "resolutions": {
+    "react": "19.1.0",
+    "react-dom": "19.1.0"
+  },
   "pnpm": {
-    "overrides": {
-      "react": "19.1.0",
-      "react-dom": "19.1.0"
-    }
+    "onlyBuiltDependencies": [
+      "esbuild"
+    ]
   },
   "devDependencies": {
     "prettier": "^3.9.4",
