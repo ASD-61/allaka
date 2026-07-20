@@ -26,6 +26,24 @@ type TypeGroup = {
   sortOrder: number;
 };
 
+// Only these phone numbers may open the admin panel. Everyone else can tap the
+// logo forever and nothing happens. This is a UI gate; the real protection is
+// the admin password checked on the server.
+const ADMIN_PHONES = [
+  '07731355623',
+  '07811772240',
+  '07715512292',
+  '07719171320',
+];
+
+// Compare phones ignoring format (country code / leading zero): keep the last
+// 10 digits, which uniquely identify an Iraqi mobile number.
+function phoneLast10(raw: string | null | undefined): string {
+  const digits = String(raw ?? '').replace(/\D/g, '');
+  return digits.slice(-10);
+}
+const ADMIN_PHONE_KEYS = new Set(ADMIN_PHONES.map(phoneLast10));
+
 export default function HomeScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
@@ -39,7 +57,10 @@ export default function HomeScreen() {
   // admin login. The counter resets if the taps are too far apart.
   const logoTaps = React.useRef(0);
   const lastTapAt = React.useRef(0);
+  const isAdminPhone = ADMIN_PHONE_KEYS.has(phoneLast10(customer?.phone));
   const handleLogoTap = () => {
+    // Non-authorized numbers get no reaction no matter how many times they tap.
+    if (!isAdminPhone) return;
     const now = Date.now();
     logoTaps.current = now - lastTapAt.current < 1500 ? logoTaps.current + 1 : 1;
     lastTapAt.current = now;

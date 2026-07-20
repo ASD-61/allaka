@@ -30,3 +30,4 @@ export * from "./broadcasts";
 export * from "./deliveryDrivers";
 export * from "./storeRatings";
 export * from "./customerStoreWallets";
+export * from "./appSettings";

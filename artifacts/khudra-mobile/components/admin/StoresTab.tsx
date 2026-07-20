@@ -47,6 +47,7 @@ export function StoresTab() {
   const deleteStore = useDeleteStore({ request: adminRequest });
   const requestUploadUrl = useRequestUploadUrl();
 
+  const [search, setSearch] = useState('');
   const [editStoreId, setEditStoreId] = useState<number | null>(null);
   const [editName, setEditName] = useState('');
   const [editStoreType, setEditStoreType] = useState('');
@@ -248,17 +249,50 @@ export function StoresTab() {
     );
   }
 
-  const stores = query.data ?? [];
+  const allStores = query.data ?? [];
+  const q = search.trim().toLowerCase();
+  const stores = q
+    ? allStores.filter((st) =>
+        [st.name, st.storeType, st.address, st.ownerPhone]
+          .filter(Boolean)
+          .some((f) => String(f).toLowerCase().includes(q)),
+      )
+    : allStores;
   const sections = SECTION_ORDER.map((s) => ({
     title: s.title,
     status: s.status,
     data: stores.filter((st) => st.status === s.status),
   })).filter((s) => s.data.length > 0);
 
+  const searchHeader = (
+    <View style={[styles.searchBox, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Feather name="search" size={16} color={colors.mutedForeground} />
+      <TextInput
+        value={search}
+        onChangeText={setSearch}
+        placeholder="ابحث باسم المتجر أو النوع أو الرقم..."
+        placeholderTextColor={colors.mutedForeground}
+        style={[styles.searchInput, { color: colors.foreground }]}
+        textAlign="right"
+      />
+      {search.length > 0 ? (
+        <Pressable onPress={() => setSearch('')} hitSlop={8}>
+          <Feather name="x" size={16} color={colors.mutedForeground} />
+        </Pressable>
+      ) : null}
+    </View>
+  );
+
   if (sections.length === 0) {
     return (
-      <View style={{ marginTop: 40 }}>
-        <EmptyState icon="shopping-bag" title="لا توجد متاجر بعد" />
+      <View style={{ flex: 1 }}>
+        <View style={{ padding: 20, paddingBottom: 0 }}>{searchHeader}</View>
+        <View style={{ marginTop: 40 }}>
+          <EmptyState
+            icon="shopping-bag"
+            title={q ? 'لا توجد نتائج للبحث' : 'لا توجد متاجر بعد'}
+          />
+        </View>
       </View>
     );
   }
@@ -295,6 +329,7 @@ export function StoresTab() {
       sections={sections}
       keyExtractor={(item) => String(item.id)}
       contentContainerStyle={styles.listContent}
+      ListHeaderComponent={searchHeader}
       stickySectionHeadersEnabled={false}
       ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
       SectionSeparatorComponent={() => <View style={{ height: 4 }} />}
@@ -497,6 +532,22 @@ export function StoresTab() {
 const styles = StyleSheet.create({
   center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   listContent: { padding: 20, paddingBottom: 60 },
+  searchBox: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 46,
+    marginBottom: 14,
+  },
+  searchInput: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 14,
+    paddingVertical: 0,
+  },
   sectionHeader: {
     flexDirection: 'row-reverse',
     alignItems: 'center',

@@ -15,6 +15,7 @@ import { RefundsTab } from '@/components/admin/RefundsTab';
 import { StoresTab } from '@/components/admin/StoresTab';
 import { StoreTypesTab } from '@/components/admin/StoreTypesTab';
 import { DriversTab } from '@/components/admin/DriversTab';
+import { SettingsTab } from '@/components/admin/SettingsTab';
 
 type Tab =
   | 'overview'
@@ -25,7 +26,8 @@ type Tab =
   | 'refunds'
   | 'stores'
   | 'storeTypes'
-  | 'drivers';
+  | 'drivers'
+  | 'settings';
 
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>['name'] }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'activity' },
@@ -37,6 +39,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: 'stores', label: 'المتاجر', icon: 'shopping-bag' },
   { key: 'storeTypes', label: 'الأنواع', icon: 'grid' },
   { key: 'drivers', label: 'المندوبين', icon: 'truck' },
+  { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
 
 export default function AdminDashboardScreen() {
@@ -131,6 +134,7 @@ export default function AdminDashboardScreen() {
         {tab === 'stores' ? <StoresTab /> : null}
         {tab === 'storeTypes' ? <StoreTypesTab /> : null}
         {tab === 'drivers' ? <DriversTab /> : null}
+        {tab === 'settings' ? <SettingsTab /> : null}
       </View>
     </View>
   );

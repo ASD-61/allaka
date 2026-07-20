@@ -9,10 +9,17 @@
 const LOGO_URL =
   "https://raw.githubusercontent.com/ASD-61/allaka/main/artifacts/khudra-mobile/assets/images/icon.png";
 
+// The public source of the latest APK build (an expo.dev artifact URL). We
+// don't link to it directly because expo serves it with a long hashed filename;
+// instead the landing page points at our own /app/allaka.apk route which
+// streams this file with a clean "allaka.apk" download name.
+export const APK_SOURCE_URL =
+  process.env["APK_SOURCE_URL"] ||
+  "https://expo.dev/artifacts/eas/3ntrgxeFSPKOBN13c3-vVF3oVSS5QVpccEsg26XKfFk.apk";
+
 export function landingPage(): string {
-  const apk = process.env["APK_DOWNLOAD_URL"] || "";
-  const downloadBtn = apk
-    ? `<a class="btn" href="${apk}">⬇️ تحميل التطبيق (Android)</a>`
+  const downloadBtn = APK_SOURCE_URL
+    ? `<a class="btn" href="/app/allaka.apk">⬇️ تحميل التطبيق (Android)</a>`
     : `<span class="btn btn-disabled">التطبيق قيد النشر — تابعنا قريباً</span>`;
 
   return `<!DOCTYPE html>

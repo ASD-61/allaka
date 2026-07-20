@@ -6,7 +6,7 @@ import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { driverPortalPage } from "./lib/driverPortalPage";
 import { ratePage } from "./lib/ratePage";
-import { landingPage } from "./lib/landingPage";
+import { landingPage, APK_SOURCE_URL } from "./lib/landingPage";
 
 const app: Express = express();
 
@@ -73,6 +73,32 @@ app.get("/rate/:orderId", (req, res) => {
 // Public landing / download page — this is what share & referral links point to.
 app.get(["/", "/download"], (_req, res) => {
   res.type("html").send(landingPage());
+});
+
+// Stream the latest APK with a clean "allaka.apk" download name. Expo serves the
+// artifact with a long hashed filename, so we proxy it and set Content-Disposition
+// ourselves. The installed app label stays "علاكة" (from app.json).
+app.get("/app/allaka.apk", async (_req, res) => {
+  try {
+    const upstream = await fetch(APK_SOURCE_URL);
+    if (!upstream.ok || !upstream.body) {
+      res.status(502).send("APK not available");
+      return;
+    }
+    res.setHeader("Content-Type", "application/vnd.android.package-archive");
+    res.setHeader("Content-Disposition", 'attachment; filename="allaka.apk"');
+    const len = upstream.headers.get("content-length");
+    if (len) res.setHeader("Content-Length", len);
+    const reader = upstream.body.getReader();
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      res.write(Buffer.from(value));
+    }
+    res.end();
+  } catch {
+    res.status(502).send("APK not available");
+  }
 });
 
 app.use("/api", router);
