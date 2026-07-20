@@ -6,6 +6,7 @@ import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { driverPortalPage } from "./lib/driverPortalPage";
 import { ratePage } from "./lib/ratePage";
+import { landingPage } from "./lib/landingPage";
 
 const app: Express = express();
 
@@ -67,6 +68,11 @@ app.get("/driver/:token", (req, res) => {
 // deep link so the customer lands on the rating screen for their order.
 app.get("/rate/:orderId", (req, res) => {
   res.type("html").send(ratePage(req.params.orderId));
+});
+
+// Public landing / download page — this is what share & referral links point to.
+app.get(["/", "/download"], (_req, res) => {
+  res.type("html").send(landingPage());
 });
 
 app.use("/api", router);

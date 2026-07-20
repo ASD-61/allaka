@@ -19,8 +19,9 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { RequireAuth } from '@/components/RequireAuth';
 
-// Where the app can be downloaded — update this once the app is published.
-const APP_LINK = 'https://alaka.app';
+// Where the app can be downloaded — the API server's public landing/download
+// page (explains the app + direct APK download).
+const APP_LINK = 'https://allaka-2.onrender.com';
 
 function ReferralContent() {
   const colors = useColors();
@@ -39,7 +40,7 @@ function ReferralContent() {
         message:
           `حمّل تطبيق عـلاّكـة 🥬\n` +
           `استخدم كود الدعوة: ${myCode}\n` +
-          `وياخذ كل واحد فينا ${reward} دينار رصيد بالمحفظة!\n${APP_LINK}`,
+          `ويوصلك ${reward} دينار رصيد بالمحفظة، وإلي مثلها!\n${APP_LINK}`,
       });
     } catch {
       // user cancelled — nothing to do

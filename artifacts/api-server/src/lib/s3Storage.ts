@@ -23,8 +23,17 @@ const accessKeyId = process.env["S3_ACCESS_KEY"];
 const secretAccessKey = process.env["S3_SECRET_KEY"];
 const publicBase = (process.env["S3_PUBLIC_URL"] ?? "").replace(/\/+$/, "");
 const endpoint = process.env["S3_ENDPOINT"] || undefined;
-const region = process.env["S3_REGION"] || "auto";
 const forcePathStyle = process.env["S3_FORCE_PATH_STYLE"] === "true";
+
+// Cloudflare R2 only accepts a fixed set of region names ("auto" is the safe
+// universal one). A misconfigured S3_REGION (e.g. an account id/token pasted in
+// by mistake) makes every upload fail with "InvalidRegionName". So for R2
+// endpoints we ignore S3_REGION unless it's one of the valid values and fall
+// back to "auto" — bulletproof against env typos.
+const R2_REGIONS = ["auto", "wnam", "enam", "weur", "eeur", "apac", "oc"];
+const rawRegion = process.env["S3_REGION"] || "auto";
+const isR2 = (endpoint || "").includes("r2.cloudflarestorage.com");
+const region = isR2 && !R2_REGIONS.includes(rawRegion) ? "auto" : rawRegion;
 
 export function s3Enabled(): boolean {
   return !!(bucket && accessKeyId && secretAccessKey && publicBase);
