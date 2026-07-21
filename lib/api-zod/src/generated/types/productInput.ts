@@ -36,5 +36,9 @@ export interface ProductInput {
   isClearance?: boolean;
   isWholesale?: boolean;
   /** @nullable */
+  wholesalePrice?: number | null;
+  /** @nullable */
+  priceNote?: string | null;
+  /** @nullable */
   storeId?: number | null;
 }

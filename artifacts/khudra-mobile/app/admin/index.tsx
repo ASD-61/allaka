@@ -29,13 +29,12 @@ type Tab =
   | 'drivers'
   | 'settings';
 
+// Orders / products / categories / customers / refunds were removed from the
+// admin panel on purpose: those are managed by merchants in their own dashboard
+// and outside the admin panel, so the admin only needs store management,
+// overview stats, types, drivers and settings here.
 const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather>['name'] }[] = [
   { key: 'overview', label: 'نظرة عامة', icon: 'activity' },
-  { key: 'orders', label: 'الطلبات', icon: 'inbox' },
-  { key: 'products', label: 'المنتجات', icon: 'package' },
-  { key: 'categories', label: 'الفئات', icon: 'grid' },
-  { key: 'customers', label: 'العملاء', icon: 'users' },
-  { key: 'refunds', label: 'التعويضات', icon: 'rotate-ccw' },
   { key: 'stores', label: 'المتاجر', icon: 'shopping-bag' },
   { key: 'storeTypes', label: 'الأنواع', icon: 'grid' },
   { key: 'drivers', label: 'المندوبين', icon: 'truck' },

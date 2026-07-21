@@ -33,6 +33,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
   const [unit, setUnit] = useState('1 كغم');
+  const [priceNote, setPriceNote] = useState('');
+  const [wholesalePrice, setWholesalePrice] = useState('');
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [inStock, setInStock] = useState(true);
@@ -55,6 +57,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
   const [editIsLocal, setEditIsLocal] = useState(false);
   const [editIsClearance, setEditIsClearance] = useState(false);
   const [editIsWholesale, setEditIsWholesale] = useState(false);
+  const [editPriceNote, setEditPriceNote] = useState('');
+  const [editWholesalePrice, setEditWholesalePrice] = useState('');
 
   const startEdit = (item: {
     id: number;
@@ -66,6 +70,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     isLocal?: boolean;
     isClearance?: boolean;
     isWholesale?: boolean;
+    priceNote?: string | null;
+    wholesalePrice?: number | null;
   }) => {
     setOfferProductId(null);
     setEditProductId(item.id);
@@ -78,6 +84,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     setEditIsLocal(!!item.isLocal);
     setEditIsClearance(!!item.isClearance);
     setEditIsWholesale(!!item.isWholesale);
+    setEditPriceNote(item.priceNote ?? '');
+    setEditWholesalePrice(item.wholesalePrice != null ? String(item.wholesalePrice) : '');
   };
 
   const renderFlag = (
@@ -130,6 +138,11 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
       isLocal: editIsLocal,
       isClearance: editIsClearance,
       isWholesale: editIsWholesale,
+      priceNote: editPriceNote.trim() || null,
+      wholesalePrice:
+        editIsWholesale && editWholesalePrice.trim()
+          ? Math.round(Number(editWholesalePrice))
+          : null,
     };
     if (editImagePath) data.imageUrl = editImagePath;
     if (hasOffer) {
@@ -243,6 +256,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     setCategory('');
     setPrice('');
     setUnit('1 كغم');
+    setPriceNote('');
+    setWholesalePrice('');
     setImagePath(null);
     setImagePreview(null);
     setInStock(true);
@@ -270,6 +285,11 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
           isLocal,
           isClearance,
           isWholesale,
+          priceNote: priceNote.trim() || null,
+          wholesalePrice:
+            isWholesale && wholesalePrice.trim()
+              ? Math.round(Number(wholesalePrice))
+              : null,
         } as any,
       });
       resetForm();
@@ -405,9 +425,42 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                 />
               </Pressable>
 
+              <View style={styles.formGroup}>
+                <Text style={[styles.label, { color: colors.foreground }]}>سعر خاص (اختياري)</Text>
+                <TextInput
+                  value={priceNote}
+                  onChangeText={setPriceNote}
+                  placeholder="مثال: ٣ كيلو بـ٢٠٠٠ · الحبة بـ٢٥٠"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                  textAlign="right"
+                />
+                <Text style={[styles.editHint, { color: colors.mutedForeground }]}>
+                  يظهر تحت السعر للزبون — لأي تسعيرة ما يعبّر عنها رقم واحد
+                </Text>
+              </View>
+
               {renderFlag('منتج محلي', isLocal, () => setIsLocal((v) => !v), 'map-pin')}
               {renderFlag('تصفية المحل (بيع نهاية اليوم)', isClearance, () => setIsClearance((v) => !v), 'zap')}
               {renderFlag('بيع بالجملة (گوني/صندوق)', isWholesale, () => setIsWholesale((v) => !v), 'box')}
+
+              {isWholesale ? (
+                <View style={styles.formGroup}>
+                  <Text style={[styles.label, { color: colors.foreground }]}>سعر الجملة (د.ع)</Text>
+                  <TextInput
+                    value={wholesalePrice}
+                    onChangeText={setWholesalePrice}
+                    placeholder="سعر البيع بالجملة (گوني/صندوق)"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="number-pad"
+                    style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
+                    textAlign="right"
+                  />
+                  <Text style={[styles.editHint, { color: colors.mutedForeground }]}>
+                    يظهر بقسم الجملة بدل السعر العادي
+                  </Text>
+                </View>
+              ) : null}
 
               <Pressable
                 onPress={handleSubmit}
@@ -613,9 +666,30 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                   </Text>
                 ) : null}
 
+                <TextInput
+                  value={editPriceNote}
+                  onChangeText={setEditPriceNote}
+                  placeholder="سعر خاص (مثال: ٣ كيلو بـ٢٠٠٠)"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+                  textAlign="right"
+                />
+
                 {renderFlag('منتج محلي', editIsLocal, () => setEditIsLocal((v) => !v), 'map-pin')}
                 {renderFlag('تصفية المحل (بيع نهاية اليوم)', editIsClearance, () => setEditIsClearance((v) => !v), 'zap')}
                 {renderFlag('بيع بالجملة (گوني/صندوق)', editIsWholesale, () => setEditIsWholesale((v) => !v), 'box')}
+
+                {editIsWholesale ? (
+                  <TextInput
+                    value={editWholesalePrice}
+                    onChangeText={setEditWholesalePrice}
+                    placeholder="سعر الجملة (د.ع)"
+                    placeholderTextColor={colors.mutedForeground}
+                    keyboardType="number-pad"
+                    style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
+                    textAlign="right"
+                  />
+                ) : null}
 
                 <View style={styles.editActionsRow}>
                   <Pressable

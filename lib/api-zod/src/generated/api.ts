@@ -42,6 +42,8 @@ export const ListProductsResponseItem = zod.object({
   "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
   "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
   "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "wholesalePrice": zod.number().nullish().describe('Wholesale price for the \"قسم الجملة\" listing (distinct from retail price).'),
+  "priceNote": zod.string().nullish().describe('Free-text custom pricing note, e.g. \"٣ كيلو بـ٢٠٠٠\".'),
   "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
   "createdAt": zod.coerce.date()
 })
@@ -77,6 +79,8 @@ export const CreateProductBody = zod.object({
   "isLocal": zod.boolean().optional(),
   "isClearance": zod.boolean().optional(),
   "isWholesale": zod.boolean().optional(),
+  "wholesalePrice": zod.number().nullish(),
+  "priceNote": zod.string().nullish(),
   "storeId": zod.number().nullish()
 })
 
@@ -97,6 +101,8 @@ export const CreateProductResponse = zod.object({
   "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
   "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
   "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "wholesalePrice": zod.number().nullish().describe('Wholesale price for the \"قسم الجملة\" listing (distinct from retail price).'),
+  "priceNote": zod.string().nullish().describe('Free-text custom pricing note, e.g. \"٣ كيلو بـ٢٠٠٠\".'),
   "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
   "createdAt": zod.coerce.date()
 })
@@ -136,6 +142,8 @@ export const SearchProductsResponseItem = zod.object({
   "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
   "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
   "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "wholesalePrice": zod.number().nullish().describe('Wholesale price for the \"قسم الجملة\" listing (distinct from retail price).'),
+  "priceNote": zod.string().nullish().describe('Free-text custom pricing note, e.g. \"٣ كيلو بـ٢٠٠٠\".'),
   "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
   "createdAt": zod.coerce.date()
 }),
@@ -186,6 +194,8 @@ export const GetProductResponse = zod.object({
   "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
   "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
   "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "wholesalePrice": zod.number().nullish().describe('Wholesale price for the \"قسم الجملة\" listing (distinct from retail price).'),
+  "priceNote": zod.string().nullish().describe('Free-text custom pricing note, e.g. \"٣ كيلو بـ٢٠٠٠\".'),
   "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
   "createdAt": zod.coerce.date()
 })
@@ -224,6 +234,8 @@ export const UpdateProductBody = zod.object({
   "isLocal": zod.boolean().optional(),
   "isClearance": zod.boolean().optional(),
   "isWholesale": zod.boolean().optional(),
+  "wholesalePrice": zod.number().nullish(),
+  "priceNote": zod.string().nullish(),
   "storeId": zod.number().nullish()
 })
 
@@ -244,6 +256,8 @@ export const UpdateProductResponse = zod.object({
   "isLocal": zod.boolean().optional().describe('Locally-grown produce badge (\"منتج محلي\").'),
   "isClearance": zod.boolean().optional().describe('Part of the end-of-day clearance section (\"تصفية العلوة\").'),
   "isWholesale": zod.boolean().optional().describe('Sold by the sack\/box in the wholesale section (\"قسم الجملة\").'),
+  "wholesalePrice": zod.number().nullish().describe('Wholesale price for the \"قسم الجملة\" listing (distinct from retail price).'),
+  "priceNote": zod.string().nullish().describe('Free-text custom pricing note, e.g. \"٣ كيلو بـ٢٠٠٠\".'),
   "storeId": zod.number().nullish().describe('Owning store id in the marketplace.'),
   "createdAt": zod.coerce.date()
 })

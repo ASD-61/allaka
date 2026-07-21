@@ -53,6 +53,16 @@ export interface Product {
   /** Sold by the sack/box in the wholesale section ("قسم الجملة"). */
   isWholesale?: boolean;
   /**
+     * Wholesale price for the "قسم الجملة" listing (distinct from retail price).
+     * @nullable
+     */
+  wholesalePrice?: number | null;
+  /**
+     * Free-text custom pricing note, e.g. "٣ كيلو بـ٢٠٠٠".
+     * @nullable
+     */
+  priceNote?: string | null;
+  /**
      * Owning store id in the marketplace.
      * @nullable
      */
@@ -136,6 +146,10 @@ export interface ProductInput {
   isClearance?: boolean;
   isWholesale?: boolean;
   /** @nullable */
+  wholesalePrice?: number | null;
+  /** @nullable */
+  priceNote?: string | null;
+  /** @nullable */
   storeId?: number | null;
 }
 
@@ -168,6 +182,10 @@ export interface ProductUpdate {
   isLocal?: boolean;
   isClearance?: boolean;
   isWholesale?: boolean;
+  /** @nullable */
+  wholesalePrice?: number | null;
+  /** @nullable */
+  priceNote?: string | null;
   /** @nullable */
   storeId?: number | null;
 }

@@ -19,11 +19,8 @@ import { formatIQD } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/image-url';
 import { EmptyState } from '@/components/EmptyState';
 import { useAuth } from '@/context/auth-context';
-
-function formatDistance(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} م`;
-  return `${km.toFixed(1)} كم`;
-}
+import { formatDistance } from '@/lib/location';
+import { displayPhone, telLink } from '@/lib/phone';
 
 export default function ProductSearchScreen() {
   const colors = useColors();
@@ -153,12 +150,12 @@ export default function ProductSearchScreen() {
                   </View>
                   {store.ownerPhone ? (
                     <Pressable
-                      onPress={() => Linking.openURL(`tel:${store.ownerPhone}`)}
+                      onPress={() => Linking.openURL(telLink(store.ownerPhone!))}
                       style={[styles.callBtn, { backgroundColor: colors.primary + '15' }]}
                     >
                       <Feather name="phone" size={14} color={colors.primary} />
                       <Text style={[styles.callBtnText, { color: colors.primary }]}>
-                        {store.ownerPhone}
+                        {displayPhone(store.ownerPhone)}
                       </Text>
                     </Pressable>
                   ) : null}

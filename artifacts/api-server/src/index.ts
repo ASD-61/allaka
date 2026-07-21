@@ -13,6 +13,12 @@ async function ensureSchema(): Promise<void> {
         updated_at timestamptz NOT NULL DEFAULT now()
       );
     `);
+    await pool.query(
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS wholesale_price integer;`,
+    );
+    await pool.query(
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_note text;`,
+    );
   } catch (err) {
     logger.warn({ err }, "ensureSchema failed (non-fatal)");
   }

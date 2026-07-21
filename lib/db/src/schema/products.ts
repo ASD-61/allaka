@@ -28,6 +28,12 @@ export const productsTable = pgTable("products", {
   isClearance: boolean("is_clearance").notNull().default(false),
   // "قسم الجملة" — sold by sack/box (گونية/صندوق) at a wholesale price.
   isWholesale: boolean("is_wholesale").notNull().default(false),
+  // Optional wholesale price for the "قسم الجملة" listing, distinct from the
+  // regular retail `price` (e.g. retail 750/kg but 2000 for a 3kg bulk).
+  wholesalePrice: integer("wholesale_price"),
+  // Free-text pricing note the merchant can add for flexible pricing that a
+  // single number can't express, e.g. "٣ كيلو بـ٢٠٠٠" or "الحبة بـ٢٥٠".
+  priceNote: text("price_note"),
   discountPercent: integer("discount_percent"),
   // When set, the current `price` is a temporary offer price that expires at
   // this time — the server lazily reverts to `originalPrice` after expiry.

@@ -12,19 +12,22 @@ import { ZoomableImage } from '@/components/ZoomableImage';
 import { useCart } from '@/context/cart-context';
 import { qtyStepForUnit } from '@/lib/quantity';
 
-export function ProductCard({ product }: { product: Product }) {
+export function ProductCard({ product, wholesale }: { product: Product; wholesale?: boolean }) {
   const colors = useColors();
   const { items, addItem, updateQty, clear, storeId, setStoreId } = useCart();
   const cartItem = items.find((i) => i.id === product.id);
   const outOfStock = product.inStock === false;
   const step = qtyStepForUnit(product.unit);
+  // In the wholesale section a product is sold at its wholesale price (if set).
+  const effectivePrice =
+    wholesale && product.wholesalePrice != null ? product.wholesalePrice : product.price;
 
   const doAdd = () => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     addItem({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: effectivePrice,
       unit: product.unit,
       imageUrl: product.imageUrl,
     });
@@ -109,13 +112,18 @@ export function ProductCard({ product }: { product: Product }) {
           {product.name}
         </Text>
         <Text style={[styles.unit, { color: colors.mutedForeground }]}>{product.unit}</Text>
+        {product.priceNote ? (
+          <Text style={[styles.priceNote, { color: colors.accent }]} numberOfLines={2}>
+            {product.priceNote}
+          </Text>
+        ) : null}
 
         <View style={styles.priceRow}>
           <View style={styles.priceCol}>
             <Text style={[styles.price, { color: colors.primary }]} numberOfLines={1} adjustsFontSizeToFit>
-              {formatIQD(product.price)}
+              {formatIQD(effectivePrice)}
             </Text>
-            {product.originalPrice ? (
+            {!wholesale && product.originalPrice ? (
               <Text
                 style={[styles.originalPrice, { color: colors.mutedForeground }]}
                 numberOfLines={1}
@@ -255,6 +263,11 @@ const styles = StyleSheet.create({
   },
   unit: {
     fontFamily: fonts.regular,
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  priceNote: {
+    fontFamily: fonts.semibold,
     fontSize: 11,
     textAlign: 'right',
   },

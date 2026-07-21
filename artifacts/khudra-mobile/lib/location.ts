@@ -20,6 +20,31 @@ export interface Coords {
   longitude: number;
 }
 
+// Great-circle distance in kilometers between two lat/lng points (Haversine).
+// Used to show the store↔customer distance on the store page (where the API
+// doesn't precompute it) so it's consistent across all devices.
+export function haversineKm(
+  aLat: number,
+  aLng: number,
+  bLat: number,
+  bLng: number,
+): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const lat1 = (aLat * Math.PI) / 180;
+  const lat2 = (bLat * Math.PI) / 180;
+  const h =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(h));
+}
+
+export function formatDistance(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} م`;
+  return `${km.toFixed(1)} كم`;
+}
+
 export type LocationFailureReason = 'permission' | 'services' | 'unavailable';
 export type LocationResult =
   | { ok: true; coords: Coords }

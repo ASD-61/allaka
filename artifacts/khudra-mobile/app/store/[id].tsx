@@ -24,6 +24,9 @@ import { ClearanceSection } from '@/components/ClearanceSection';
 import { RecipeCard } from '@/components/RecipeCard';
 import { resolveImageUrl } from '@/lib/image-url';
 import { useCart } from '@/context/cart-context';
+import { useAuth } from '@/context/auth-context';
+import { haversineKm, formatDistance } from '@/lib/location';
+import { displayPhone, telLink } from '@/lib/phone';
 
 const ALL = 'الكل';
 const WHOLESALE = 'قسم الجملة';
@@ -47,9 +50,13 @@ export default function StoreDetailScreen() {
   const params = useLocalSearchParams<{ id: string }>();
   const storeId = Number(params.id);
   const { items, storeId: cartStoreId, setStoreId, totalCount } = useCart();
+  const { customer } = useAuth();
 
   const [category, setCategory] = useState(ALL);
   const [search, setSearch] = useState('');
+  // Manual pull-to-refresh only. Tying the spinner to react-query's isFetching
+  // makes it flash on every 3s background poll (a "dot" blinking in/out).
+  const [refreshing, setRefreshing] = useState(false);
 
   const storeQuery = useGetStore(storeId);
   const productsQuery = useListProducts({ storeId });
@@ -89,6 +96,26 @@ export default function StoreDetailScreen() {
   const phone = store?.ownerPhone && /\d/.test(store.ownerPhone) ? store.ownerPhone : null;
   const chips = [ALL, ...(hasWholesale ? [WHOLESALE] : []), ...categories];
 
+  // Distance from the customer's saved location to this store (computed on the
+  // client so it shows consistently, even though the single-store API doesn't
+  // return a precomputed distanceKm like the list endpoints do).
+  const distanceKm = useMemo(() => {
+    if (
+      customer?.latitude == null ||
+      customer?.longitude == null ||
+      store?.latitude == null ||
+      store?.longitude == null
+    ) {
+      return null;
+    }
+    return haversineKm(
+      customer.latitude,
+      customer.longitude,
+      store.latitude,
+      store.longitude,
+    );
+  }, [customer?.latitude, customer?.longitude, store?.latitude, store?.longitude]);
+
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title: store?.name ?? 'المتجر' }} />
@@ -100,8 +127,15 @@ export default function StoreDetailScreen() {
         contentContainerStyle={styles.listContent}
         refreshControl={
           <RefreshControl
-            refreshing={productsQuery.isFetching}
-            onRefresh={() => productsQuery.refetch()}
+            refreshing={refreshing}
+            onRefresh={async () => {
+              setRefreshing(true);
+              try {
+                await Promise.all([productsQuery.refetch(), storeQuery.refetch()]);
+              } finally {
+                setRefreshing(false);
+              }
+            }}
             tintColor={colors.primary}
           />
         }
@@ -166,14 +200,14 @@ export default function StoreDetailScreen() {
               <View style={styles.contactRow}>
                 {phone ? (
                   <Pressable
-                    onPress={() => Linking.openURL(`tel:${phone}`)}
+                    onPress={() => Linking.openURL(telLink(phone))}
                     style={({ pressed }) => [
                       styles.contactBtn,
                       { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
                     ]}
                   >
                     <Feather name="phone" size={14} color={colors.primary} />
-                    <Text style={[styles.contactText, { color: colors.primary }]}>{phone}</Text>
+                    <Text style={[styles.contactText, { color: colors.primary }]}>{displayPhone(phone)}</Text>
                   </Pressable>
                 ) : null}
                 {store && (store.latitude != null || store.address) ? (
@@ -187,6 +221,14 @@ export default function StoreDetailScreen() {
                     <Feather name="map-pin" size={14} color={colors.primary} />
                     <Text style={[styles.contactText, { color: colors.primary }]}>الموقع على الخريطة</Text>
                   </Pressable>
+                ) : null}
+                {distanceKm != null ? (
+                  <View style={[styles.contactBtn, { backgroundColor: colors.secondary }]}>
+                    <Feather name="navigation" size={14} color={colors.secondaryForeground} />
+                    <Text style={[styles.contactText, { color: colors.secondaryForeground }]}>
+                      {formatDistance(distanceKm)}
+                    </Text>
+                  </View>
                 ) : null}
               </View>
             ) : null}
@@ -231,7 +273,9 @@ export default function StoreDetailScreen() {
             <EmptyState icon="frown" title="لا توجد منتجات" subtitle="جرّب فئة أخرى أو كلمة بحث" />
           )
         }
-        renderItem={({ item }) => <ProductCard product={item} />}
+        renderItem={({ item }) => (
+          <ProductCard product={item} wholesale={category === WHOLESALE} />
+        )}
       />
 
       {totalCount > 0 ? (

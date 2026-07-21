@@ -102,11 +102,14 @@ export default function StoresScreen() {
                 </View>
                 <View style={styles.addressRow}>
                   <Feather name="map-pin" size={12} color={colors.mutedForeground} />
-                  <Text style={[styles.address, { color: colors.mutedForeground }]} numberOfLines={1}>
+                  <Text
+                    style={[styles.address, { color: colors.mutedForeground }]}
+                    numberOfLines={1}
+                  >
                     {item.address}
                   </Text>
                   {item.distanceKm != null ? (
-                    <Text style={[styles.distance, { color: colors.primary }]}>
+                    <Text style={[styles.distance, { color: colors.primary }]} numberOfLines={1}>
                       · {formatDistance(item.distanceKm)}
                     </Text>
                   ) : null}
@@ -167,13 +170,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     gap: 4,
+    alignSelf: 'stretch',
   },
   address: {
     fontFamily: fonts.regular,
     fontSize: 12,
+    flexShrink: 1,
   },
   distance: {
     fontFamily: fonts.semibold,
     fontSize: 12,
+    flexShrink: 0,
   },
 });

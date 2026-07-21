@@ -7,8 +7,10 @@ import {
   Pressable,
   TextInput,
   ActivityIndicator,
+  Linking,
 } from 'react-native';
 import { Alert } from '@/lib/alert';
+import { displayPhone, telLink, waMeLink } from '@/lib/phone';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -153,6 +155,15 @@ export function StoresTab() {
 
   const reactivate = (store: Store) => {
     doReview(store.id, 'reactivate');
+  };
+
+  // Tapping a store's number lets the admin choose to call or open WhatsApp.
+  const contactPhone = (phone: string) => {
+    Alert.alert(displayPhone(phone), 'اختر طريقة التواصل', [
+      { text: 'اتصال', onPress: () => Linking.openURL(telLink(phone)) },
+      { text: 'واتساب', onPress: () => Linking.openURL(waMeLink(phone)) },
+      { text: 'إلغاء', style: 'cancel' },
+    ]);
   };
 
   const confirmDelete = (store: Store) => {
@@ -379,10 +390,15 @@ export function StoresTab() {
               <Text style={[styles.detail, { color: colors.mutedForeground }]}>{item.address}</Text>
               <Feather name="map-pin" size={13} color={colors.mutedForeground} />
             </View>
-            <View style={styles.detailRow}>
-              <Text style={[styles.detail, { color: colors.mutedForeground }]}>{item.ownerPhone}</Text>
-              <Feather name="phone" size={13} color={colors.mutedForeground} />
-            </View>
+            <Pressable
+              style={styles.detailRow}
+              onPress={() => item.ownerPhone && contactPhone(item.ownerPhone)}
+            >
+              <Text style={[styles.detail, { color: colors.primary, textDecorationLine: 'underline' }]}>
+                {displayPhone(item.ownerPhone)}
+              </Text>
+              <Feather name="phone" size={13} color={colors.primary} />
+            </Pressable>
             {item.description ? (
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>{item.description}</Text>
             ) : null}

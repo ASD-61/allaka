@@ -1937,6 +1937,12 @@ components:
         isWholesale:
           type: boolean
           description: Sold by the sack/box in the wholesale section ("قسم الجملة").
+        wholesalePrice:
+          type: ["integer", "null"]
+          description: Wholesale price for the "قسم الجملة" listing (distinct from retail price).
+        priceNote:
+          type: ["string", "null"]
+          description: Free-text custom pricing note, e.g. "٣ كيلو بـ٢٠٠٠".
         storeId:
           type: ["integer", "null"]
           description: Owning store id in the marketplace.
@@ -1993,6 +1999,10 @@ components:
           type: boolean
         isWholesale:
           type: boolean
+        wholesalePrice:
+          type: ["integer", "null"]
+        priceNote:
+          type: ["string", "null"]
         storeId:
           type: ["integer", "null"]
     ProductUpdate:
@@ -2036,6 +2046,10 @@ components:
           type: boolean
         isWholesale:
           type: boolean
+        wholesalePrice:
+          type: ["integer", "null"]
+        priceNote:
+          type: ["string", "null"]
         storeId:
           type: ["integer", "null"]
     UploadUrlRequest:
