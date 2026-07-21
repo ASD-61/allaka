@@ -64,6 +64,8 @@ function CartContent() {
   const [deliveryType, setDeliveryType] = useState<DeliveryType>('standard');
   const [redeem, setRedeem] = useState<Redeem>(null);
   const [pickupTime, setPickupTime] = useState<string | null>(null);
+  const [customActive, setCustomActive] = useState(false);
+  const [customTime, setCustomTime] = useState('');
   const [useWallet, setUseWallet] = useState(false);
   const [note, setNote] = useState('');
   const [placing, setPlacing] = useState(false);
@@ -71,7 +73,10 @@ function CartContent() {
   const [pickerVisible, setPickerVisible] = useState(false);
   const [initialCoords, setInitialCoords] = useState<LatLng | null>(null);
 
-  const canRedeem = (customer?.points ?? 0) >= POINTS_THRESHOLD;
+  // Loyalty points are per-store now: you can only redeem the points you
+  // built up AT THIS store, so eligibility follows the store wallet's points.
+  const storePoints = (storeWalletQuery.data as any)?.storePoints ?? 0;
+  const canRedeem = storePoints >= POINTS_THRESHOLD;
   const walletBalance =
     (storeWalletQuery.data?.storeBalance ?? 0) +
     (storeWalletQuery.data?.generalBalance ?? customer?.walletBalance ?? 0);
@@ -281,7 +286,7 @@ function CartContent() {
             {canRedeem ? (
               <>
                 <Text style={[styles.sectionLabel, { color: colors.foreground, marginTop: 18 }]}>
-                  استبدال النقاط ({customer?.points} نقطة متاحة)
+                  استبدال نقاط هذا المتجر ({storePoints} نقطة متاحة)
                 </Text>
                 <View style={styles.redeemRow}>
                   {(
@@ -347,29 +352,74 @@ function CartContent() {
               وقت الاستلام
             </Text>
             <View style={styles.pickupRow}>
-              {PICKUP_TIMES.map((opt) => (
-                <Pressable
-                  key={opt.label}
-                  onPress={() => setPickupTime(opt.value)}
-                  style={[
-                    styles.pickupOption,
-                    {
-                      backgroundColor: pickupTime === opt.value ? colors.primary : colors.card,
-                      borderColor: pickupTime === opt.value ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text
+              {PICKUP_TIMES.map((opt) => {
+                const selected = !customActive && pickupTime === opt.value;
+                return (
+                  <Pressable
+                    key={opt.label}
+                    onPress={() => {
+                      setCustomActive(false);
+                      setPickupTime(opt.value);
+                    }}
                     style={[
-                      styles.pickupLabel,
-                      { color: pickupTime === opt.value ? colors.primaryForeground : colors.foreground },
+                      styles.pickupOption,
+                      {
+                        backgroundColor: selected ? colors.primary : colors.card,
+                        borderColor: selected ? colors.primary : colors.border,
+                      },
                     ]}
                   >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              ))}
+                    <Text
+                      style={[
+                        styles.pickupLabel,
+                        { color: selected ? colors.primaryForeground : colors.foreground },
+                      ]}
+                    >
+                      {opt.label}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+              <Pressable
+                onPress={() => {
+                  setCustomActive(true);
+                  setPickupTime(customTime.trim() || null);
+                }}
+                style={[
+                  styles.pickupOption,
+                  {
+                    backgroundColor: customActive ? colors.primary : colors.card,
+                    borderColor: customActive ? colors.primary : colors.border,
+                  },
+                ]}
+              >
+                <Text
+                  style={[
+                    styles.pickupLabel,
+                    { color: customActive ? colors.primaryForeground : colors.foreground },
+                  ]}
+                >
+                  وقت آخر أحدده
+                </Text>
+              </Pressable>
             </View>
+            {customActive ? (
+              <TextInput
+                value={customTime}
+                onChangeText={(t) => {
+                  setCustomTime(t);
+                  setPickupTime(t.trim() || null);
+                }}
+                maxLength={80}
+                placeholder="اكتب الوقت الي يناسبك، مثال: الساعة ٩ الصبح، أو بعد صلاة العشاء"
+                placeholderTextColor={colors.mutedForeground}
+                style={[
+                  styles.customTimeInput,
+                  { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border },
+                ]}
+                textAlign="right"
+              />
+            ) : null}
 
             <Text style={[styles.sectionLabel, { color: colors.foreground, marginTop: 18 }]}>
               ملاحظة على الطلب (اختياري)
@@ -648,6 +698,15 @@ const styles = StyleSheet.create({
   pickupLabel: {
     fontFamily: fonts.medium,
     fontSize: 12,
+  },
+  customTimeInput: {
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+    marginTop: 10,
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
   redeemRow: {
     flexDirection: 'row-reverse',

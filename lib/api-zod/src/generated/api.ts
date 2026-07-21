@@ -656,8 +656,11 @@ export const ListStoreRefundsResponseItem = zod.object({
   "customerName": zod.string().nullish(),
   "productName": zod.string(),
   "imageUrl": zod.string(),
+  "imageUrls": zod.array(zod.string()).nullish(),
+  "note": zod.string().nullish(),
   "amount": zod.number(),
   "status": zod.string(),
+  "rejectReason": zod.string().nullish(),
   "createdAt": zod.coerce.date().nullish(),
   "reviewedAt": zod.coerce.date().nullish()
 })
@@ -678,7 +681,8 @@ export const decideStoreRefundBodyAmountMin = 0;
 
 export const DecideStoreRefundBody = zod.object({
   "action": zod.enum(['approve', 'reject']),
-  "amount": zod.number().min(decideStoreRefundBodyAmountMin).optional()
+  "amount": zod.number().min(decideStoreRefundBodyAmountMin).optional(),
+  "reason": zod.string().nullish().describe('Reason shown to the customer when rejecting.')
 })
 
 export const DecideStoreRefundResponse = zod.object({
@@ -687,8 +691,11 @@ export const DecideStoreRefundResponse = zod.object({
   "customerPhone": zod.string(),
   "productName": zod.string(),
   "imageUrl": zod.string(),
+  "imageUrls": zod.array(zod.string()).nullish(),
+  "note": zod.string().nullish(),
   "amount": zod.number(),
   "status": zod.string(),
+  "rejectReason": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
 })
@@ -1235,8 +1242,11 @@ export const ListRefundsResponseItem = zod.object({
   "customerPhone": zod.string(),
   "productName": zod.string(),
   "imageUrl": zod.string(),
+  "imageUrls": zod.array(zod.string()).nullish(),
+  "note": zod.string().nullish(),
   "amount": zod.number(),
   "status": zod.string(),
+  "rejectReason": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
 })
@@ -1249,11 +1259,16 @@ export const ListRefundsResponse = zod.array(ListRefundsResponseItem)
 
 
 
+export const createRefundBodyImageUrlsMax = 6;
+
+
 
 export const CreateRefundBody = zod.object({
   "orderId": zod.number(),
   "productName": zod.string().min(1),
-  "imageUrl": zod.string().min(1)
+  "imageUrl": zod.string().min(1).optional().describe('First\/primary photo (legacy). Prefer imageUrls.'),
+  "imageUrls": zod.array(zod.string().min(1)).min(1).max(createRefundBodyImageUrlsMax).optional().describe('All defect photos attached by the customer.'),
+  "note": zod.string().nullish().describe('Free-text note describing the defect.')
 })
 
 export const CreateRefundResponse = zod.object({
@@ -1262,8 +1277,11 @@ export const CreateRefundResponse = zod.object({
   "customerPhone": zod.string(),
   "productName": zod.string(),
   "imageUrl": zod.string(),
+  "imageUrls": zod.array(zod.string()).nullish(),
+  "note": zod.string().nullish(),
   "amount": zod.number(),
   "status": zod.string(),
+  "rejectReason": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
 })
@@ -1282,7 +1300,8 @@ export const updateRefundBodyAmountMin = 0;
 
 export const UpdateRefundBody = zod.object({
   "action": zod.enum(['approve', 'reject']),
-  "amount": zod.number().min(updateRefundBodyAmountMin).optional()
+  "amount": zod.number().min(updateRefundBodyAmountMin).optional(),
+  "reason": zod.string().nullish().describe('Reason shown to the customer when rejecting.')
 })
 
 export const UpdateRefundResponse = zod.object({
@@ -1291,8 +1310,11 @@ export const UpdateRefundResponse = zod.object({
   "customerPhone": zod.string(),
   "productName": zod.string(),
   "imageUrl": zod.string(),
+  "imageUrls": zod.array(zod.string()).nullish(),
+  "note": zod.string().nullish(),
   "amount": zod.number(),
   "status": zod.string(),
+  "rejectReason": zod.string().nullish(),
   "createdAt": zod.coerce.date(),
   "reviewedAt": zod.coerce.date().nullish()
 })
@@ -1333,6 +1355,57 @@ export const CreateRatingResponse = zod.object({
 
 
 /**
+ * @summary List the stores the authenticated customer follows
+ */
+export const ListFollowsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "address": zod.string(),
+  "description": zod.string().nullish(),
+  "storeType": zod.string().describe('Kind of shop, e.g. \"خضار وفواكه\", \"بقالة\", \"لحوم\".'),
+  "ownerPhone": zod.string(),
+  "imageUrl": zod.string().nullish(),
+  "latitude": zod.number().nullish().describe('Store\'s map pin, used to build a Google Maps link for customers.'),
+  "longitude": zod.number().nullish(),
+  "status": zod.string().describe('قيد المراجعة | مفعّل | مرفوض | موقوف مؤقتاً'),
+  "subscriptionExpiresAt": zod.coerce.date().nullish(),
+  "requestedSubscriptionMonths": zod.number().nullish().describe('The plan (3\/6\/12 months) the merchant picked at registration — a request only; the admin\'s approval is what actually sets subscriptionExpiresAt.'),
+  "refundsEnabled": zod.boolean().optional().describe('Whether this store offers the \"البضاعة بيها خلل؟\" quality-refund flow to its customers (merchant-controlled).'),
+  "ratingSum": zod.number().optional().describe('Running sum of all customer star ratings (1–5) for this store.'),
+  "ratingCount": zod.number().optional().describe('How many ratings were given — average = ratingSum \/ ratingCount.'),
+  "distanceKm": zod.number().nullish().describe('Distance from the customer\'s location, in km — only present when the request included lat\/lng.'),
+  "createdAt": zod.coerce.date()
+})
+export const ListFollowsResponse = zod.array(ListFollowsResponseItem)
+
+
+/**
+ * @summary Follow a store
+ */
+export const FollowStoreParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const FollowStoreResponse = zod.object({
+  "storeId": zod.number(),
+  "following": zod.boolean()
+})
+
+
+/**
+ * @summary Unfollow a store
+ */
+export const UnfollowStoreParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const UnfollowStoreResponse = zod.object({
+  "storeId": zod.number(),
+  "following": zod.boolean()
+})
+
+
+/**
  * @summary Get the customer's general balance + per-store credit breakdown
  */
 export const GetWalletResponse = zod.object({
@@ -1341,7 +1414,8 @@ export const GetWalletResponse = zod.object({
   "storeId": zod.number(),
   "storeName": zod.string(),
   "storeImageUrl": zod.string().nullish(),
-  "balance": zod.number().describe('Credit (IQD) spendable only at this store.')
+  "balance": zod.number().describe('Credit (IQD) spendable only at this store.'),
+  "points": zod.number().optional().describe('Loyalty points accumulated at this store.')
 }))
 })
 
@@ -1355,6 +1429,7 @@ export const GetStoreWalletParams = zod.object({
 
 export const GetStoreWalletResponse = zod.object({
   "storeBalance": zod.number().describe('Credit spendable only at this store.'),
+  "storePoints": zod.number().optional().describe('Loyalty points the customer has at this store.'),
   "generalBalance": zod.number().describe('General balance spendable anywhere.')
 })
 

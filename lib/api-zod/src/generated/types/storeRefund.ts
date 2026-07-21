@@ -14,8 +14,14 @@ export interface StoreRefund {
   customerName?: string | null;
   productName: string;
   imageUrl: string;
+  /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
+  note?: string | null;
   amount: number;
   status: string;
+  /** @nullable */
+  rejectReason?: string | null;
   /** @nullable */
   createdAt?: Date | null;
   /** @nullable */

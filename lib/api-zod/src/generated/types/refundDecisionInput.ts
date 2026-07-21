@@ -11,4 +11,9 @@ export interface RefundDecisionInput {
   action: RefundDecisionInputAction;
   /** @minimum 0 */
   amount?: number;
+  /**
+     * Reason shown to the customer when rejecting.
+     * @nullable
+     */
+  reason?: string | null;
 }

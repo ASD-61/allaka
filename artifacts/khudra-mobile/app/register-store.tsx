@@ -63,6 +63,7 @@ function RegisterStoreContent() {
 
   const [name, setName] = useState('');
   const [storeType, setStoreType] = useState('');
+  const [typeMenuOpen, setTypeMenuOpen] = useState(false);
   const [address, setAddress] = useState('');
   const [description, setDescription] = useState('');
   const [coords, setCoords] = useState<LatLng | null>(null);
@@ -221,30 +222,74 @@ function RegisterStoreContent() {
       <Field label="اسم المتجر" value={name} onChangeText={setName} placeholder="مثال: بقالية النور" colors={colors} />
 
       {(storeTypes.data?.length ?? 0) > 0 ? (
-        <View style={{ marginBottom: 14 }}>
+        <View style={{ marginBottom: 14, zIndex: 10 }}>
           <Text style={[styles.fieldLabel, { color: colors.mutedForeground }]}>نوع المتجر</Text>
-          <View style={styles.chipsWrap}>
-            {storeTypes.data!.map((t) => {
-              const selected = storeType === t.name;
-              return (
-                <Pressable
-                  key={t.id}
-                  onPress={() => setStoreType(t.name)}
-                  style={[
-                    styles.chip,
-                    {
-                      backgroundColor: selected ? colors.primary : colors.card,
-                      borderColor: selected ? colors.primary : colors.border,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.chipText, { color: selected ? colors.primaryForeground : colors.foreground }]}>
-                    {t.name}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </View>
+          {/* Dropdown (expandable) instead of fixed chips — scales to many types. */}
+          <Pressable
+            onPress={() => setTypeMenuOpen((v) => !v)}
+            style={[
+              styles.dropdownHeader,
+              {
+                backgroundColor: colors.card,
+                borderColor: typeMenuOpen ? colors.primary : colors.border,
+              },
+            ]}
+          >
+            <Feather
+              name={typeMenuOpen ? 'chevron-up' : 'chevron-down'}
+              size={18}
+              color={colors.mutedForeground}
+            />
+            <Text
+              style={[
+                styles.dropdownHeaderText,
+                { color: storeType ? colors.foreground : colors.mutedForeground },
+              ]}
+              numberOfLines={1}
+            >
+              {storeType || 'اختر نوع المتجر'}
+            </Text>
+          </Pressable>
+          {typeMenuOpen ? (
+            <View style={[styles.dropdownList, { backgroundColor: colors.card, borderColor: colors.border }]}>
+              <ScrollView
+                style={{ maxHeight: 240 }}
+                nestedScrollEnabled
+                keyboardShouldPersistTaps="handled"
+              >
+                {storeTypes.data!.map((t) => {
+                  const selected = storeType === t.name;
+                  return (
+                    <Pressable
+                      key={t.id}
+                      onPress={() => {
+                        setStoreType(t.name);
+                        setTypeMenuOpen(false);
+                      }}
+                      style={[
+                        styles.dropdownItem,
+                        { backgroundColor: selected ? colors.primary + '15' : 'transparent', borderBottomColor: colors.border },
+                      ]}
+                    >
+                      {selected ? (
+                        <Feather name="check" size={16} color={colors.primary} />
+                      ) : (
+                        <View style={{ width: 16 }} />
+                      )}
+                      <Text
+                        style={[
+                          styles.dropdownItemText,
+                          { color: selected ? colors.primary : colors.foreground },
+                        ]}
+                      >
+                        {t.name}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </ScrollView>
+            </View>
+          ) : null}
           <Text style={[styles.chipHint, { color: colors.mutedForeground }]}>
             اختر النوع الذي يطابق متجرك حتى يظهر ضمن القسم الصحيح للزبائن
           </Text>
@@ -499,6 +544,42 @@ const styles = StyleSheet.create({
   chipText: {
     fontFamily: fonts.bold,
     fontSize: 13,
+  },
+  dropdownHeader: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    height: 50,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 14,
+  },
+  dropdownHeaderText: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    textAlign: 'right',
+    marginRight: 10,
+  },
+  dropdownList: {
+    marginTop: 6,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  dropdownItem: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 13,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  dropdownItemText: {
+    flex: 1,
+    fontFamily: fonts.semibold,
+    fontSize: 14,
+    textAlign: 'right',
   },
   chipHint: {
     fontFamily: fonts.regular,

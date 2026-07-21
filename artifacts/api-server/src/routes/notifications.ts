@@ -1,7 +1,8 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { desc, eq, or, isNull, inArray } from "drizzle-orm";
-import { db, ordersTable, broadcastsTable } from "@workspace/db";
+import { db, ordersTable, broadcastsTable, notificationsTable } from "@workspace/db";
 import { requireCustomer } from "../middlewares/customerAuth";
+import { phoneKey } from "../lib/notifications";
 
 const router: IRouter = Router();
 
@@ -63,7 +64,26 @@ router.get(
       createdAt: b.createdAt,
     }));
 
-    const merged = [...notifications, ...broadcastNotifications].sort(
+    // Persistent, explicitly-created notifications (refund decisions, delivery
+    // "rate the store" messages, …) targeted at this phone.
+    const stored = await db
+      .select()
+      .from(notificationsTable)
+      .where(eq(notificationsTable.recipientPhone, phoneKey(req.customerPhone)))
+      .orderBy(desc(notificationsTable.createdAt));
+
+    const storedNotifications = stored.map((n) => ({
+      id: `notif-${n.id}`,
+      message: n.body ? `${n.title}\n${n.body}` : n.title,
+      createdAt: n.createdAt,
+      data: n.data ?? undefined,
+    }));
+
+    const merged = [
+      ...notifications,
+      ...broadcastNotifications,
+      ...storedNotifications,
+    ].sort(
       (a, b2) =>
         new Date(b2.createdAt).getTime() - new Date(a.createdAt).getTime(),
     );

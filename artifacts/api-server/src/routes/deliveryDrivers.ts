@@ -4,6 +4,8 @@ import { eq, desc, inArray, ne, and } from "drizzle-orm";
 import { db, deliveryDriversTable, storesTable, ordersTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
+import { createNotification } from "../lib/notifications";
+import { sendWhatsAppRatingRequest } from "../lib/whatsapp";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -105,16 +107,31 @@ router.post(
       return;
     }
 
+    const trimmedPhone = parsed.data.phone.trim();
+
+    // Stable per-phone portal link: a driver who already works for another
+    // store keeps the SAME portal token, so they have one link that shows all
+    // the stores they deliver for (and one daily availability toggle) instead
+    // of a different link per store.
+    const [sibling] = await db
+      .select({
+        portalToken: deliveryDriversTable.portalToken,
+        available: deliveryDriversTable.available,
+      })
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.phone, trimmedPhone))
+      .limit(1);
+
     const [driver] = await db
       .insert(deliveryDriversTable)
       .values({
         storeId: id,
         name: parsed.data.name.trim(),
-        phone: parsed.data.phone.trim(),
+        phone: trimmedPhone,
         vehicleType: parsed.data.vehicleType.trim(),
         status: ACTIVE,
-        available: true,
-        portalToken: randomUUID(),
+        available: sibling?.available ?? true,
+        portalToken: sibling?.portalToken ?? randomUUID(),
       })
       .returning();
 
@@ -183,29 +200,84 @@ router.patch(
 );
 
 // GET /driver-portal/:token — public (token-gated, no login): the driver's
-// own view of their status, used by their personal portal page to render the
-// current toggle state.
+// own dashboard. Because a driver's token is now shared across every store
+// they work for, this aggregates ALL of those rows: the stores they deliver
+// for (name/phone/address), their active (not-yet-delivered) orders, and
+// today's delivered count + earnings.
 router.get(
   "/driver-portal/:token",
   async (req: Request, res: Response): Promise<void> => {
     const token = String(req.params.token);
-    const [row] = await db
-      .select({ driver: deliveryDriversTable, storeName: storesTable.name })
+    const rows = await db
+      .select({ driver: deliveryDriversTable, store: storesTable })
       .from(deliveryDriversTable)
       .innerJoin(storesTable, eq(deliveryDriversTable.storeId, storesTable.id))
       .where(eq(deliveryDriversTable.portalToken, token));
-    if (!row) {
+    if (rows.length === 0) {
       res.status(404).json({ error: "الرابط غير صالح" });
       return;
     }
-    const [withBusy] = await withBusyStatus([row.driver]);
+
+    const first = rows[0]!.driver;
+    const driverIds = rows.map((r) => r.driver.id);
+    const storeById = new Map<number, (typeof rows)[number]["store"]>();
+    for (const r of rows) storeById.set(r.store.id, r.store);
+
+    const orders = await db
+      .select()
+      .from(ordersTable)
+      .where(inArray(ordersTable.assignedDriverId, driverIds))
+      .orderBy(desc(ordersTable.createdAt));
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const activeOrders = orders
+      .filter((o) => o.status !== DELIVERED)
+      .map((o) => {
+        const st = o.storeId != null ? storeById.get(o.storeId) : undefined;
+        return {
+          id: o.id,
+          storeName: st?.name ?? "المتجر",
+          customerPhone: o.customerPhone,
+          items: (o.items ?? []).map((i) => ({ name: i.name, qty: i.qty })),
+          total: o.total,
+          deliveryType: o.deliveryType,
+          note: o.note,
+          latitude: o.latitude,
+          longitude: o.longitude,
+          status: o.status,
+        };
+      });
+
+    const deliveredToday = orders.filter(
+      (o) =>
+        o.status === DELIVERED && new Date(o.createdAt) >= startOfToday,
+    );
+    const todayEarnings = deliveredToday.reduce(
+      (sum, o) => sum + (o.deliveryFee || 0),
+      0,
+    );
+
+    const stores = rows.map((r) => ({
+      id: r.store.id,
+      name: r.store.name,
+      phone: r.store.ownerPhone,
+      address: r.store.address,
+      latitude: r.store.latitude,
+      longitude: r.store.longitude,
+    }));
+
     res.json({
-      name: row.driver.name,
-      vehicleType: row.driver.vehicleType,
-      storeName: row.storeName,
-      status: row.driver.status,
-      available: row.driver.available,
-      activeOrderId: withBusy.activeOrderId,
+      name: first.name,
+      phone: first.phone,
+      vehicleType: first.vehicleType,
+      status: first.status,
+      available: first.available,
+      stores,
+      activeOrders,
+      todayDeliveredCount: deliveredToday.length,
+      todayEarnings,
     });
   },
 );
@@ -213,9 +285,9 @@ router.get(
 const AvailabilityBody = z.object({ available: z.boolean() });
 
 // PATCH /driver-portal/:token — public (token-gated, no login): the driver
-// flips their OWN "متاح اليوم" / "غير متاح اليوم" toggle. This is the whole
-// point of the portal — no merchant/admin action is needed for a driver to
-// take themselves off (or back onto) the roster for the day.
+// flips their OWN "متاح اليوم" / "غير متاح اليوم" toggle. Applies to EVERY
+// store row sharing this token, so one toggle covers all the stores they
+// deliver for.
 router.patch(
   "/driver-portal/:token",
   async (req: Request, res: Response): Promise<void> => {
@@ -233,12 +305,112 @@ router.patch(
       res.status(404).json({ error: "الرابط غير صالح" });
       return;
     }
-    const [driver] = await db
+    await db
       .update(deliveryDriversTable)
       .set({ available: parsed.data.available })
-      .where(eq(deliveryDriversTable.portalToken, token))
+      .where(eq(deliveryDriversTable.portalToken, token));
+    res.json({ available: parsed.data.available });
+  },
+);
+
+const DriverOrderStatusBody = z.object({
+  status: z.enum(["في الطريق", DELIVERED]),
+});
+
+// PATCH /driver-portal/:token/orders/:orderId — the driver updates an order
+// they were assigned (mark it "في الطريق" or "تم التسليم"). On delivery it
+// notifies the customer (in-app + WhatsApp rating request) and the store
+// owner, and locks the order (merchants can no longer change it).
+router.patch(
+  "/driver-portal/:token/orders/:orderId",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = String(req.params.token);
+    const orderId = parseInt(String(req.params.orderId), 10);
+    if (Number.isNaN(orderId)) {
+      res.status(400).json({ error: "معرّف غير صالح" });
+      return;
+    }
+    const parsed = DriverOrderStatusBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "حالة غير صالحة" });
+      return;
+    }
+
+    const driverRows = await db
+      .select({ id: deliveryDriversTable.id })
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.portalToken, token));
+    if (driverRows.length === 0) {
+      res.status(404).json({ error: "الرابط غير صالح" });
+      return;
+    }
+    const driverIds = new Set(driverRows.map((d) => d.id));
+
+    const [order] = await db
+      .select()
+      .from(ordersTable)
+      .where(eq(ordersTable.id, orderId));
+    if (
+      !order ||
+      order.assignedDriverId == null ||
+      !driverIds.has(order.assignedDriverId)
+    ) {
+      res.status(403).json({ error: "هذا الطلب غير مُسند إليك" });
+      return;
+    }
+    if (order.status === DELIVERED) {
+      res.status(409).json({ error: "الطلب تم تسليمه مسبقاً" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(ordersTable)
+      .set({ status: parsed.data.status })
+      .where(eq(ordersTable.id, orderId))
       .returning();
-    res.json({ available: driver.available });
+
+    if (parsed.data.status === DELIVERED) {
+      const store = order.storeId
+        ? (
+            await db
+              .select()
+              .from(storesTable)
+              .where(eq(storesTable.id, order.storeId))
+          )[0]
+        : undefined;
+      const storeName = store?.name ?? null;
+      const base = `${req.protocol}://${req.get("host")}`;
+
+      // Customer: in-app "thank you + rate the store" + WhatsApp rating link.
+      void createNotification(order.customerPhone, {
+        type: "delivery",
+        title: `✅ تم تسليم طلبك من ${storeName || "المتجر"}`,
+        body: `شكراً لشرائك من ${storeName || "المتجر"} 🥬\nنتمنى نال إعجابك — قيّم المتجر من إشعاراتك أو رسالة الواتساب.`,
+        data: {
+          orderId: order.id,
+          storeId: order.storeId ?? null,
+          rateUrl: `${base}/rate/${order.id}`,
+        },
+      });
+      void sendWhatsAppRatingRequest({
+        customerPhone: order.customerPhone,
+        storeName,
+        orderId: order.id,
+        rateUrl: `${base}/rate/${order.id}`,
+      });
+
+      // Merchant: in-app confirmation the driver completed the delivery.
+      if (store?.ownerPhone) {
+        void createNotification(store.ownerPhone, {
+          type: "delivery",
+          title: `🚚 تم تسليم الطلب #${order.id} — ${storeName || "متجرك"}`,
+          body: `أكمل المندوب توصيل الطلب #${order.id} بنجاح.`,
+          data: { orderId: order.id, storeId: order.storeId ?? null },
+        });
+      }
+    }
+
+    res.json({ id: updated.id, status: updated.status });
   },
 );
 

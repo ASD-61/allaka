@@ -114,6 +114,11 @@ export default function ProfileScreen() {
           onPress={() => (isAuthenticated ? router.push('/wallet') : router.push('/login'))}
         />
         <MenuItem
+          icon="heart"
+          label="المتاجر التي أتابعها"
+          onPress={() => (isAuthenticated ? router.push('/following' as any) : router.push('/login'))}
+        />
+        <MenuItem
           icon="gift"
           label="دعوة الأصدقاء"
           onPress={() => (isAuthenticated ? router.push('/referral') : router.push('/login'))}

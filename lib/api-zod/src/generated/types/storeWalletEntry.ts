@@ -13,4 +13,6 @@ export interface StoreWalletEntry {
   storeImageUrl?: string | null;
   /** Credit (IQD) spendable only at this store. */
   balance: number;
+  /** Loyalty points accumulated at this store. */
+  points?: number;
 }

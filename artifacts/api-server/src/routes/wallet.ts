@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, eq, gt, desc } from "drizzle-orm";
+import { and, eq, gt, or, desc } from "drizzle-orm";
 import {
   db,
   customersTable,
@@ -28,6 +28,7 @@ router.get(
       .select({
         storeId: customerStoreWalletsTable.storeId,
         balance: customerStoreWalletsTable.balance,
+        points: customerStoreWalletsTable.points,
         storeName: storesTable.name,
         storeImageUrl: storesTable.imageUrl,
       })
@@ -39,7 +40,12 @@ router.get(
       .where(
         and(
           eq(customerStoreWalletsTable.customerPhone, phone),
-          gt(customerStoreWalletsTable.balance, 0),
+          // Show a store row if the customer has either wallet credit OR
+          // loyalty points there.
+          or(
+            gt(customerStoreWalletsTable.balance, 0),
+            gt(customerStoreWalletsTable.points, 0),
+          ),
         ),
       )
       .orderBy(desc(customerStoreWalletsTable.balance));
@@ -51,6 +57,7 @@ router.get(
         storeName: r.storeName ?? "متجر",
         storeImageUrl: r.storeImageUrl ?? null,
         balance: r.balance,
+        points: r.points ?? 0,
       })),
     });
   },
@@ -86,6 +93,7 @@ router.get(
 
     res.json({
       storeBalance: sw?.balance ?? 0,
+      storePoints: sw?.points ?? 0,
       generalBalance: customer?.walletBalance ?? 0,
     });
   },

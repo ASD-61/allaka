@@ -6,6 +6,7 @@ import {
   useListProducts,
   useListCategories,
   useCreateCategory,
+  useUpdateCategory,
   useDeleteCategory,
 } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
@@ -23,8 +24,30 @@ export function MerchantCategories({ storeId }: { storeId: number }) {
   const productsQuery = useListProducts({ storeId });
   const categoriesQuery = useListCategories({ storeId });
   const createCategory = useCreateCategory();
+  const updateCategory = useUpdateCategory();
   const deleteCategory = useDeleteCategory();
   const [name, setName] = useState('');
+  const [editingId, setEditingId] = useState<number | null>(null);
+  const [editingName, setEditingName] = useState('');
+
+  const startEdit = (id: number, current: string) => {
+    setEditingId(id);
+    setEditingName(current);
+  };
+
+  const saveEdit = async (id: number) => {
+    const next = editingName.trim();
+    if (!next) return;
+    try {
+      await updateCategory.mutateAsync({ id, data: { name: next, storeId } });
+      setEditingId(null);
+      setEditingName('');
+      categoriesQuery.refetch();
+      productsQuery.refetch();
+    } catch (err: any) {
+      Alert.alert('خطأ', err?.data?.error ?? 'تعذر تعديل اسم الفئة');
+    }
+  };
 
   const handleAdd = async () => {
     if (!name.trim()) return;
@@ -97,6 +120,38 @@ export function MerchantCategories({ storeId }: { storeId: number }) {
       }
       renderItem={({ item }) => {
         const stats = countByName.get(item.name);
+        const isEditing = editingId === item.id;
+        if (isEditing) {
+          return (
+            <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.primary }]}>
+              <Pressable
+                hitSlop={8}
+                onPress={() => saveEdit(item.id)}
+                disabled={updateCategory.isPending || !editingName.trim()}
+                style={[styles.deleteBtn, { backgroundColor: colors.primary + '18', opacity: !editingName.trim() ? 0.5 : 1 }]}
+              >
+                <Feather name="check" size={16} color={colors.primary} />
+              </Pressable>
+              <Pressable
+                hitSlop={8}
+                onPress={() => setEditingId(null)}
+                style={[styles.deleteBtn, { backgroundColor: colors.muted }]}
+              >
+                <Feather name="x" size={16} color={colors.mutedForeground} />
+              </Pressable>
+              <TextInput
+                value={editingName}
+                onChangeText={setEditingName}
+                autoFocus
+                placeholder="اسم الفئة"
+                placeholderTextColor={colors.mutedForeground}
+                style={[styles.editInput, { color: colors.foreground, backgroundColor: colors.muted, borderColor: colors.border }]}
+                textAlign="right"
+                onSubmitEditing={() => saveEdit(item.id)}
+              />
+            </View>
+          );
+        }
         return (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <Pressable
@@ -125,6 +180,16 @@ export function MerchantCategories({ storeId }: { storeId: number }) {
               ]}
             >
               <Feather name="trash-2" size={16} color={colors.destructive} />
+            </Pressable>
+            <Pressable
+              hitSlop={8}
+              onPress={() => startEdit(item.id, item.name)}
+              style={({ pressed }) => [
+                styles.deleteBtn,
+                { backgroundColor: colors.primary + '15', opacity: pressed ? 0.7 : 1 },
+              ]}
+            >
+              <Feather name="edit-2" size={16} color={colors.primary} />
             </Pressable>
             <View style={{ flex: 1, alignItems: 'flex-end', gap: 3 }}>
               <Text style={[styles.name, { color: colors.foreground }]}>{item.name}</Text>
@@ -202,6 +267,15 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  editInput: {
+    flex: 1,
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    fontFamily: fonts.medium,
+    fontSize: 14,
   },
   iconWrap: {
     width: 44,

@@ -26,6 +26,7 @@ export * from './deliveryDriverStatusInput';
 export * from './deliveryDriverStatusInputStatus';
 export * from './deliveryDriverUpdate';
 export * from './errorEnvelope';
+export * from './followResult';
 export * from './healthStatus';
 export * from './listCategoriesParams';
 export * from './listOrdersParams';

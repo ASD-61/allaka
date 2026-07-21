@@ -4,6 +4,7 @@ import { db, refundsTable, ordersTable, customersTable } from "@workspace/db";
 import { requireAdmin } from "../middlewares/adminAuth";
 import { requireCustomer } from "../middlewares/customerAuth";
 import { creditStoreWallet } from "../lib/wallet";
+import { createNotification } from "../lib/notifications";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -14,15 +15,26 @@ const REJECTED = "مرفوض";
 
 // `amount` is intentionally NOT accepted from the customer — the compensation is
 // decided by the merchant during review and can never be forged by the client.
-const RefundInputSchema = z.object({
-  orderId: z.number().int(),
-  productName: z.string().min(1),
-  imageUrl: z.string().min(1),
-});
+const RefundInputSchema = z
+  .object({
+    orderId: z.number().int(),
+    productName: z.string().min(1),
+    // Either a single `imageUrl` (legacy clients) or an `imageUrls` array (new
+    // clients that let the customer attach several photos). At least one photo
+    // is required.
+    imageUrl: z.string().min(1).optional(),
+    imageUrls: z.array(z.string().min(1)).min(1).max(6).optional(),
+    note: z.string().max(1000).optional(),
+  })
+  .refine((v) => !!v.imageUrl || (v.imageUrls && v.imageUrls.length > 0), {
+    message: "صورة واحدة على الأقل مطلوبة",
+  });
 
 const RefundDecisionSchema = z.object({
   action: z.enum(["approve", "reject"]),
   amount: z.number().int().min(0).optional(),
+  // Reason shown to the customer when rejecting.
+  reason: z.string().max(500).optional(),
 });
 
 // Thrown inside a transaction to roll back and map to an HTTP status.
@@ -62,7 +74,13 @@ router.post(
     }
 
     const customerPhone = req.customerPhone!;
-    const { orderId, productName, imageUrl } = parsed.data;
+    const { orderId, productName, note } = parsed.data;
+    // Normalise photos into a non-empty list; `imageUrl` stays the first one.
+    const imageUrls =
+      parsed.data.imageUrls && parsed.data.imageUrls.length > 0
+        ? parsed.data.imageUrls
+        : [parsed.data.imageUrl!];
+    const imageUrl = imageUrls[0]!;
 
     try {
       // The order must exist, belong to the customer, and be delivered.
@@ -109,6 +127,8 @@ router.post(
           customerPhone,
           productName,
           imageUrl,
+          imageUrls,
+          note: note?.trim() || null,
           amount: 0,
           status: PENDING,
         })
@@ -139,7 +159,7 @@ router.patch(
       res.status(400).json({ error: "بيانات غير صالحة" });
       return;
     }
-    const { action, amount } = parsed.data;
+    const { action, amount, reason } = parsed.data;
 
     try {
       const refund = await db.transaction(async (tx) => {
@@ -158,7 +178,12 @@ router.patch(
         if (action === "reject") {
           const [updated] = await tx
             .update(refundsTable)
-            .set({ status: REJECTED, amount: 0, reviewedAt: new Date() })
+            .set({
+              status: REJECTED,
+              amount: 0,
+              rejectReason: reason?.trim() || null,
+              reviewedAt: new Date(),
+            })
             .where(eq(refundsTable.id, id))
             .returning();
           return updated;
@@ -203,6 +228,27 @@ router.patch(
 
         return updated;
       });
+
+      // Tell the customer the outcome in their in-app notifications feed.
+      if (refund.status === APPROVED) {
+        void createNotification(refund.customerPhone, {
+          type: "refund",
+          title: "✅ تمت الموافقة على تعويضك",
+          body: `تم تعويضك عن "${refund.productName}" بمبلغ ${refund.amount.toLocaleString(
+            "ar-IQ",
+          )} د.ع وأُضيف إلى محفظتك.`,
+          data: { refundId: refund.id, orderId: refund.orderId, amount: refund.amount },
+        });
+      } else if (refund.status === REJECTED) {
+        void createNotification(refund.customerPhone, {
+          type: "refund",
+          title: "❌ تم رفض طلب التعويض",
+          body: refund.rejectReason
+            ? `طلب تعويضك عن "${refund.productName}" مرفوض.\nالسبب: ${refund.rejectReason}`
+            : `طلب تعويضك عن "${refund.productName}" مرفوض.`,
+          data: { refundId: refund.id, orderId: refund.orderId },
+        });
+      }
 
       res.json(refund);
     } catch (err) {

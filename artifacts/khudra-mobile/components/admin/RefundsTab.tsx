@@ -35,8 +35,11 @@ type Refund = {
   customerPhone: string;
   productName: string;
   imageUrl: string;
+  imageUrls?: string[] | null;
+  note?: string | null;
   amount: number;
   status: string;
+  rejectReason?: string | null;
   createdAt: string;
 };
 
@@ -57,13 +60,17 @@ function RefundCard({
   itemTotal: number;
   customerName: string | undefined;
   busy: boolean;
-  onDecide: (action: 'approve' | 'reject', amount: number) => void;
+  onDecide: (action: 'approve' | 'reject', amount: number, reason?: string) => void;
 }) {
   const colors = useColors();
   const [amountText, setAmountText] = useState(itemTotal > 0 ? String(itemTotal) : '');
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [rejectReason, setRejectReason] = useState('');
   const isPending = item.status === PENDING;
-  const photoUri = resolveImageUrl(item.imageUrl);
+  const photos = (item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls : [item.imageUrl])
+    .filter(Boolean)
+    .map((u) => resolveImageUrl(u));
 
   const handleApprove = () => {
     const parsed = parseInt(amountText, 10);
@@ -76,21 +83,30 @@ function RefundCard({
   };
 
   const handleReject = () => {
-    Alert.alert('رفض الطلب', 'متأكد من رفض طلب التعويض هذا؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'رفض', style: 'destructive', onPress: () => onDecide('reject', 0) },
-    ]);
+    if (!rejecting) {
+      setRejecting(true);
+      return;
+    }
+    onDecide('reject', 0, rejectReason.trim() || undefined);
   };
 
   return (
     <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
       <View style={styles.headRow}>
-        <Pressable onPress={() => setViewerOpen(true)}>
-          <Image source={{ uri: photoUri }} style={styles.photo} contentFit="cover" />
-          <View style={styles.photoExpand}>
-            <Feather name="maximize-2" size={12} color="#fff" />
-          </View>
-        </Pressable>
+        <View style={styles.photoStack}>
+          <Pressable onPress={() => setViewerIndex(0)}>
+            <Image source={{ uri: photos[0] }} style={styles.photo} contentFit="cover" />
+            <View style={styles.photoExpand}>
+              <Feather name="maximize-2" size={12} color="#fff" />
+            </View>
+            {photos.length > 1 ? (
+              <View style={styles.photoCount}>
+                <Feather name="image" size={10} color="#fff" />
+                <Text style={styles.photoCountText}>{photos.length}</Text>
+              </View>
+            ) : null}
+          </Pressable>
+        </View>
         <View style={styles.body}>
           <View style={styles.topRow}>
             <Text style={[styles.productName, { color: colors.foreground }]} numberOfLines={1}>
@@ -132,43 +148,97 @@ function RefundCard({
               </Text>
             </View>
           ) : null}
+          {item.status !== APPROVED && item.status !== PENDING && item.rejectReason ? (
+            <View style={styles.metaRow}>
+              <Feather name="message-circle" size={13} color={colors.mutedForeground} />
+              <Text style={[styles.metaText, { color: colors.mutedForeground }]}>
+                السبب: {item.rejectReason}
+              </Text>
+            </View>
+          ) : null}
         </View>
       </View>
 
-      {isPending ? (
-        <View style={styles.actions}>
-          <View style={[styles.amountInputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
-            <Text style={[styles.amountSuffix, { color: colors.mutedForeground }]}>د.ع</Text>
-            <TextInput
-              value={amountText}
-              onChangeText={setAmountText}
-              keyboardType="number-pad"
-              placeholder="مبلغ التعويض"
-              placeholderTextColor={colors.mutedForeground}
-              style={[styles.amountInput, { color: colors.foreground }]}
-              editable={!busy}
-            />
-          </View>
-          <Pressable
-            onPress={handleApprove}
-            disabled={busy}
-            style={[styles.actionBtn, { backgroundColor: colors.success, opacity: busy ? 0.6 : 1 }]}
-          >
-            <Feather name="check" size={15} color="#fff" />
-            <Text style={styles.actionText}>موافقة</Text>
-          </Pressable>
-          <Pressable
-            onPress={handleReject}
-            disabled={busy}
-            style={[styles.actionBtn, { backgroundColor: colors.destructive, opacity: busy ? 0.6 : 1 }]}
-          >
-            <Feather name="x" size={15} color="#fff" />
-            <Text style={styles.actionText}>رفض</Text>
-          </Pressable>
+      {photos.length > 1 ? (
+        <View style={styles.thumbRow}>
+          {photos.map((uri, idx) => (
+            <Pressable key={uri + idx} onPress={() => setViewerIndex(idx)}>
+              <Image source={{ uri }} style={styles.thumb} contentFit="cover" />
+            </Pressable>
+          ))}
         </View>
       ) : null}
 
-      <ImageViewerModal uri={photoUri} visible={viewerOpen} onClose={() => setViewerOpen(false)} />
+      {item.note ? (
+        <View style={[styles.noteBox, { backgroundColor: colors.background }]}>
+          <Text style={[styles.noteText, { color: colors.foreground }]}>📝 {item.note}</Text>
+        </View>
+      ) : null}
+
+      {isPending ? (
+        <>
+          {rejecting ? (
+            <TextInput
+              value={rejectReason}
+              onChangeText={setRejectReason}
+              placeholder="سبب الرفض (يظهر للزبون)"
+              placeholderTextColor={colors.mutedForeground}
+              style={[styles.reasonInput, { color: colors.foreground, borderColor: colors.border, backgroundColor: colors.background }]}
+              textAlign="right"
+              editable={!busy}
+            />
+          ) : null}
+          <View style={styles.actions}>
+            {rejecting ? null : (
+              <View style={[styles.amountInputWrap, { borderColor: colors.border, backgroundColor: colors.background }]}>
+                <Text style={[styles.amountSuffix, { color: colors.mutedForeground }]}>د.ع</Text>
+                <TextInput
+                  value={amountText}
+                  onChangeText={setAmountText}
+                  keyboardType="number-pad"
+                  placeholder="مبلغ التعويض"
+                  placeholderTextColor={colors.mutedForeground}
+                  style={[styles.amountInput, { color: colors.foreground }]}
+                  editable={!busy}
+                />
+              </View>
+            )}
+            {rejecting ? null : (
+              <Pressable
+                onPress={handleApprove}
+                disabled={busy}
+                style={[styles.actionBtn, { backgroundColor: colors.success, opacity: busy ? 0.6 : 1 }]}
+              >
+                <Feather name="check" size={15} color="#fff" />
+                <Text style={styles.actionText}>موافقة</Text>
+              </Pressable>
+            )}
+            <Pressable
+              onPress={handleReject}
+              disabled={busy}
+              style={[styles.actionBtn, { backgroundColor: colors.destructive, opacity: busy ? 0.6 : 1, flex: rejecting ? 1 : undefined }]}
+            >
+              <Feather name="x" size={15} color="#fff" />
+              <Text style={styles.actionText}>{rejecting ? 'تأكيد الرفض' : 'رفض'}</Text>
+            </Pressable>
+            {rejecting ? (
+              <Pressable
+                onPress={() => setRejecting(false)}
+                disabled={busy}
+                style={[styles.actionBtn, { backgroundColor: colors.muted }]}
+              >
+                <Text style={[styles.actionText, { color: colors.foreground }]}>إلغاء</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        </>
+      ) : null}
+
+      <ImageViewerModal
+        uri={viewerIndex != null ? photos[viewerIndex] ?? null : null}
+        visible={viewerIndex != null}
+        onClose={() => setViewerIndex(null)}
+      />
     </View>
   );
 }
@@ -209,10 +279,10 @@ export function RefundsTab() {
     return line ? Math.max(0, line.price) * Math.max(0, line.qty) : 0;
   };
 
-  const decide = (id: number, action: 'approve' | 'reject', amount: number) => {
+  const decide = (id: number, action: 'approve' | 'reject', amount: number, reason?: string) => {
     setDecidingId(id);
     updateRefund.mutate(
-      { id, data: action === 'approve' ? { action, amount } : { action } },
+      { id, data: action === 'approve' ? { action, amount } : { action, reason } },
       {
         onSuccess: () => {
           query.refetch();
@@ -249,7 +319,7 @@ export function RefundsTab() {
           itemTotal={itemTotalFor(item)}
           customerName={nameByPhone.get(item.customerPhone) ?? undefined}
           busy={decidingId === item.id}
-          onDecide={(action, amount) => decide(item.id, action, amount)}
+          onDecide={(action, amount, reason) => decide(item.id, action, amount, reason)}
         />
       )}
     />
@@ -271,11 +341,60 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     gap: 12,
   },
+  photoStack: {
+    position: 'relative',
+  },
   photo: {
     width: 84,
     height: 84,
     borderRadius: 12,
     backgroundColor: '#f5f5f5',
+  },
+  photoCount: {
+    position: 'absolute',
+    top: 5,
+    left: 5,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 6,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+  },
+  photoCountText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+    color: '#fff',
+  },
+  thumbRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  thumb: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  noteBox: {
+    borderRadius: 12,
+    padding: 10,
+  },
+  noteText: {
+    fontFamily: fonts.medium,
+    fontSize: 12.5,
+    textAlign: 'right',
+    lineHeight: 19,
+  },
+  reasonInput: {
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 44,
+    fontFamily: fonts.medium,
+    fontSize: 13,
   },
   photoExpand: {
     position: 'absolute',

@@ -55,9 +55,19 @@ function WalletContent() {
                 {formatIQD(item.balance)}
               </Text>
             </View>
-            <Text style={[styles.storeName, { color: colors.foreground }]} numberOfLines={1}>
-              {item.storeName}
-            </Text>
+            <View style={{ flex: 1, alignItems: 'flex-end', gap: 4 }}>
+              <Text style={[styles.storeName, { color: colors.foreground }]} numberOfLines={1}>
+                {item.storeName}
+              </Text>
+              {((item as any).points ?? 0) > 0 ? (
+                <View style={styles.pointsPill}>
+                  <Feather name="award" size={11} color={colors.accent} />
+                  <Text style={[styles.pointsPillText, { color: colors.mutedForeground }]}>
+                    {(item as any).points} نقطة
+                  </Text>
+                </View>
+              ) : null}
+            </View>
             {item.storeImageUrl ? (
               <ZoomableImage
                 uri={resolveImageUrl(item.storeImageUrl)}
@@ -119,7 +129,13 @@ const styles = StyleSheet.create({
   },
   storeImg: { width: 48, height: 48, borderRadius: 10 },
   storeImgFallback: { alignItems: 'center', justifyContent: 'center' },
-  storeName: { flex: 1, fontFamily: fonts.bold, fontSize: 15, textAlign: 'right' },
+  storeName: { fontFamily: fonts.bold, fontSize: 15, textAlign: 'right' },
+  pointsPill: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 4,
+  },
+  pointsPillText: { fontFamily: fonts.semibold, fontSize: 11 },
   storeBalance: { borderRadius: 10, paddingHorizontal: 12, paddingVertical: 8 },
   storeBalanceText: { fontFamily: fonts.bold, fontSize: 14 },
 });

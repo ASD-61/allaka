@@ -12,14 +12,14 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { EmptyState } from '@/components/EmptyState';
-import { shortenUrl } from '@/lib/shortenUrl';
+import { toWhatsAppDigits } from '@/lib/phone';
 
 const ORDER_STATUSES = ['قيد التحضير', 'في الطريق', 'تم التسليم'] as const;
 
 // Builds the wa.me click-to-chat text sent to a delivery driver: everything
 // they need to pick up and deliver the order (no extra WhatsApp API/business
 // account required for this — the merchant taps and sends it themselves).
-async function buildDriverMessage(item: {
+function buildDriverMessage(item: {
   id: number;
   storeOrderNumber?: number | null;
   customerPhone: string;
@@ -28,13 +28,15 @@ async function buildDriverMessage(item: {
   latitude?: number | null;
   longitude?: number | null;
   note?: string | null;
-}): Promise<string> {
+}): string {
   const displayNumber = item.storeOrderNumber ?? item.id;
   const lines = (item.items ?? []).map((i) => `• ${i.name} × ${i.qty}`).join('\n');
   let mapsLink = '';
   if (item.latitude != null && item.longitude != null) {
-    const shortUrl = await shortenUrl(`https://maps.google.com/?q=${item.latitude},${item.longitude}`);
-    mapsLink = `\n📍 فتح موقع الزبون:\n${shortUrl}`;
+    // Canonical Google Maps URL — opens the maps app reliably on Android/iOS.
+    // No URL shortener (those produce dead/"fake" links that don't open).
+    const url = `https://www.google.com/maps/search/?api=1&query=${item.latitude},${item.longitude}`;
+    mapsLink = `\n📍 فتح موقع الزبون:\n${url}`;
   }
   return (
     `🚚 *طلب توصيل #${displayNumber}*\n` +
@@ -65,8 +67,11 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
       // Persist the assignment first so the driver's busy/free status is
       // accurate right away, then open the chat with the order's details.
       await assignDriver.mutateAsync({ id: order.id, data: { driverId: driver.id } });
-      const text = encodeURIComponent(await buildDriverMessage(order));
-      const digits = driver.phone.replace(/\D/g, '');
+      const text = encodeURIComponent(buildDriverMessage(order));
+      // Normalize to full international digits (e.g. "07..." → "9647...") so
+      // the link opens in both WhatsApp and WhatsApp Business — a bare local
+      // number makes both apps show "number not found".
+      const digits = toWhatsAppDigits(driver.phone);
       await Linking.openURL(`https://wa.me/${digits}?text=${text}`);
       setPickerForOrder(null);
       query.refetch();
@@ -172,34 +177,51 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
             </View>
 
             <Text style={[styles.statusLabel, { color: colors.mutedForeground }]}>حالة الطلب</Text>
-            <View style={styles.statusActionsRow}>
-              {ORDER_STATUSES.map((status) => {
-                const isActive = item.status === status;
-                return (
-                  <Pressable
-                    key={status}
-                    disabled={updateStatus.isPending}
-                    onPress={() => updateStatus.mutate({ id: item.id, data: { status } })}
-                    style={[
-                      styles.statusActionBtn,
-                      {
-                        backgroundColor: isActive ? colors.primary : colors.muted,
-                        opacity: isActive ? 1 : 0.85,
-                      },
-                    ]}
-                  >
-                    <Text
+            {item.status === 'تم التسليم' ? (
+              <View style={[styles.deliveredLock, { backgroundColor: colors.primary + '15' }]}>
+                <Feather name="check-circle" size={15} color={colors.primary} />
+                <Text style={[styles.deliveredLockText, { color: colors.primary }]}>
+                  تم تسليم الطلب — لا يمكن تغيير الحالة
+                </Text>
+              </View>
+            ) : (
+              <View style={styles.statusActionsRow}>
+                {ORDER_STATUSES.map((status) => {
+                  const isActive = item.status === status;
+                  return (
+                    <Pressable
+                      key={status}
+                      disabled={updateStatus.isPending}
+                      onPress={() =>
+                        updateStatus.mutate(
+                          { id: item.id, data: { status } },
+                          {
+                            onError: (err: any) =>
+                              Alert.alert('تعذر التحديث', err?.data?.error ?? 'حاول مرة أخرى'),
+                          },
+                        )
+                      }
                       style={[
-                        styles.statusActionText,
-                        { color: isActive ? colors.primaryForeground : colors.mutedForeground },
+                        styles.statusActionBtn,
+                        {
+                          backgroundColor: isActive ? colors.primary : colors.muted,
+                          opacity: isActive ? 1 : 0.85,
+                        },
                       ]}
                     >
-                      {status}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
+                      <Text
+                        style={[
+                          styles.statusActionText,
+                          { color: isActive ? colors.primaryForeground : colors.mutedForeground },
+                        ]}
+                      >
+                        {status}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            )}
 
             <Pressable
               onPress={() => handleSendPress(item)}
@@ -353,6 +375,18 @@ const styles = StyleSheet.create({
   statusActionText: {
     fontFamily: fonts.bold,
     fontSize: 11.5,
+  },
+  deliveredLock: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    height: 40,
+    borderRadius: 10,
+  },
+  deliveredLockText: {
+    fontFamily: fonts.bold,
+    fontSize: 12,
   },
   driverBtn: {
     flexDirection: 'row-reverse',

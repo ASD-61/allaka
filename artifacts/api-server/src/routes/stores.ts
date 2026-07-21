@@ -13,6 +13,7 @@ import { requireCustomer } from "../middlewares/customerAuth";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
 import { haversineKm, parseLatLng } from "../lib/distance";
 import { creditStoreWallet } from "../lib/wallet";
+import { createNotification } from "../lib/notifications";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -467,8 +468,11 @@ router.get(
         customerPhone: refundsTable.customerPhone,
         productName: refundsTable.productName,
         imageUrl: refundsTable.imageUrl,
+        imageUrls: refundsTable.imageUrls,
+        note: refundsTable.note,
         amount: refundsTable.amount,
         status: refundsTable.status,
+        rejectReason: refundsTable.rejectReason,
         createdAt: refundsTable.createdAt,
         reviewedAt: refundsTable.reviewedAt,
       })
@@ -494,6 +498,7 @@ router.get(
 const StoreRefundDecision = z.object({
   action: z.enum(["approve", "reject"]),
   amount: z.number().int().min(0).optional(),
+  reason: z.string().max(500).optional(),
 });
 
 // PATCH /stores/:id/refunds/:refundId — the owner (or admin) decides a
@@ -517,7 +522,7 @@ router.patch(
       res.status(400).json({ error: "بيانات غير صالحة" });
       return;
     }
-    const { action, amount } = parsed.data;
+    const { action, amount, reason } = parsed.data;
 
     try {
       const refund = await db.transaction(async (tx) => {
@@ -552,7 +557,12 @@ router.patch(
         if (action === "reject") {
           const [updated] = await tx
             .update(refundsTable)
-            .set({ status: REFUND_REJECTED, amount: 0, reviewedAt: new Date() })
+            .set({
+              status: REFUND_REJECTED,
+              amount: 0,
+              rejectReason: reason?.trim() || null,
+              reviewedAt: new Date(),
+            })
             .where(eq(refundsTable.id, refundId))
             .returning();
           return updated;
@@ -587,6 +597,28 @@ router.patch(
       });
 
       if (!refund) return; // a response was already sent inside the transaction
+
+      // Notify the customer of the outcome in their in-app feed.
+      if (refund.status === REFUND_APPROVED) {
+        void createNotification(refund.customerPhone, {
+          type: "refund",
+          title: "✅ تمت الموافقة على تعويضك",
+          body: `تم تعويضك عن "${refund.productName}" بمبلغ ${refund.amount.toLocaleString(
+            "ar-IQ",
+          )} د.ع وأُضيف إلى محفظتك.`,
+          data: { refundId: refund.id, orderId: refund.orderId, amount: refund.amount },
+        });
+      } else if (refund.status === REFUND_REJECTED) {
+        void createNotification(refund.customerPhone, {
+          type: "refund",
+          title: "❌ تم رفض طلب التعويض",
+          body: refund.rejectReason
+            ? `طلب تعويضك عن "${refund.productName}" مرفوض.\nالسبب: ${refund.rejectReason}`
+            : `طلب تعويضك عن "${refund.productName}" مرفوض.`,
+          data: { refundId: refund.id, orderId: refund.orderId },
+        });
+      }
+
       res.json(refund);
     } catch (err) {
       req.log.error({ err }, "Error deciding store refund");

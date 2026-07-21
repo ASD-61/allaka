@@ -17,6 +17,7 @@ import {
   sendWhatsAppOrderConfirmationToCustomer,
   sendWhatsAppRatingRequest,
 } from "../lib/whatsapp";
+import { createNotification } from "../lib/notifications";
 import { z } from "zod";
 
 const router: IRouter = Router();
@@ -206,7 +207,28 @@ router.post(
         .returning();
     }
 
-    const canRedeem = customer.points >= POINTS_THRESHOLD;
+    // Per-store wallet + loyalty points. Both accumulate independently for
+    // each store: wallet credit (quality refunds, spendable only here) and
+    // loyalty points (earned and redeemed only at this store).
+    const orderStoreId = parsed.data.storeId ?? null;
+    let storeWalletBalance = 0;
+    let storePoints = 0;
+    if (orderStoreId != null) {
+      const [sw] = await db
+        .select()
+        .from(customerStoreWalletsTable)
+        .where(
+          and(
+            eq(customerStoreWalletsTable.customerPhone, customerPhone),
+            eq(customerStoreWalletsTable.storeId, orderStoreId),
+          ),
+        );
+      storeWalletBalance = sw?.balance ?? 0;
+      storePoints = sw?.points ?? 0;
+    }
+
+    // You can only redeem points you built up AT THIS store.
+    const canRedeem = orderStoreId != null && storePoints >= POINTS_THRESHOLD;
     const actualRedeem = canRedeem && redeem ? redeem : null;
 
     let discountApplied = 0;
@@ -226,23 +248,9 @@ router.post(
 
     const grossTotal = subtotal - discountApplied + deliveryFee;
 
-    // Wallet credit comes from two sources: this store's own balance (quality
-    // refunds, spendable only here) plus the general balance (referral/admin
-    // credit, spendable anywhere). Spend the store balance first.
-    const orderStoreId = parsed.data.storeId ?? null;
-    let storeWalletBalance = 0;
-    if (orderStoreId != null) {
-      const [sw] = await db
-        .select()
-        .from(customerStoreWalletsTable)
-        .where(
-          and(
-            eq(customerStoreWalletsTable.customerPhone, customerPhone),
-            eq(customerStoreWalletsTable.storeId, orderStoreId),
-          ),
-        );
-      storeWalletBalance = sw?.balance ?? 0;
-    }
+    // Wallet credit comes from two sources: this store's own balance plus the
+    // general balance (referral/admin credit, spendable anywhere). Spend the
+    // store balance first.
     const availableWallet = customer.walletBalance + storeWalletBalance;
 
     // Clamp to what's available and the order's gross total so it can never
@@ -258,35 +266,47 @@ router.post(
     const fromGeneral = walletApplied - fromStore;
 
     // Loyalty: 1 point per 1,000 IQD of the order value before wallet credit
-    // (wallet is spent like cash), floored.
+    // (wallet is spent like cash), floored — credited to THIS store's points.
     const pointsEarned = Math.floor(grossTotal / 1000);
-    const newPoints = customer.points - pointsRedeemed + pointsEarned;
+    // customers.points is kept as the running total across all stores (for the
+    // profile badge) using the same delta as the store's points.
+    const newGlobalPoints = customer.points - pointsRedeemed + pointsEarned;
     const newWalletBalance = customer.walletBalance - fromGeneral;
 
-    // Update customer points and general wallet balance
+    // Update the customer's global total points and general wallet balance.
     await db
       .update(customersTable)
       .set({
-        points: newPoints,
+        points: newGlobalPoints,
         walletBalance: newWalletBalance,
         updatedAt: new Date(),
       })
       .where(eq(customersTable.phone, customerPhone));
 
-    // Deduct the store-specific portion from the per-store wallet.
-    if (fromStore > 0 && orderStoreId != null) {
+    // Upsert this store's wallet row: apply the points change and deduct any
+    // store balance spent. Insert lazily if the customer never had a row here.
+    if (orderStoreId != null) {
+      const newStorePoints = Math.max(0, storePoints - pointsRedeemed + pointsEarned);
+      const newStoreBalance = Math.max(0, storeWalletBalance - fromStore);
       await db
-        .update(customerStoreWalletsTable)
-        .set({
-          balance: sql`${customerStoreWalletsTable.balance} - ${fromStore}`,
-          updatedAt: new Date(),
+        .insert(customerStoreWalletsTable)
+        .values({
+          customerPhone,
+          storeId: orderStoreId,
+          balance: newStoreBalance,
+          points: newStorePoints,
         })
-        .where(
-          and(
-            eq(customerStoreWalletsTable.customerPhone, customerPhone),
-            eq(customerStoreWalletsTable.storeId, orderStoreId),
-          ),
-        );
+        .onConflictDoUpdate({
+          target: [
+            customerStoreWalletsTable.customerPhone,
+            customerStoreWalletsTable.storeId,
+          ],
+          set: {
+            balance: newStoreBalance,
+            points: newStorePoints,
+            updatedAt: new Date(),
+          },
+        });
     }
 
     // Insert order
@@ -398,6 +418,15 @@ router.patch(
         res.status(401).json({ error: "لا تملك صلاحية تعديل حالة هذا الطلب" });
         return;
       }
+      // Once an order is delivered it's final — a merchant can't reopen or
+      // change it (only an admin can, to correct a mistake). This stops the
+      // status flipping back and forth after the driver already delivered it.
+      if (existing.status === "تم التسليم") {
+        res
+          .status(409)
+          .json({ error: "الطلب تم تسليمه ولا يمكن تغيير حالته" });
+        return;
+      }
     }
 
     const [order] = await db
@@ -419,9 +448,20 @@ router.patch(
         resolveStoreOrderNumber(order.storeId, order.id),
       ])
         .then(([store, storeOrderNumber]) => {
+          const storeName = store?.name ?? null;
+          void createNotification(order.customerPhone, {
+            type: "delivery",
+            title: `✅ تم تسليم طلبك من ${storeName || "المتجر"}`,
+            body: `شكراً لشرائك من ${storeName || "المتجر"} 🥬\nنتمنى نال إعجابك — قيّم المتجر من إشعاراتك أو رسالة الواتساب.`,
+            data: {
+              orderId: order.id,
+              storeId: order.storeId ?? null,
+              rateUrl: `${base}/rate/${order.id}`,
+            },
+          });
           void sendWhatsAppRatingRequest({
             customerPhone: order.customerPhone,
-            storeName: store?.name ?? null,
+            storeName,
             orderId: order.id,
             storeOrderNumber,
             rateUrl: `${base}/rate/${order.id}`,

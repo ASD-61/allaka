@@ -10,6 +10,21 @@ export interface RefundInput {
   orderId: number;
   /** @minLength 1 */
   productName: string;
-  /** @minLength 1 */
-  imageUrl: string;
+  /**
+     * First/primary photo (legacy). Prefer imageUrls.
+     * @minLength 1
+     */
+  imageUrl?: string;
+  /**
+     * All defect photos attached by the customer.
+     * @minItems 1
+     * @maxItems 6
+     * @items.minLength 1
+     */
+  imageUrls?: string[];
+  /**
+     * Free-text note describing the defect.
+     * @nullable
+     */
+  note?: string | null;
 }

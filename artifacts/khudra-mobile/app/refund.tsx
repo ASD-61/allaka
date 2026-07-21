@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, Image as RNImage, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, Image as RNImage, ActivityIndicator, TextInput, ScrollView } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { useLocalSearchParams, router } from 'expo-router';
 import { useCreateRefund, useRequestUploadUrl } from '@workspace/api-client-react';
@@ -12,6 +12,8 @@ import type { PickedImage } from '@/lib/upload';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ImageViewerModal } from '@/components/ImageViewerModal';
 
+const MAX_IMAGES = 6;
+
 export default function RefundScreen() {
   const { orderId, items } = useLocalSearchParams();
   const colors = useColors();
@@ -22,52 +24,66 @@ export default function RefundScreen() {
   const parsedItems = items ? JSON.parse(items as string) : [];
   
   const [selectedItem, setSelectedItem] = useState<any>(null);
-  const [image, setImage] = useState<PickedImage | null>(null);
+  const [images, setImages] = useState<PickedImage[]>([]);
+  const [note, setNote] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
   
   const handleAddImage = () => {
+    if (images.length >= MAX_IMAGES) {
+      Alert.alert('الحد الأقصى', `يمكنك إرفاق حتى ${MAX_IMAGES} صور.`);
+      return;
+    }
     Alert.alert('صورة الخلل', 'اختر مصدر الصورة', [
       {
         text: 'التقاط بالكاميرا',
         onPress: async () => {
           const picked = await takePhoto();
-          if (picked) setImage(picked);
+          if (picked) setImages((prev) => [...prev, picked]);
         },
       },
       {
         text: 'اختيار من المعرض',
         onPress: async () => {
           const picked = await pickImage();
-          if (picked) setImage(picked);
+          if (picked) setImages((prev) => [...prev, picked]);
         },
       },
       { text: 'إلغاء', style: 'cancel' },
     ]);
   };
+
+  const removeImage = (idx: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== idx));
+  };
   
   const handleSubmit = async () => {
-    if (!selectedItem || !image) {
-      Alert.alert('تنبيه', 'يرجى اختيار المنتج التالف وإرفاق صورة للخلل.');
+    if (!selectedItem || images.length === 0) {
+      Alert.alert('تنبيه', 'يرجى اختيار المنتج التالف وإرفاق صورة واحدة على الأقل للخلل.');
       return;
     }
     
     setSubmitting(true);
     try {
-      const imageUrl = await uploadPickedImage(image, requestUploadUrl.mutateAsync);
+      const imageUrls: string[] = [];
+      for (const img of images) {
+        imageUrls.push(await uploadPickedImage(img, requestUploadUrl.mutateAsync));
+      }
       await createRefund.mutateAsync({
         data: {
           orderId: Number(orderId),
           productName: selectedItem.name,
-          imageUrl,
-        }
+          imageUrl: imageUrls[0],
+          imageUrls,
+          note: note.trim() || undefined,
+        } as any
       });
 
       queryClient.invalidateQueries({ queryKey: ['/api/orders'] });
 
       Alert.alert(
         'تم إرسال الطلب',
-        'استلمنا صورتك وراح يراجعها التاجر. إذا تمت الموافقة يضاف مبلغ التعويض إلى رصيد محفظتك ونعلمك بالنتيجة.'
+        'استلمنا صورك وراح يراجعها التاجر. راح يوصلك إشعار داخل التطبيق بنتيجة التعويض (قبول مع المبلغ أو رفض مع السبب).'
       );
       router.back();
     } catch (err: any) {
@@ -86,9 +102,9 @@ export default function RefundScreen() {
         <Text style={[styles.title, { color: colors.foreground }]}>تعويض الجودة</Text>
       </View>
       
-      <View style={styles.content}>
+      <ScrollView style={styles.content} contentContainerStyle={{ paddingBottom: 30 }} showsVerticalScrollIndicator={false}>
         <Text style={[styles.hint, { color: colors.mutedForeground }]}>
-          اختر السلعة التالفة وأرفق صورة واضحة للخلل. راح يراجعها التاجر ويحدد مبلغ التعويض المناسب.
+          اختر السلعة التالفة وأرفق صور واضحة للخلل (تكدر تضيف أكثر من صورة) واكتب ملاحظتك. راح يراجعها التاجر ويحدد مبلغ التعويض المناسب.
         </Text>
         <Text style={[styles.label, { color: colors.foreground }]}>يا غرض بي خلل؟</Text>
         <View style={styles.itemsRow}>
@@ -111,47 +127,57 @@ export default function RefundScreen() {
           ))}
         </View>
         
-        <Text style={[styles.label, { color: colors.foreground, marginTop: 24 }]}>صورة للخلل</Text>
-        <Pressable 
-          onPress={image ? () => setViewerOpen(true) : handleAddImage}
-          style={[styles.imageUpload, { backgroundColor: colors.card, borderColor: colors.border }]}
-        >
-          {image ? (
-            <>
-              <RNImage source={{ uri: image.uri }} style={styles.imagePreview} />
-              <View style={styles.expandHint}>
-                <Feather name="maximize-2" size={16} color="#fff" />
-              </View>
-            </>
-          ) : (
-            <View style={styles.uploadPlaceholder}>
-              <Feather name="camera" size={32} color={colors.mutedForeground} />
-              <Text style={[styles.uploadText, { color: colors.mutedForeground }]}>اضغط لالتقاط صورة بالكاميرا أو اختيارها من المعرض</Text>
+        <Text style={[styles.label, { color: colors.foreground, marginTop: 24 }]}>صور الخلل ({images.length}/{MAX_IMAGES})</Text>
+        <View style={styles.imageGrid}>
+          {images.map((img, idx) => (
+            <View key={img.uri + idx} style={[styles.thumbWrap, { borderColor: colors.border }]}>
+              <Pressable onPress={() => setViewerUri(img.uri)} style={{ flex: 1 }}>
+                <RNImage source={{ uri: img.uri }} style={styles.thumb} />
+              </Pressable>
+              <Pressable onPress={() => removeImage(idx)} style={styles.thumbRemove} hitSlop={6}>
+                <Feather name="x" size={14} color="#fff" />
+              </Pressable>
             </View>
-          )}
-        </Pressable>
-        {image ? (
-          <Pressable onPress={handleAddImage} style={styles.changeImageBtn} hitSlop={6}>
-            <Feather name="refresh-ccw" size={14} color={colors.primary} />
-            <Text style={[styles.changeImageText, { color: colors.primary }]}>تغيير الصورة</Text>
-          </Pressable>
-        ) : null}
+          ))}
+          {images.length < MAX_IMAGES ? (
+            <Pressable
+              onPress={handleAddImage}
+              style={[styles.addTile, { backgroundColor: colors.card, borderColor: colors.border }]}
+            >
+              <Feather name="camera" size={26} color={colors.mutedForeground} />
+              <Text style={[styles.addTileText, { color: colors.mutedForeground }]}>إضافة صورة</Text>
+            </Pressable>
+          ) : null}
+        </View>
+
+        <Text style={[styles.label, { color: colors.foreground, marginTop: 24 }]}>ملاحظة (اختياري)</Text>
+        <TextInput
+          value={note}
+          onChangeText={setNote}
+          multiline
+          maxLength={1000}
+          placeholder="اكتب تفاصيل الخلل، مثال: المنتج منتهي الصلاحية أو مكسور…"
+          placeholderTextColor={colors.mutedForeground}
+          style={[styles.noteInput, { color: colors.foreground, backgroundColor: colors.card, borderColor: colors.border }]}
+          textAlign="right"
+          textAlignVertical="top"
+        />
         
         <Pressable 
           onPress={handleSubmit} 
           disabled={submitting} 
-          style={[styles.btn, { backgroundColor: colors.primary, marginTop: 'auto', marginBottom: 20 }]}
+          style={[styles.btn, { backgroundColor: colors.primary, marginTop: 24, marginBottom: 20 }]}
         >
           {submitting ? <ActivityIndicator color={colors.primaryForeground} /> : (
             <Text style={[styles.btnText, { color: colors.primaryForeground }]}>تقديم طلب التعويض</Text>
           )}
         </Pressable>
-      </View>
+      </ScrollView>
 
       <ImageViewerModal
-        uri={image?.uri ?? null}
-        visible={viewerOpen}
-        onClose={() => setViewerOpen(false)}
+        uri={viewerUri}
+        visible={viewerUri != null}
+        onClose={() => setViewerUri(null)}
       />
     </View>
   );
@@ -167,29 +193,39 @@ const styles = StyleSheet.create({
   itemsRow: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
   itemChip: { paddingHorizontal: 16, paddingVertical: 10, borderRadius: 999, borderWidth: 1 },
   itemText: { fontFamily: fonts.medium, fontSize: 14 },
-  imageUpload: { height: 200, borderRadius: 16, borderWidth: 1, borderStyle: 'dashed', overflow: 'hidden' },
-  uploadPlaceholder: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 12, paddingHorizontal: 20 },
-  uploadText: { fontFamily: fonts.medium, fontSize: 14, textAlign: 'center' },
-  imagePreview: { width: '100%', height: '100%', resizeMode: 'cover' },
-  expandHint: {
+  imageGrid: { flexDirection: 'row-reverse', flexWrap: 'wrap', gap: 10 },
+  thumbWrap: { width: 90, height: 90, borderRadius: 12, borderWidth: 1, overflow: 'hidden' },
+  thumb: { width: '100%', height: '100%', resizeMode: 'cover' },
+  thumbRemove: {
     position: 'absolute',
-    top: 10,
-    left: 10,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: 4,
+    left: 4,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(0,0,0,0.45)',
+    backgroundColor: 'rgba(0,0,0,0.55)',
   },
-  changeImageBtn: {
-    flexDirection: 'row-reverse',
+  addTile: {
+    width: 90,
+    height: 90,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
     alignItems: 'center',
-    alignSelf: 'flex-end',
+    justifyContent: 'center',
     gap: 6,
-    marginTop: 10,
   },
-  changeImageText: { fontFamily: fonts.semibold, fontSize: 13 },
+  addTileText: { fontFamily: fonts.medium, fontSize: 11 },
+  noteInput: {
+    minHeight: 90,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    fontFamily: fonts.medium,
+    fontSize: 13,
+  },
   btn: { height: 50, borderRadius: 16, alignItems: 'center', justifyContent: 'center' },
   btnText: { fontFamily: fonts.bold, fontSize: 16 }
 });

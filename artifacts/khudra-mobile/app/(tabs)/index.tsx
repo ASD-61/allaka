@@ -1,7 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
+  Alert,
   FlatList,
+  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -18,6 +21,7 @@ import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
 import { resolveImageUrl } from '@/lib/image-url';
 import { useAuth } from '@/context/auth-context';
+import { checkForUpdate } from '@/lib/appUpdate';
 
 type TypeGroup = {
   type: string;
@@ -52,6 +56,58 @@ export default function HomeScreen() {
   const storesQuery = useListStores();
   const typesQuery = useListStoreTypes();
 
+  // Instant-load cache: the first API call after a cold start can be slow
+  // (server wake-up / weak network), which left the home screen spinning on
+  // an empty list. We keep the last successful stores + types in AsyncStorage
+  // and render them immediately on open, then refresh silently in background.
+  const [cachedStores, setCachedStores] = useState<any[] | null>(null);
+  const [cachedTypes, setCachedTypes] = useState<any[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('home-cache-v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.stores)) setCachedStores(parsed.stores);
+          if (Array.isArray(parsed?.types)) setCachedTypes(parsed.types);
+        }
+      } catch {
+        // ignore corrupt cache
+      }
+    })();
+  }, []);
+  useEffect(() => {
+    if (storesQuery.data && typesQuery.data) {
+      AsyncStorage.setItem(
+        'home-cache-v1',
+        JSON.stringify({ stores: storesQuery.data, types: typesQuery.data }),
+      ).catch(() => {});
+    }
+  }, [storesQuery.data, typesQuery.data]);
+
+  const stores = storesQuery.data ?? cachedStores ?? [];
+  const types = typesQuery.data ?? cachedTypes ?? [];
+
+  // On open, check whether a newer app version was published and, if so, tell
+  // the user (once per version) with the new version number + a download link.
+  useEffect(() => {
+    (async () => {
+      const info = await checkForUpdate();
+      if (!info) return;
+      const seen = await AsyncStorage.getItem('update-prompt-version');
+      if (seen === info.latestVersion) return;
+      await AsyncStorage.setItem('update-prompt-version', info.latestVersion);
+      Alert.alert(
+        `تحديث جديد متوفر (${info.latestVersion})`,
+        `${info.message}\n\nالإصدار الحالي: ${info.currentVersion}`,
+        [
+          { text: 'لاحقاً', style: 'cancel' },
+          { text: 'تحديث الآن', onPress: () => { Linking.openURL(info.apkUrl).catch(() => {}); } },
+        ],
+      );
+    })();
+  }, []);
+
   // Hidden admin entry: the admin dashboard button was removed from the
   // profile screen; instead, tapping the app logo 10 times quickly reveals the
   // admin login. The counter resets if the taps are too far apart.
@@ -79,7 +135,7 @@ export default function HomeScreen() {
     const map = new Map<string, TypeGroup>();
 
     // Seed with every curated type first (count 0 until stores match).
-    for (const t of typesQuery.data ?? []) {
+    for (const t of types) {
       map.set(t.name, {
         type: t.name,
         count: 0,
@@ -88,7 +144,7 @@ export default function HomeScreen() {
       });
     }
 
-    for (const s of storesQuery.data ?? []) {
+    for (const s of stores) {
       const g =
         map.get(s.storeType) ??
         {
@@ -108,7 +164,7 @@ export default function HomeScreen() {
     const q = search.trim();
     if (q) list = list.filter((g) => g.type.includes(q));
     return list;
-  }, [storesQuery.data, typesQuery.data, search]);
+  }, [stores, types, search]);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -192,7 +248,9 @@ export default function HomeScreen() {
           </Text>
         }
         ListEmptyComponent={
-          storesQuery.isLoading || typesQuery.isLoading ? (
+          (storesQuery.isLoading || typesQuery.isLoading) &&
+          stores.length === 0 &&
+          types.length === 0 ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
           ) : (
             <EmptyState

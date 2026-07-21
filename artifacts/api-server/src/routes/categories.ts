@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { db, categoriesTable, productsTable, storesTable } from "@workspace/db";
 import { isAdminRequest, getCustomerPhone } from "../lib/auth";
 import { z } from "zod";
@@ -156,14 +156,20 @@ router.patch(
           .where(eq(categoriesTable.id, id))
           .returning();
 
-        // Keep every product of this store that referenced the old category
+        // Keep every product of this store that referenced the OLD category
         // name in sync, since products.category is a plain string, not a
-        // foreign key.
+        // foreign key. Only rows matching the old name are touched (not every
+        // product in the store).
         if (existing.name !== newName && existing.storeId != null) {
           await tx
             .update(productsTable)
             .set({ category: newName })
-            .where(eq(productsTable.storeId, existing.storeId));
+            .where(
+              and(
+                eq(productsTable.storeId, existing.storeId),
+                eq(productsTable.category, existing.name),
+              ),
+            );
         }
 
         return updated;

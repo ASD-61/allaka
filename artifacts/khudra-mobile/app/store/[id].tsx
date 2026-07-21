@@ -13,7 +13,14 @@ import {
 import { Feather } from '@expo/vector-icons';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useGetStore, useListProducts, useListStoreTypes } from '@workspace/api-client-react';
+import {
+  useGetStore,
+  useListProducts,
+  useListStoreTypes,
+  useListFollows,
+  useFollowStore,
+  useUnfollowStore,
+} from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { ProductCard } from '@/components/ProductCard';
@@ -61,6 +68,21 @@ export default function StoreDetailScreen() {
   const storeQuery = useGetStore(storeId);
   const productsQuery = useListProducts({ storeId });
   const typesQuery = useListStoreTypes();
+
+  // Follow (favourite) this store — only meaningful for logged-in customers.
+  const followsQuery = useListFollows({ query: { enabled: !!customer } } as any);
+  const followStore = useFollowStore();
+  const unfollowStore = useUnfollowStore();
+  const isFollowing = (followsQuery.data ?? []).some((s: any) => s.id === storeId);
+  const toggleFollow = () => {
+    if (!customer) {
+      router.push('/login');
+      return;
+    }
+    const opts = { onSuccess: () => followsQuery.refetch() };
+    if (isFollowing) unfollowStore.mutate({ id: storeId }, opts);
+    else followStore.mutate({ id: storeId }, opts);
+  };
 
   // Arriving at a store with an empty cart binds the cart to this store.
   // (Mixing items from a different store is handled at add-time in ProductCard.)
@@ -187,6 +209,33 @@ export default function StoreDetailScreen() {
                 ) : null}
               </View>
             </View>
+
+            {store ? (
+              <Pressable
+                onPress={toggleFollow}
+                style={({ pressed }) => [
+                  styles.followBtn,
+                  {
+                    backgroundColor: isFollowing ? colors.primary : colors.primary + '15',
+                    opacity: pressed ? 0.8 : 1,
+                  },
+                ]}
+              >
+                <Feather
+                  name="heart"
+                  size={15}
+                  color={isFollowing ? colors.primaryForeground : colors.primary}
+                />
+                <Text
+                  style={[
+                    styles.followBtnText,
+                    { color: isFollowing ? colors.primaryForeground : colors.primary },
+                  ]}
+                >
+                  {isFollowing ? 'تتابع هذا المتجر ✓' : 'متابعة المتجر'}
+                </Text>
+              </Pressable>
+            ) : null}
 
             {store?.description ? (
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>{store.description}</Text>
@@ -363,6 +412,20 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: 'right',
     paddingHorizontal: 16,
+  },
+  followBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginHorizontal: 16,
+    marginTop: 12,
+    height: 46,
+    borderRadius: 14,
+  },
+  followBtnText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
   },
   metaRow: {
     flexDirection: 'row-reverse',

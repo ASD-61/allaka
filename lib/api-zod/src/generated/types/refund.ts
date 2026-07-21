@@ -12,8 +12,14 @@ export interface Refund {
   customerPhone: string;
   productName: string;
   imageUrl: string;
+  /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
+  note?: string | null;
   amount: number;
   status: string;
+  /** @nullable */
+  rejectReason?: string | null;
   createdAt: Date;
   reviewedAt?: Date | null;
 }

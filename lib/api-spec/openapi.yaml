@@ -1360,6 +1360,67 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /follows:
+    get:
+      operationId: listFollows
+      tags: [Follows]
+      summary: List the stores the authenticated customer follows
+      responses:
+        "200":
+          description: Followed stores
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Store"
+        "401":
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /stores/{id}/follow:
+    post:
+      operationId: followStore
+      tags: [Follows]
+      summary: Follow a store
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "201":
+          description: Now following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowResult"
+        "404":
+          description: Store not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: unfollowStore
+      tags: [Follows]
+      summary: Unfollow a store
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: No longer following
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/FollowResult"
   /wallet:
     get:
       operationId: getWallet
@@ -2299,10 +2360,18 @@ components:
           type: string
         imageUrl:
           type: string
+        imageUrls:
+          type: ["array", "null"]
+          items:
+            type: string
+        note:
+          type: ["string", "null"]
         amount:
           type: integer
         status:
           type: string
+        rejectReason:
+          type: ["string", "null"]
         createdAt:
           type: ["string", "null"]
           format: date-time
@@ -2619,10 +2688,18 @@ components:
           type: string
         imageUrl:
           type: string
+        imageUrls:
+          type: ["array", "null"]
+          items:
+            type: string
+        note:
+          type: ["string", "null"]
         amount:
           type: integer
         status:
           type: string
+        rejectReason:
+          type: ["string", "null"]
         createdAt:
           type: string
           format: date-time
@@ -2632,7 +2709,7 @@ components:
           nullable: true
     RefundInput:
       type: object
-      required: [orderId, productName, imageUrl]
+      required: [orderId, productName]
       properties:
         orderId:
           type: integer
@@ -2642,6 +2719,18 @@ components:
         imageUrl:
           type: string
           minLength: 1
+          description: First/primary photo (legacy). Prefer imageUrls.
+        imageUrls:
+          type: array
+          items:
+            type: string
+            minLength: 1
+          minItems: 1
+          maxItems: 6
+          description: All defect photos attached by the customer.
+        note:
+          type: ["string", "null"]
+          description: Free-text note describing the defect.
     RefundDecisionInput:
       type: object
       required: [action]
@@ -2652,6 +2741,9 @@ components:
         amount:
           type: integer
           minimum: 0
+        reason:
+          type: ["string", "null"]
+          description: Reason shown to the customer when rejecting.
     OrderRatingStatus:
       type: object
       required: [orderId, delivered]
@@ -2699,6 +2791,9 @@ components:
         balance:
           type: integer
           description: Credit (IQD) spendable only at this store.
+        points:
+          type: integer
+          description: Loyalty points accumulated at this store.
     WalletSummary:
       type: object
       required: [generalBalance, stores]
@@ -2710,6 +2805,14 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/StoreWalletEntry"
+    FollowResult:
+      type: object
+      required: [storeId, following]
+      properties:
+        storeId:
+          type: integer
+        following:
+          type: boolean
     StoreWalletBalance:
       type: object
       required: [storeBalance, generalBalance]
@@ -2717,6 +2820,9 @@ components:
         storeBalance:
           type: integer
           description: Credit spendable only at this store.
+        storePoints:
+          type: integer
+          description: Loyalty points the customer has at this store.
         generalBalance:
           type: integer
           description: General balance spendable anywhere.

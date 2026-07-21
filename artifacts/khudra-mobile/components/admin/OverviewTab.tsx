@@ -10,7 +10,6 @@ import { useAdminRequest } from '@/hooks/useAdminRequest';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
-import { BroadcastComposer } from '@/components/admin/BroadcastComposer';
 
 const ACTIVE = 'مفعّل';
 const PENDING = 'قيد المراجعة';
@@ -145,8 +144,6 @@ export function OverviewTab() {
 
   return (
     <ScrollView contentContainerStyle={styles.container}>
-      <BroadcastComposer />
-
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>نظرة عامة</Text>
       <View style={styles.statsGrid}>
         <StatCard icon="shopping-bag" label="إجمالي المتاجر" value={String(stores.length)} tint={colors.primary} />

@@ -78,30 +78,6 @@ function isValidPhone(v: string | null | undefined): v is string {
   return !!v && /^\+?\d{8,15}$/.test(v.trim());
 }
 
-// Shrinks a Google Maps link via TinyURL's key-less API so the message shows
-// a short, clean line instead of a long raw URL. WhatsApp can't hide a URL
-// behind custom anchor text in a plain message, so the closest we can get to
-// "a sentence you tap" is: a clear label line immediately above a short,
-// still-tappable link. Best-effort — falls back to the original (long) link
-// if the shortening service is slow/unreachable so location sharing never
-// breaks because of it.
-async function shortenUrl(longUrl: string): Promise<string> {
-  try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 4000);
-    const response = await fetch(
-      `https://tinyurl.com/api-create.php?url=${encodeURIComponent(longUrl)}`,
-      { signal: controller.signal },
-    );
-    clearTimeout(timeout);
-    if (!response.ok) return longUrl;
-    const short = (await response.text()).trim();
-    return short.startsWith("http") ? short : longUrl;
-  } catch {
-    return longUrl;
-  }
-}
-
 // Builds a "📍 <label>:\n<short link>" block for a lat/lng pair — used for
 // both the customer's location (sent to the merchant) and the store's
 // location (sent to the customer).
@@ -110,9 +86,12 @@ async function buildLocationLine(
   latitude: number,
   longitude: number,
 ): Promise<string> {
-  const longUrl = `https://maps.google.com/?q=${latitude},${longitude}`;
-  const shortUrl = await shortenUrl(longUrl);
-  return `\n📍 ${label}:\n${shortUrl}`;
+  // Universal, cross-platform Google Maps URL that reliably opens the maps app
+  // (or web) on both Android and iOS. The older "maps.google.com/?q=" form can
+  // fail to open for some users, and a shortened link occasionally lands on an
+  // interstitial that never redirects — so we send this canonical URL directly.
+  const longUrl = `https://www.google.com/maps/search/?api=1&query=${latitude},${longitude}`;
+  return `\n📍 ${label}:\n${longUrl}`;
 }
 
 export async function sendWhatsAppOrderNotification(opts: {
@@ -271,11 +250,13 @@ export async function sendWhatsAppRatingRequest(opts: {
   if (!isValidPhone(customerPhone)) return;
 
   const displayNumber = storeOrderNumber ?? orderId;
-  const shortUrl = await shortenUrl(rateUrl);
+  // Send the real rating URL directly — URL shorteners (tinyurl) intermittently
+  // return dead/interstitial links that look "fake" and don't open, so we never
+  // shorten links in WhatsApp messages anymore.
   const body =
     `✅ *تم استلام طلبك #${displayNumber}*\n` +
     `شكراً لتسوقك من ${storeName?.trim() || "المتجر"} عبر عـلاّكـة 🥬\n\n` +
-    `⭐ يهمنا رأيك! قيّم المتجر من هنا:\n${shortUrl}`;
+    `⭐ يهمنا رأيك! قيّم المتجر من هنا:\n${rateUrl}`;
 
   try {
     await sendWhatsAppMessage(customerPhone, body);

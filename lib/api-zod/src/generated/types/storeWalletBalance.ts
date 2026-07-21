@@ -9,6 +9,8 @@
 export interface StoreWalletBalance {
   /** Credit spendable only at this store. */
   storeBalance: number;
+  /** Loyalty points the customer has at this store. */
+  storePoints?: number;
   /** General balance spendable anywhere. */
   generalBalance: number;
 }

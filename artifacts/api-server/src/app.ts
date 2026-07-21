@@ -101,6 +101,20 @@ app.get("/app/allaka.apk", async (_req, res) => {
   }
 });
 
+// Latest published app version — the mobile app checks this on open and, when
+// the installed version is older, shows an "update available" notice with the
+// new version number and a link to download. Configured via env so a release
+// only needs an env bump (no code change / redeploy of the app itself).
+app.get("/api/app-version", (_req, res) => {
+  res.json({
+    latestVersion: process.env["APP_LATEST_VERSION"] || "1.0.0",
+    apkUrl: "/app/allaka.apk",
+    message:
+      process.env["APP_UPDATE_MESSAGE"] ||
+      "صدر تحديث جديد لتطبيق عـلاّكـة، حدّث الآن للحصول على آخر الميزات والتحسينات.",
+  });
+});
+
 app.use("/api", router);
 
 export default app;

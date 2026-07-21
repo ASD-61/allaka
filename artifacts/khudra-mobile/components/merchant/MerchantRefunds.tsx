@@ -20,6 +20,7 @@ import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/image-url';
 import { EmptyState } from '@/components/EmptyState';
+import { ImageViewerModal } from '@/components/ImageViewerModal';
 
 const PENDING = 'قيد المراجعة';
 const APPROVED = 'تمت الموافقة';
@@ -33,6 +34,9 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
   const decide = useDecideStoreRefund();
   const [amounts, setAmounts] = useState<Record<number, string>>({});
   const [busyId, setBusyId] = useState<number | null>(null);
+  const [rejectingId, setRejectingId] = useState<number | null>(null);
+  const [reasons, setReasons] = useState<Record<number, string>>({});
+  const [viewerUri, setViewerUri] = useState<string | null>(null);
 
   const statusColor = (status: string) =>
     status === APPROVED
@@ -45,14 +49,20 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
     refundId: number,
     action: 'approve' | 'reject',
     amount?: number,
+    reason?: string,
   ) => {
     setBusyId(refundId);
     try {
       await decide.mutateAsync({
         id: storeId,
         refundId,
-        data: { action, ...(amount != null ? { amount } : {}) } as any,
+        data: {
+          action,
+          ...(amount != null ? { amount } : {}),
+          ...(reason ? { reason } : {}),
+        } as any,
       });
+      setRejectingId(null);
       query.refetch();
     } catch (err: any) {
       Alert.alert('خطأ', err?.data?.error ?? 'تعذر تنفيذ العملية');
@@ -81,10 +91,11 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
   };
 
   const confirmReject = (refundId: number) => {
-    Alert.alert('رفض التعويض', 'هل تريد رفض طلب التعويض هذا؟', [
-      { text: 'إلغاء', style: 'cancel' },
-      { text: 'رفض', style: 'destructive', onPress: () => run(refundId, 'reject') },
-    ]);
+    if (rejectingId !== refundId) {
+      setRejectingId(refundId);
+      return;
+    }
+    run(refundId, 'reject', undefined, reasons[refundId]?.trim() || undefined);
   };
 
   if (query.isLoading) {
@@ -96,6 +107,7 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
   }
 
   return (
+    <>
     <FlatList
       data={query.data ?? []}
       keyExtractor={(item) => String(item.id)}
@@ -112,8 +124,11 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
       renderItem={({ item }) => {
         const sc = statusColor(item.status);
         const isPending = item.status === PENDING;
-        const img = resolveImageUrl(item.imageUrl);
+        const photos = ((item.imageUrls && item.imageUrls.length > 0 ? item.imageUrls : [item.imageUrl]) as string[])
+          .filter(Boolean)
+          .map((u) => resolveImageUrl(u));
         const busy = busyId === item.id;
+        const isRejecting = rejectingId === item.id;
         return (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
             <View style={styles.topRow}>
@@ -128,14 +143,33 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
                   {item.customerName || item.customerPhone} · طلب #{item.orderId}
                 </Text>
               </View>
-              <View style={[styles.thumb, { backgroundColor: colors.muted }]}>
-                {img ? (
-                  <Image source={{ uri: img }} style={styles.thumbImg} contentFit="cover" />
+              <Pressable
+                onPress={() => photos[0] && setViewerUri(photos[0])}
+                style={[styles.thumb, { backgroundColor: colors.muted }]}
+              >
+                {photos[0] ? (
+                  <Image source={{ uri: photos[0] }} style={styles.thumbImg} contentFit="cover" />
                 ) : (
                   <Feather name="image" size={20} color={colors.mutedForeground} />
                 )}
-              </View>
+              </Pressable>
             </View>
+
+            {photos.length > 1 ? (
+              <View style={styles.photoRow}>
+                {photos.map((uri, idx) => (
+                  <Pressable key={uri + idx} onPress={() => setViewerUri(uri)}>
+                    <Image source={{ uri }} style={styles.photoThumb} contentFit="cover" />
+                  </Pressable>
+                ))}
+              </View>
+            ) : null}
+
+            {item.note ? (
+              <View style={[styles.noteBox, { backgroundColor: colors.background }]}>
+                <Text style={[styles.noteText, { color: colors.foreground }]}>📝 {item.note}</Text>
+              </View>
+            ) : null}
 
             {!isPending && item.amount > 0 ? (
               <Text style={[styles.creditLine, { color: colors.primary }]}>
@@ -143,42 +177,72 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
               </Text>
             ) : null}
 
+            {!isPending && item.status !== APPROVED && item.rejectReason ? (
+              <Text style={[styles.meta, { color: colors.mutedForeground }]}>
+                سبب الرفض: {item.rejectReason}
+              </Text>
+            ) : null}
+
             {isPending ? (
               <>
-                <View style={styles.amountRow}>
+                {isRejecting ? (
                   <TextInput
-                    value={amounts[item.id] ?? ''}
-                    onChangeText={(t) => setAmounts((p) => ({ ...p, [item.id]: t.replace(/[^0-9]/g, '') }))}
-                    placeholder="مبلغ التعويض (اختياري - فارغ = كامل)"
+                    value={reasons[item.id] ?? ''}
+                    onChangeText={(t) => setReasons((p) => ({ ...p, [item.id]: t }))}
+                    placeholder="سبب الرفض (يظهر للزبون)"
                     placeholderTextColor={colors.mutedForeground}
-                    keyboardType="number-pad"
                     style={[styles.amountInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
                     textAlign="right"
                   />
-                </View>
+                ) : (
+                  <View style={styles.amountRow}>
+                    <TextInput
+                      value={amounts[item.id] ?? ''}
+                      onChangeText={(t) => setAmounts((p) => ({ ...p, [item.id]: t.replace(/[^0-9]/g, '') }))}
+                      placeholder="مبلغ التعويض (اختياري - فارغ = كامل)"
+                      placeholderTextColor={colors.mutedForeground}
+                      keyboardType="number-pad"
+                      style={[styles.amountInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
+                      textAlign="right"
+                    />
+                  </View>
+                )}
                 <View style={styles.actions}>
-                  <Pressable
-                    onPress={() => confirmApprove(item.id)}
-                    disabled={busy}
-                    style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1, opacity: busy ? 0.6 : 1 }]}
-                  >
-                    {busy ? (
-                      <ActivityIndicator size="small" color={colors.primaryForeground} />
-                    ) : (
-                      <>
-                        <Feather name="check" size={15} color={colors.primaryForeground} />
-                        <Text style={[styles.actionText, { color: colors.primaryForeground }]}>موافقة</Text>
-                      </>
-                    )}
-                  </Pressable>
+                  {isRejecting ? null : (
+                    <Pressable
+                      onPress={() => confirmApprove(item.id)}
+                      disabled={busy}
+                      style={[styles.actionBtn, { backgroundColor: colors.primary, flex: 1, opacity: busy ? 0.6 : 1 }]}
+                    >
+                      {busy ? (
+                        <ActivityIndicator size="small" color={colors.primaryForeground} />
+                      ) : (
+                        <>
+                          <Feather name="check" size={15} color={colors.primaryForeground} />
+                          <Text style={[styles.actionText, { color: colors.primaryForeground }]}>موافقة</Text>
+                        </>
+                      )}
+                    </Pressable>
+                  )}
                   <Pressable
                     onPress={() => confirmReject(item.id)}
                     disabled={busy}
-                    style={[styles.actionBtn, { backgroundColor: colors.destructive + '15' }]}
+                    style={[styles.actionBtn, { backgroundColor: isRejecting ? colors.destructive : colors.destructive + '15', flex: isRejecting ? 1 : undefined }]}
                   >
-                    <Feather name="x" size={15} color={colors.destructive} />
-                    <Text style={[styles.actionText, { color: colors.destructive }]}>رفض</Text>
+                    <Feather name="x" size={15} color={isRejecting ? '#fff' : colors.destructive} />
+                    <Text style={[styles.actionText, { color: isRejecting ? '#fff' : colors.destructive }]}>
+                      {isRejecting ? 'تأكيد الرفض' : 'رفض'}
+                    </Text>
                   </Pressable>
+                  {isRejecting ? (
+                    <Pressable
+                      onPress={() => setRejectingId(null)}
+                      disabled={busy}
+                      style={[styles.actionBtn, { backgroundColor: colors.muted }]}
+                    >
+                      <Text style={[styles.actionText, { color: colors.foreground }]}>إلغاء</Text>
+                    </Pressable>
+                  ) : null}
                 </View>
               </>
             ) : null}
@@ -186,6 +250,8 @@ export function MerchantRefunds({ storeId }: { storeId: number }) {
         );
       }}
     />
+    <ImageViewerModal uri={viewerUri} visible={viewerUri != null} onClose={() => setViewerUri(null)} />
+    </>
   );
 }
 
@@ -220,6 +286,27 @@ const styles = StyleSheet.create({
   thumbImg: {
     width: '100%',
     height: '100%',
+  },
+  photoRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  photoThumb: {
+    width: 54,
+    height: 54,
+    borderRadius: 10,
+    backgroundColor: '#f5f5f5',
+  },
+  noteBox: {
+    borderRadius: 12,
+    padding: 10,
+  },
+  noteText: {
+    fontFamily: fonts.medium,
+    fontSize: 12.5,
+    textAlign: 'right',
+    lineHeight: 19,
   },
   statusPill: {
     paddingHorizontal: 10,

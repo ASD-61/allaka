@@ -39,6 +39,7 @@ import type {
   DeliveryDriverStatusInput,
   DeliveryDriverUpdate,
   ErrorEnvelope,
+  FollowResult,
   HealthStatus,
   ListCategoriesParams,
   ListOrdersParams,
@@ -3695,6 +3696,225 @@ export const useCreateRating = <TError = ErrorType<ErrorEnvelope>,
         TContext
       > => {
       return useMutation(getCreateRatingMutationOptions(options));
+    }
+
+export const getListFollowsUrl = () => {
+
+
+
+
+  return `/api/follows`
+}
+
+/**
+ * @summary List the stores the authenticated customer follows
+ */
+export const listFollows = async ( options?: RequestInit): Promise<Store[]> => {
+
+  return customFetch<Store[]>(getListFollowsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListFollowsQueryKey = () => {
+    return [
+    `/api/follows`
+    ] as const;
+    }
+
+
+export const getListFollowsQueryOptions = <TData = Awaited<ReturnType<typeof listFollows>>, TError = ErrorType<ErrorEnvelope>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollows>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListFollowsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listFollows>>> = ({ signal }) => listFollows({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listFollows>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListFollowsQueryResult = NonNullable<Awaited<ReturnType<typeof listFollows>>>
+export type ListFollowsQueryError = ErrorType<ErrorEnvelope>
+
+
+/**
+ * @summary List the stores the authenticated customer follows
+ */
+
+export function useListFollows<TData = Awaited<ReturnType<typeof listFollows>>, TError = ErrorType<ErrorEnvelope>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listFollows>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListFollowsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getFollowStoreUrl = (id: number,) => {
+
+
+
+
+  return `/api/stores/${id}/follow`
+}
+
+/**
+ * @summary Follow a store
+ */
+export const followStore = async (id: number, options?: RequestInit): Promise<FollowResult> => {
+
+  return customFetch<FollowResult>(getFollowStoreUrl(id),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getFollowStoreMutationOptions = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followStore>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof followStore>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['followStore'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof followStore>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  followStore(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type FollowStoreMutationResult = NonNullable<Awaited<ReturnType<typeof followStore>>>
+
+    export type FollowStoreMutationError = ErrorType<ErrorEnvelope>
+
+    /**
+ * @summary Follow a store
+ */
+export const useFollowStore = <TError = ErrorType<ErrorEnvelope>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof followStore>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof followStore>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getFollowStoreMutationOptions(options));
+    }
+
+export const getUnfollowStoreUrl = (id: number,) => {
+
+
+
+
+  return `/api/stores/${id}/follow`
+}
+
+/**
+ * @summary Unfollow a store
+ */
+export const unfollowStore = async (id: number, options?: RequestInit): Promise<FollowResult> => {
+
+  return customFetch<FollowResult>(getUnfollowStoreUrl(id),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getUnfollowStoreMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowStore>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof unfollowStore>>, TError,{id: number}, TContext> => {
+
+const mutationKey = ['unfollowStore'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof unfollowStore>>, {id: number}> = (props) => {
+          const {id} = props ?? {};
+
+          return  unfollowStore(id,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UnfollowStoreMutationResult = NonNullable<Awaited<ReturnType<typeof unfollowStore>>>
+
+    export type UnfollowStoreMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Unfollow a store
+ */
+export const useUnfollowStore = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof unfollowStore>>, TError,{id: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof unfollowStore>>,
+        TError,
+        {id: number},
+        TContext
+      > => {
+      return useMutation(getUnfollowStoreMutationOptions(options));
     }
 
 export const getGetWalletUrl = () => {

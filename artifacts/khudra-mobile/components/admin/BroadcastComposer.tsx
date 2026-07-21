@@ -7,7 +7,10 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { useAdminRequest } from '@/hooks/useAdminRequest';
 
-const DEFAULT_BROADCAST = 'وصلت خضار وفواكه طازجة جديدة، اطلبوا الآن';
+// Start empty: the composer is shared by all kinds of stores, so pre-filling a
+// vegetable-shop message would be wrong for most of them. The merchant writes
+// their own announcement; a neutral placeholder just hints at the format.
+const DEFAULT_BROADCAST = '';
 
 // Shared composer for both broadcast scopes: with no `storeId` it's the
 // admin's global announcement (reaches every customer); with a `storeId`
@@ -75,7 +78,7 @@ export function BroadcastComposer({ storeId }: { storeId?: number } = {}) {
             onChangeText={setMessage}
             multiline
             maxLength={500}
-            placeholder="اكتب الإشعار هنا..."
+            placeholder="اكتب إشعارك للعملاء هنا... (مثال: وصلت بضاعة جديدة، أو عرض خاص اليوم)"
             placeholderTextColor={colors.mutedForeground}
             style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground }]}
             textAlign="right"

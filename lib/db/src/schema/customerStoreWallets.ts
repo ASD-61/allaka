@@ -20,6 +20,10 @@ export const customerStoreWalletsTable = pgTable(
     customerPhone: text("customer_phone").notNull(),
     storeId: integer("store_id").notNull(),
     balance: integer("balance").notNull().default(0),
+    // Store-specific loyalty points: the customer accumulates points
+    // independently for every store they buy from, and can only redeem a
+    // store's points on an order from that same store.
+    points: integer("points").notNull().default(0),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

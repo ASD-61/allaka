@@ -19,6 +19,47 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_note text;`,
     );
+    // In-app notifications feed (refund decisions, delivery updates, …).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS notifications (
+        id serial PRIMARY KEY,
+        recipient_phone text NOT NULL,
+        type text NOT NULL DEFAULT 'system',
+        title text NOT NULL,
+        body text NOT NULL,
+        data jsonb,
+        read_at timestamptz,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS notifications_recipient_idx ON notifications (recipient_phone);`,
+    );
+    // Extra refund columns: multiple photos + customer note + reject reason.
+    await pool.query(
+      `ALTER TABLE refunds ADD COLUMN IF NOT EXISTS image_urls jsonb;`,
+    );
+    await pool.query(`ALTER TABLE refunds ADD COLUMN IF NOT EXISTS note text;`);
+    await pool.query(
+      `ALTER TABLE refunds ADD COLUMN IF NOT EXISTS reject_reason text;`,
+    );
+    // Per-store loyalty points (points accumulate independently per store).
+    await pool.query(
+      `ALTER TABLE customer_store_wallets ADD COLUMN IF NOT EXISTS points integer NOT NULL DEFAULT 0;`,
+    );
+    // Per-customer store follows (favourites).
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS store_follows (
+        id serial PRIMARY KEY,
+        customer_phone text NOT NULL,
+        store_id integer NOT NULL,
+        created_at timestamptz NOT NULL DEFAULT now(),
+        UNIQUE (customer_phone, store_id)
+      );
+    `);
+    await pool.query(
+      `CREATE INDEX IF NOT EXISTS store_follows_customer_idx ON store_follows (customer_phone);`,
+    );
   } catch (err) {
     logger.warn({ err }, "ensureSchema failed (non-fatal)");
   }

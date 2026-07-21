@@ -6,6 +6,7 @@ import { Feather } from '@expo/vector-icons';
 import {
   useListProducts,
   useListCategories,
+  useListMyStores,
   useCreateProduct,
   useUpdateProduct,
   useDeleteProduct,
@@ -18,11 +19,36 @@ import { resolveImageUrl } from '@/lib/image-url';
 import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { EmptyState } from '@/components/EmptyState';
 
+// Quick-pick unit suggestions that adapt to the kind of store. The merchant can
+// still type any unit freely; these are just one-tap shortcuts. Matching is by
+// keyword so free-text store types ("خضار وفواكه", "محل ملابس", …) still map.
+function quickUnitsForStoreType(storeType: string): string[] {
+  const t = storeType || '';
+  const has = (keywords: string[]) => keywords.some((k) => t.includes(k));
+  // Groceries / produce / meat / fish → weight & bundle units.
+  if (
+    has(['خضار', 'فواكه', 'فاكهة', 'لحم', 'لحوم', 'دجاج', 'سمك', 'أسماك', 'اسماك', 'بقال', 'مواد', 'عطار', 'ألبان', 'البان', 'جبن'])
+  ) {
+    return ['كيلو', 'غرام', 'صندوق', 'باقة'];
+  }
+  // Electronics / clothes / accessories → piece / set / carton.
+  if (
+    has(['الكترون', 'إلكترون', 'ملاب', 'موبايل', 'هاتف', 'اكسسوار', 'إكسسوار', 'أحذية', 'احذية', 'حقائب', 'عطور', 'تجميل'])
+  ) {
+    return ['قطعة', 'سيت', 'كارتون'];
+  }
+  // Carpenter / blacksmith / everything else → length / piece / custom.
+  return ['متر', 'قطعة', 'تفصيل'];
+}
+
 export function MerchantProducts({ storeId }: { storeId: number }) {
   const colors = useColors();
   const query = useListProducts({ storeId });
   // Only this store's own categories — never another merchant's.
   const categoriesQuery = useListCategories({ storeId });
+  const myStores = useListMyStores();
+  const storeType = myStores.data?.find((s) => s.id === storeId)?.storeType ?? '';
+  const quickUnits = quickUnitsForStoreType(storeType);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
   const deleteProduct = useDeleteProduct();
@@ -32,7 +58,7 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
   const [name, setName] = useState('');
   const [category, setCategory] = useState('');
   const [price, setPrice] = useState('');
-  const [unit, setUnit] = useState('1 كغم');
+  const [unit, setUnit] = useState('');
   const [priceNote, setPriceNote] = useState('');
   const [wholesalePrice, setWholesalePrice] = useState('');
   const [imagePath, setImagePath] = useState<string | null>(null);
@@ -401,12 +427,40 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                   <TextInput
                     value={unit}
                     onChangeText={setUnit}
-                    placeholder="مثال: 1 كغم"
+                    placeholder="اكتب الوحدة"
                     placeholderTextColor={colors.mutedForeground}
                     style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
                     textAlign="right"
                   />
                 </View>
+              </View>
+
+              <View style={styles.unitQuickRow}>
+                {quickUnits.map((u) => {
+                  const active = unit.trim() === u;
+                  return (
+                    <Pressable
+                      key={u}
+                      onPress={() => setUnit(u)}
+                      style={[
+                        styles.unitQuickChip,
+                        {
+                          backgroundColor: active ? colors.primary : colors.muted,
+                          borderColor: active ? colors.primary : colors.border,
+                        },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          styles.unitQuickChipText,
+                          { color: active ? colors.primaryForeground : colors.foreground },
+                        ]}
+                      >
+                        {u}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
               </View>
 
               <Pressable
@@ -660,6 +714,33 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                     textAlign="right"
                   />
                 </View>
+                <View style={styles.unitQuickRow}>
+                  {quickUnits.map((u) => {
+                    const active = editUnit.trim() === u;
+                    return (
+                      <Pressable
+                        key={u}
+                        onPress={() => setEditUnit(u)}
+                        style={[
+                          styles.unitQuickChip,
+                          {
+                            backgroundColor: active ? colors.primary : colors.card,
+                            borderColor: active ? colors.primary : colors.border,
+                          },
+                        ]}
+                      >
+                        <Text
+                          style={[
+                            styles.unitQuickChipText,
+                            { color: active ? colors.primaryForeground : colors.foreground },
+                          ]}
+                        >
+                          {u}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
                 {hasOffer ? (
                   <Text style={[styles.editHint, { color: colors.mutedForeground }]}>
                     هذا المنتج عليه عرض حاليًا — السعر هنا هو السعر الأساسي قبل الخصم
@@ -853,6 +934,22 @@ const styles = StyleSheet.create({
   formRow: {
     flexDirection: 'row-reverse',
     gap: 12,
+  },
+  unitQuickRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 8,
+  },
+  unitQuickChip: {
+    paddingHorizontal: 14,
+    paddingVertical: 7,
+    borderRadius: 999,
+    borderWidth: 1,
+  },
+  unitQuickChipText: {
+    fontFamily: fonts.semibold,
+    fontSize: 12.5,
   },
   stockToggle: {
     flexDirection: 'row-reverse',

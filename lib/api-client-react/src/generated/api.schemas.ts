@@ -375,8 +375,14 @@ export interface StoreRefund {
   customerName?: string | null;
   productName: string;
   imageUrl: string;
+  /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
+  note?: string | null;
   amount: number;
   status: string;
+  /** @nullable */
+  rejectReason?: string | null;
   /** @nullable */
   createdAt?: string | null;
   /** @nullable */
@@ -644,8 +650,14 @@ export interface Refund {
   customerPhone: string;
   productName: string;
   imageUrl: string;
+  /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
+  note?: string | null;
   amount: number;
   status: string;
+  /** @nullable */
+  rejectReason?: string | null;
   createdAt: string;
   reviewedAt?: string | null;
 }
@@ -654,8 +666,23 @@ export interface RefundInput {
   orderId: number;
   /** @minLength 1 */
   productName: string;
-  /** @minLength 1 */
-  imageUrl: string;
+  /**
+     * First/primary photo (legacy). Prefer imageUrls.
+     * @minLength 1
+     */
+  imageUrl?: string;
+  /**
+     * All defect photos attached by the customer.
+     * @minItems 1
+     * @maxItems 6
+     * @items.minLength 1
+     */
+  imageUrls?: string[];
+  /**
+     * Free-text note describing the defect.
+     * @nullable
+     */
+  note?: string | null;
 }
 
 export type RefundDecisionInputAction = typeof RefundDecisionInputAction[keyof typeof RefundDecisionInputAction];
@@ -670,6 +697,11 @@ export interface RefundDecisionInput {
   action: RefundDecisionInputAction;
   /** @minimum 0 */
   amount?: number;
+  /**
+     * Reason shown to the customer when rejecting.
+     * @nullable
+     */
+  reason?: string | null;
 }
 
 export interface OrderRatingStatus {
@@ -708,6 +740,8 @@ export interface StoreWalletEntry {
   storeImageUrl?: string | null;
   /** Credit (IQD) spendable only at this store. */
   balance: number;
+  /** Loyalty points accumulated at this store. */
+  points?: number;
 }
 
 export interface WalletSummary {
@@ -716,9 +750,16 @@ export interface WalletSummary {
   stores: StoreWalletEntry[];
 }
 
+export interface FollowResult {
+  storeId: number;
+  following: boolean;
+}
+
 export interface StoreWalletBalance {
   /** Credit spendable only at this store. */
   storeBalance: number;
+  /** Loyalty points the customer has at this store. */
+  storePoints?: number;
   /** General balance spendable anywhere. */
   generalBalance: number;
 }
