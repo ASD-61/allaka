@@ -15,7 +15,7 @@ const LOGO_URL =
 // streams this file with a clean "allaka.apk" download name.
 export const APK_SOURCE_URL =
   process.env["APK_SOURCE_URL"] ||
-  "https://expo.dev/artifacts/eas/3ntrgxeFSPKOBN13c3-vVF3oVSS5QVpccEsg26XKfFk.apk";
+  "https://expo.dev/artifacts/eas/Lwh1fesZAIRZV16DJZXNdeDTmx6g1UgT4d6h-7ICbyI.apk";
 
 export function landingPage(): string {
   const downloadBtn = APK_SOURCE_URL
