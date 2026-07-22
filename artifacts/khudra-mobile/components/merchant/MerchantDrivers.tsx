@@ -85,12 +85,18 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
   const sendPortalLink = (driver: { phone: string; name: string; portalToken: string }) => {
     const url = driverPortalUrl(driver.portalToken);
     const text = encodeURIComponent(
-      `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت:\n${url}`,
+      `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت، ومتابعة طلباتك وأرباحك:\n${url}\n\nرجاءً افتح الرابط وارفع صورة (البطاقة الموحّدة) و(بطاقة السكن) لتوثيق حسابك.`,
     );
     // Accept any local form the merchant typed ("077...", "+964...", etc).
     const digits = toWhatsAppDigits(driver.phone);
     Linking.openURL(`https://wa.me/${digits}?text=${text}`).catch(() =>
       Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك'),
+    );
+  };
+
+  const openDoc = (url: string) => {
+    Linking.openURL(url).catch(() =>
+      Alert.alert('تعذر الفتح', 'تعذر فتح الصورة، حاول مرة أخرى'),
     );
   };
 
@@ -264,6 +270,36 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
                   </View>
                 )}
               </View>
+              <View style={styles.kycRow}>
+                {item.idCardUrl ? (
+                  <Pressable
+                    onPress={() => openDoc(item.idCardUrl as string)}
+                    style={[styles.kycBtn, { backgroundColor: colors.primary + '15' }]}
+                  >
+                    <Feather name="credit-card" size={12} color={colors.primary} />
+                    <Text style={[styles.kycBtnText, { color: colors.primary }]}>البطاقة الموحّدة</Text>
+                  </Pressable>
+                ) : (
+                  <View style={[styles.kycBtn, { backgroundColor: colors.muted }]}>
+                    <Feather name="credit-card" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.kycBtnText, { color: colors.mutedForeground }]}>البطاقة الموحّدة: لم تُرفع</Text>
+                  </View>
+                )}
+                {item.residenceCardUrl ? (
+                  <Pressable
+                    onPress={() => openDoc(item.residenceCardUrl as string)}
+                    style={[styles.kycBtn, { backgroundColor: colors.primary + '15' }]}
+                  >
+                    <Feather name="home" size={12} color={colors.primary} />
+                    <Text style={[styles.kycBtnText, { color: colors.primary }]}>بطاقة السكن</Text>
+                  </Pressable>
+                ) : (
+                  <View style={[styles.kycBtn, { backgroundColor: colors.muted }]}>
+                    <Feather name="home" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.kycBtnText, { color: colors.mutedForeground }]}>بطاقة السكن: لم تُرفع</Text>
+                  </View>
+                )}
+              </View>
               {item.portalToken ? (
                 <Pressable
                   onPress={() => sendPortalLink(item)}
@@ -413,5 +449,24 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bold,
     fontSize: 11.5,
     color: '#fff',
+  },
+  kycRow: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginTop: 6,
+    justifyContent: 'flex-end',
+  },
+  kycBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 5,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 999,
+  },
+  kycBtnText: {
+    fontFamily: fonts.semibold,
+    fontSize: 10.5,
   },
 });

@@ -18,6 +18,7 @@ import ratingsRouter from "./ratings";
 import walletRouter from "./wallet";
 import referralRouter from "./referral";
 import followsRouter from "./follows";
+import recipesRouter from "./recipes";
 
 const router: IRouter = Router();
 
@@ -40,5 +41,6 @@ router.use(ratingsRouter);
 router.use(walletRouter);
 router.use(referralRouter);
 router.use(followsRouter);
+router.use(recipesRouter);
 
 export default router;

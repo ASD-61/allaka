@@ -274,10 +274,62 @@ router.get(
       vehicleType: first.vehicleType,
       status: first.status,
       available: first.available,
+      idCardUrl: first.idCardUrl ?? null,
+      residenceCardUrl: first.residenceCardUrl ?? null,
       stores,
       activeOrders,
       todayDeliveredCount: deliveredToday.length,
       todayEarnings,
+    });
+  },
+);
+
+const KycBody = z.object({
+  idCardUrl: z.string().min(1).max(1000).optional(),
+  residenceCardUrl: z.string().min(1).max(1000).optional(),
+});
+
+// PATCH /driver-portal/:token/kyc — the driver uploads their KYC documents
+// (unified ID card + residence card) from their portal so the merchant can
+// verify them. Applies to every row sharing this token (the docs belong to the
+// person, not a single store).
+router.patch(
+  "/driver-portal/:token/kyc",
+  async (req: Request, res: Response): Promise<void> => {
+    const token = String(req.params.token);
+    const parsed = KycBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "رابط الصورة غير صالح" });
+      return;
+    }
+    if (
+      parsed.data.idCardUrl === undefined &&
+      parsed.data.residenceCardUrl === undefined
+    ) {
+      res.status(400).json({ error: "لا يوجد ملف للرفع" });
+      return;
+    }
+    const [existing] = await db
+      .select()
+      .from(deliveryDriversTable)
+      .where(eq(deliveryDriversTable.portalToken, token));
+    if (!existing) {
+      res.status(404).json({ error: "الرابط غير صالح" });
+      return;
+    }
+    const patch: Record<string, unknown> = {};
+    if (parsed.data.idCardUrl !== undefined)
+      patch.idCardUrl = parsed.data.idCardUrl;
+    if (parsed.data.residenceCardUrl !== undefined)
+      patch.residenceCardUrl = parsed.data.residenceCardUrl;
+    await db
+      .update(deliveryDriversTable)
+      .set(patch)
+      .where(eq(deliveryDriversTable.portalToken, token));
+    res.json({
+      idCardUrl: (patch.idCardUrl as string) ?? existing.idCardUrl ?? null,
+      residenceCardUrl:
+        (patch.residenceCardUrl as string) ?? existing.residenceCardUrl ?? null,
     });
   },
 );

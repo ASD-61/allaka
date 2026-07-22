@@ -355,6 +355,29 @@ export interface StoreTypeUpdate {
   showRecipes?: boolean;
 }
 
+export interface Recipe {
+  id: number;
+  name: string;
+  /** Ingredient keywords matched against store products. */
+  keywords: string[];
+  sortOrder: number;
+  createdAt: string;
+}
+
+export interface RecipeInput {
+  /** @minLength 1 */
+  name: string;
+  keywords: string[];
+  sortOrder?: number;
+}
+
+export interface RecipeUpdate {
+  /** @minLength 1 */
+  name?: string;
+  keywords?: string[];
+  sortOrder?: number;
+}
+
 export interface StoreCustomer {
   phone: string;
   /** @nullable */
@@ -814,6 +837,16 @@ export interface DeliveryDriver {
   activeOrderId?: number | null;
   /** Only present on the admin's cross-store drivers list. */
   storeName?: string;
+  /**
+     * Public URL of the driver's uploaded unified ID card (البطاقة الموحّدة), or null.
+     * @nullable
+     */
+  idCardUrl?: string | null;
+  /**
+     * Public URL of the driver's uploaded residence card (بطاقة السكن), or null.
+     * @nullable
+     */
+  residenceCardUrl?: string | null;
   createdAt: string;
 }
 

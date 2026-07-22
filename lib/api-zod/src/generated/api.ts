@@ -719,6 +719,8 @@ export const ListStoreDriversResponseItem = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
+  "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
 })
 export const ListStoreDriversResponse = zod.array(ListStoreDriversResponseItem)
@@ -754,6 +756,8 @@ export const CreateStoreDriverResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
+  "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -772,6 +776,8 @@ export const ListAllDriversResponseItem = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
+  "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
 })
 export const ListAllDriversResponse = zod.array(ListAllDriversResponseItem)
@@ -799,6 +805,8 @@ export const SetDriverStatusResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
+  "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -833,6 +841,8 @@ export const UpdateDriverResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
+  "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
 })
 
@@ -919,6 +929,75 @@ export const DeleteStoreTypeParams = zod.object({
 })
 
 export const DeleteStoreTypeResponse = zod.void()
+
+
+/**
+ * @summary List recipes for the "what to cook" helper (public)
+ */
+export const ListRecipesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "keywords": zod.array(zod.string()).describe('Ingredient keywords matched against store products.'),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListRecipesResponse = zod.array(ListRecipesResponseItem)
+
+
+/**
+ * @summary Add a recipe (admin only)
+ */
+
+
+
+export const CreateRecipeBody = zod.object({
+  "name": zod.string().min(1),
+  "keywords": zod.array(zod.string()),
+  "sortOrder": zod.number().optional()
+})
+
+export const CreateRecipeResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "keywords": zod.array(zod.string()).describe('Ingredient keywords matched against store products.'),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a recipe (admin only)
+ */
+export const UpdateRecipeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+
+
+export const UpdateRecipeBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "keywords": zod.array(zod.string()).optional(),
+  "sortOrder": zod.number().optional()
+})
+
+export const UpdateRecipeResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "keywords": zod.array(zod.string()).describe('Ingredient keywords matched against store products.'),
+  "sortOrder": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a recipe (admin only)
+ */
+export const DeleteRecipeParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteRecipeResponse = zod.void()
 
 
 /**

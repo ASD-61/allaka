@@ -15,6 +15,7 @@ import { RefundsTab } from '@/components/admin/RefundsTab';
 import { StoresTab } from '@/components/admin/StoresTab';
 import { StoreTypesTab } from '@/components/admin/StoreTypesTab';
 import { DriversTab } from '@/components/admin/DriversTab';
+import { RecipesTab } from '@/components/admin/RecipesTab';
 import { SettingsTab } from '@/components/admin/SettingsTab';
 
 type Tab =
@@ -27,6 +28,7 @@ type Tab =
   | 'stores'
   | 'storeTypes'
   | 'drivers'
+  | 'recipes'
   | 'settings';
 
 // Orders / products / categories / customers / refunds were removed from the
@@ -38,6 +40,7 @@ const TABS: { key: Tab; label: string; icon: React.ComponentProps<typeof Feather
   { key: 'stores', label: 'المتاجر', icon: 'shopping-bag' },
   { key: 'storeTypes', label: 'الأنواع', icon: 'grid' },
   { key: 'drivers', label: 'المندوبين', icon: 'truck' },
+  { key: 'recipes', label: 'الطبخات', icon: 'coffee' },
   { key: 'settings', label: 'الإعدادات', icon: 'settings' },
 ];
 
@@ -133,6 +136,7 @@ export default function AdminDashboardScreen() {
         {tab === 'stores' ? <StoresTab /> : null}
         {tab === 'storeTypes' ? <StoreTypesTab /> : null}
         {tab === 'drivers' ? <DriversTab /> : null}
+        {tab === 'recipes' ? <RecipesTab /> : null}
         {tab === 'settings' ? <SettingsTab /> : null}
       </View>
     </View>

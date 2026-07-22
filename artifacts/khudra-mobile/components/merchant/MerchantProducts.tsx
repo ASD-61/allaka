@@ -371,7 +371,7 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="اسم المنتج (مثال: طماطم كرزية)"
+                  placeholder="اسم المنتج"
                   placeholderTextColor={colors.mutedForeground}
                   style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
                   textAlign="right"
@@ -484,7 +484,7 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                 <TextInput
                   value={priceNote}
                   onChangeText={setPriceNote}
-                  placeholder="مثال: ٣ كيلو بـ٢٠٠٠ · الحبة بـ٢٥٠"
+                  placeholder="مثال: ٣ قطع بـ٢٠٠٠ · الوحدة بـ٢٥٠"
                   placeholderTextColor={colors.mutedForeground}
                   style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
                   textAlign="right"
@@ -750,7 +750,7 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
                 <TextInput
                   value={editPriceNote}
                   onChangeText={setEditPriceNote}
-                  placeholder="سعر خاص (مثال: ٣ كيلو بـ٢٠٠٠)"
+                  placeholder="سعر خاص (مثال: ٣ قطع بـ٢٠٠٠)"
                   placeholderTextColor={colors.mutedForeground}
                   style={[styles.editInput, { backgroundColor: colors.card, color: colors.foreground, borderColor: colors.border }]}
                   textAlign="right"

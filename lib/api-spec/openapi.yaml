@@ -945,6 +945,92 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/ErrorEnvelope"
+  /recipes:
+    get:
+      operationId: listRecipes
+      tags: [Recipes]
+      summary: List recipes for the "what to cook" helper (public)
+      responses:
+        "200":
+          description: Recipes
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Recipe"
+    post:
+      operationId: createRecipe
+      tags: [Recipes]
+      summary: Add a recipe (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeInput"
+      responses:
+        "201":
+          description: Created recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        "400":
+          description: Invalid input
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+  /recipes/{id}:
+    patch:
+      operationId: updateRecipe
+      tags: [Recipes]
+      summary: Update a recipe (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RecipeUpdate"
+      responses:
+        "200":
+          description: Updated recipe
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Recipe"
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
+    delete:
+      operationId: deleteRecipe
+      tags: [Recipes]
+      summary: Delete a recipe (admin only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Deleted
+        "404":
+          description: Not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ErrorEnvelope"
   /admin/login:
     post:
       operationId: adminLogin
@@ -2327,6 +2413,49 @@ components:
           type: integer
         showRecipes:
           type: boolean
+    Recipe:
+      type: object
+      required: [id, name, keywords, sortOrder, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        keywords:
+          type: array
+          items:
+            type: string
+          description: Ingredient keywords matched against store products.
+        sortOrder:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+    RecipeInput:
+      type: object
+      required: [name, keywords]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        keywords:
+          type: array
+          items:
+            type: string
+        sortOrder:
+          type: integer
+    RecipeUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        keywords:
+          type: array
+          items:
+            type: string
+        sortOrder:
+          type: integer
     StoreCustomer:
       type: object
       required: [phone, orderCount, totalSpent]
@@ -2897,6 +3026,12 @@ components:
         storeName:
           type: string
           description: Only present on the admin's cross-store drivers list.
+        idCardUrl:
+          type: ["string", "null"]
+          description: Public URL of the driver's uploaded unified ID card (البطاقة الموحّدة), or null.
+        residenceCardUrl:
+          type: ["string", "null"]
+          description: Public URL of the driver's uploaded residence card (بطاقة السكن), or null.
         createdAt:
           type: string
           format: date-time

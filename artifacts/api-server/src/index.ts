@@ -1,6 +1,7 @@
 import app from "./app";
 import { logger } from "./lib/logger";
 import { pool } from "@workspace/db";
+import { RECIPE_SEED } from "./lib/recipeSeed";
 
 // Lightweight, idempotent startup migration for tables that were added without
 // a full drizzle-kit push against the managed DB. Safe to run on every boot.
@@ -60,6 +61,39 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS store_follows_customer_idx ON store_follows (customer_phone);`,
     );
+    // Driver KYC documents (unified ID card + residence card image URLs).
+    await pool.query(
+      `ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS id_card_url text;`,
+    );
+    await pool.query(
+      `ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS residence_card_url text;`,
+    );
+    // Recipes for the "شنو نطبخ اليوم؟" helper — now admin-managed in the DB.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS recipes (
+        id serial PRIMARY KEY,
+        name text NOT NULL,
+        keywords jsonb NOT NULL DEFAULT '[]'::jsonb,
+        sort_order integer NOT NULL DEFAULT 0,
+        created_at timestamptz NOT NULL DEFAULT now()
+      );
+    `);
+    // Seed the initial recipe list only once (when the table is still empty),
+    // so the admin has the full list to edit from day one.
+    const { rows: recipeCount } = await pool.query<{ count: string }>(
+      `SELECT COUNT(*)::int AS count FROM recipes;`,
+    );
+    if (Number(recipeCount[0]?.count ?? 0) === 0) {
+      let i = 0;
+      for (const r of RECIPE_SEED) {
+        await pool.query(
+          `INSERT INTO recipes (name, keywords, sort_order) VALUES ($1, $2::jsonb, $3);`,
+          [r.name, JSON.stringify(r.keywords), i],
+        );
+        i += 1;
+      }
+      logger.info({ seeded: RECIPE_SEED.length }, "Seeded recipes table");
+    }
   } catch (err) {
     logger.warn({ err }, "ensureSchema failed (non-fatal)");
   }

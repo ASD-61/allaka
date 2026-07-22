@@ -51,7 +51,7 @@ export default function ProductSearchScreen() {
           <TextInput
             value={query}
             onChangeText={setQuery}
-            placeholder="مثال: رمان، طماطة، خيار..."
+            placeholder="ابحث باسم السلعة التي تريدها..."
             placeholderTextColor={colors.mutedForeground}
             style={[styles.searchInput, { color: colors.foreground }]}
             textAlign="right"

@@ -52,6 +52,16 @@ export function driverPortalPage(token: string): string {
   .empty { text-align: center; color: #93A398; font-size: 13.5px; padding: 16px 0; }
   .error { color: #C0392B; font-size: 14px; text-align: center; }
   .hint { font-size: 12px; color: #93A398; margin-top: 10px; line-height: 1.6; text-align: center; }
+  .kyc-row { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 0; border-bottom: 1px solid #F0F2F0; }
+  .kyc-row:last-child { border-bottom: none; }
+  .kyc-label { font-weight: 700; font-size: 13.5px; }
+  .kyc-sub { font-size: 11.5px; color: #93A398; margin-top: 2px; }
+  .kyc-actions { display: flex; align-items: center; gap: 8px; }
+  .kyc-thumb { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; border: 1px solid #E6ECE7; }
+  .upload-btn { display: inline-block; background: #1FA65E; color: #fff; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
+  .upload-btn.pending { opacity: .6; }
+  .view-link { text-decoration: none; background: #EAF1FB; color: #1B6FCB; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; font-weight: 700; }
+  .kyc-badge { display:inline-block; background:#E7F7EE; color:#1FA65E; border-radius:999px; padding:3px 9px; font-size:11px; font-weight:700; }
 </style>
 </head>
 <body>
@@ -70,6 +80,17 @@ export function driverPortalPage(token: string): string {
   }
   function fmt(n) { try { return Number(n || 0).toLocaleString("ar-IQ"); } catch (e) { return String(n || 0); } }
   function mapsUrl(lat, lng) { return "https://www.google.com/maps/search/?api=1&query=" + lat + "," + lng; }
+
+  function kycRow(label, kind, url) {
+    var h = '<div class="kyc-row">';
+    h += '<div><div class="kyc-label">' + escapeHtml(label) + '</div>';
+    h += '<div class="kyc-sub">' + (url ? '<span class="kyc-badge">تم الرفع ✓</span>' : 'لم يتم الرفع بعد') + '</div></div>';
+    h += '<div class="kyc-actions">';
+    if (url) h += '<a class="view-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">عرض</a>';
+    h += '<label class="upload-btn" data-btn="' + kind + '">' + (url ? 'تغيير' : 'رفع') + '<input type="file" accept="image/*" data-kind="' + kind + '" style="display:none" /></label>';
+    h += '</div></div>';
+    return h;
+  }
 
   function render(d) {
     var suspended = d.status === "موقوف";
@@ -127,6 +148,14 @@ export function driverPortalPage(token: string): string {
     }
     html += '</div>';
 
+    // KYC documents (unified ID card + residence card) for the merchant to
+    // verify the driver's identity.
+    html += '<div class="card"><div class="section-title">توثيق الهوية (للأمان)</div>';
+    html += '<p class="kyc-sub" style="margin-bottom:8px">ارفع صورة بطاقتك الموحّدة وبطاقة السكن ليطّلع عليها صاحب المتجر ويوثّق حسابك.</p>';
+    html += kycRow("البطاقة الموحّدة", "idCard", d.idCardUrl);
+    html += kycRow("بطاقة السكن", "residenceCard", d.residenceCardUrl);
+    html += '</div>';
+
     // Stores the driver works with
     html += '<div class="card"><div class="section-title">المتاجر التي تعمل معها</div>';
     (d.stores || []).forEach(function (s) {
@@ -151,6 +180,52 @@ export function driverPortalPage(token: string): string {
         setOrderStatus(b.getAttribute("data-order"), b.getAttribute("data-status"), b);
       });
     });
+
+    var fileInputs = root.querySelectorAll("input[data-kind]");
+    fileInputs.forEach(function (inp) {
+      inp.addEventListener("change", function () {
+        var file = inp.files && inp.files[0];
+        if (file) uploadKyc(file, inp.getAttribute("data-kind"), inp);
+      });
+    });
+  }
+
+  // Uploads an image to object storage (request presigned URL → PUT bytes),
+  // then saves the resulting public URL against the driver's KYC field.
+  function uploadKyc(file, kind, inp) {
+    var label = inp.closest(".upload-btn");
+    if (label) { label.classList.add("pending"); label.firstChild.textContent = "جارٍ الرفع..."; }
+    var origin = window.location.origin;
+    fetch(origin + "/api/storage/uploads/request-url", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: file.name || "id.jpg", size: file.size, contentType: file.type || "image/jpeg" }),
+    })
+      .then(function (r) { if (!r.ok) throw new Error("upload"); return r.json(); })
+      .then(function (data) {
+        return fetch(data.uploadURL, {
+          method: "PUT",
+          headers: { "Content-Type": file.type || "image/jpeg" },
+          body: file,
+        }).then(function (up) {
+          if (!up.ok) throw new Error("put");
+          var objectPath = data.objectPath;
+          var publicUrl = objectPath && objectPath.indexOf("http") === 0 ? objectPath : origin + objectPath;
+          var body = {};
+          body[kind === "idCard" ? "idCardUrl" : "residenceCardUrl"] = publicUrl;
+          return fetch(apiBase + "/kyc", {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(body),
+          });
+        });
+      })
+      .then(function (r) { if (!r.ok) throw new Error("save"); return r.json(); })
+      .then(function () { load(); })
+      .catch(function () {
+        if (label) { label.classList.remove("pending"); label.firstChild.textContent = "رفع"; }
+        alert("تعذر رفع الصورة، حاول مرة أخرى");
+      });
   }
 
   function showError(msg) { root.innerHTML = '<div class="card"><p class="error">' + escapeHtml(msg) + '</p></div>'; }

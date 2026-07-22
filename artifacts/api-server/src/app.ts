@@ -1,7 +1,10 @@
 import express, { type Express } from "express";
 import cors from "cors";
 import pinoHttp from "pino-http";
+import { inArray } from "drizzle-orm";
+import { db, appSettingsTable } from "@workspace/db";
 import router from "./routes";
+import { APP_VERSION_KEY, APP_MESSAGE_KEY } from "./routes/admin";
 import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { driverPortalPage } from "./lib/driverPortalPage";
@@ -103,16 +106,27 @@ app.get("/app/allaka.apk", async (_req, res) => {
 
 // Latest published app version — the mobile app checks this on open and, when
 // the installed version is older, shows an "update available" notice with the
-// new version number and a link to download. Configured via env so a release
-// only needs an env bump (no code change / redeploy of the app itself).
-app.get("/api/app-version", (_req, res) => {
-  res.json({
-    latestVersion: process.env["APP_LATEST_VERSION"] || "1.0.0",
-    apkUrl: "/app/allaka.apk",
-    message:
-      process.env["APP_UPDATE_MESSAGE"] ||
-      "صدر تحديث جديد لتطبيق عـلاّكـة، حدّث الآن للحصول على آخر الميزات والتحسينات.",
-  });
+// new version number and a link to download. The version/message can be set by
+// the admin from the app (stored in app_settings) and falls back to env vars,
+// so publishing an update is a one-tap action with no redeploy.
+app.get("/api/app-version", async (_req, res) => {
+  let latestVersion = process.env["APP_LATEST_VERSION"] || "1.0.0";
+  let message =
+    process.env["APP_UPDATE_MESSAGE"] ||
+    "صدر تحديث جديد لتطبيق عـلاّكـة, حدّث الآن للحصول على آخر الميزات والتحسينات.";
+  try {
+    const rows = await db
+      .select()
+      .from(appSettingsTable)
+      .where(inArray(appSettingsTable.key, [APP_VERSION_KEY, APP_MESSAGE_KEY]));
+    for (const r of rows) {
+      if (r.key === APP_VERSION_KEY && r.value) latestVersion = r.value;
+      if (r.key === APP_MESSAGE_KEY && r.value) message = r.value;
+    }
+  } catch {
+    // If the settings lookup fails, fall back to env/defaults above.
+  }
+  res.json({ latestVersion, apkUrl: "/app/allaka.apk", message });
 });
 
 app.use("/api", router);

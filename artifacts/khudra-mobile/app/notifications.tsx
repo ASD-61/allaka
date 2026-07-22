@@ -1,15 +1,33 @@
-import React from 'react';
-import { ActivityIndicator, FlatList, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useListNotifications } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatDate } from '@/lib/format';
 import { EmptyState } from '@/components/EmptyState';
+import { checkForUpdate, type UpdateInfo } from '@/lib/appUpdate';
 
 export default function NotificationsScreen() {
   const colors = useColors();
   const query = useListNotifications();
+
+  // Show a persistent "update available" card at the top whenever the server
+  // reports a newer app version — this is the in-app update notice (it stays
+  // visible here as long as a newer version exists, unlike the one-time alert
+  // shown on the home screen).
+  const [update, setUpdate] = useState<UpdateInfo | null>(null);
+  useEffect(() => {
+    let alive = true;
+    checkForUpdate()
+      .then((info) => {
+        if (alive) setUpdate(info);
+      })
+      .catch(() => {});
+    return () => {
+      alive = false;
+    };
+  }, []);
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -19,6 +37,30 @@ export default function NotificationsScreen() {
         contentContainerStyle={styles.listContent}
         onRefresh={() => query.refetch()}
         refreshing={query.isFetching}
+        ListHeaderComponent={
+          update ? (
+            <Pressable
+              onPress={() => Linking.openURL(update.apkUrl).catch(() => {})}
+              style={({ pressed }) => [
+                styles.updateCard,
+                { backgroundColor: colors.primary, opacity: pressed ? 0.9 : 1 },
+              ]}
+            >
+              <View style={styles.updateIcon}>
+                <Feather name="download" size={18} color={colors.primary} />
+              </View>
+              <View style={styles.textCol}>
+                <Text style={[styles.updateTitle, { color: colors.primaryForeground }]}>
+                  تحديث جديد متوفر (نسخة {update.latestVersion})
+                </Text>
+                <Text style={[styles.updateBody, { color: colors.primaryForeground }]} numberOfLines={2}>
+                  {update.message} · اضغط للتحديث الآن
+                </Text>
+              </View>
+              <Feather name="chevron-left" size={20} color={colors.primaryForeground} />
+            </Pressable>
+          ) : null
+        }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
         renderItem={({ item }) => (
           <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
@@ -50,6 +92,34 @@ const styles = StyleSheet.create({
   listContent: {
     padding: 16,
     paddingBottom: 40,
+  },
+  updateCard: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 16,
+    marginBottom: 12,
+  },
+  updateIcon: {
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: '#fff',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  updateTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+    textAlign: 'right',
+  },
+  updateBody: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    textAlign: 'right',
+    lineHeight: 18,
+    marginTop: 2,
   },
   card: {
     flexDirection: 'row-reverse',

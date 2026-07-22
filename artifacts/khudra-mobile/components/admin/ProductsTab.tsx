@@ -342,7 +342,7 @@ export function ProductsTab() {
                 <TextInput
                   value={name}
                   onChangeText={setName}
-                  placeholder="اسم المنتج (مثال: طماطم كرزية)"
+                  placeholder="اسم المنتج"
                   placeholderTextColor={colors.mutedForeground}
                   style={[styles.input, { backgroundColor: colors.muted, color: colors.foreground, borderColor: colors.border }]}
                   textAlign="right"

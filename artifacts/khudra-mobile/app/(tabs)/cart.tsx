@@ -429,7 +429,7 @@ function CartContent() {
               onChangeText={setNote}
               multiline
               maxLength={500}
-              placeholder="مثال: الطماطم ناضجة زيادة، اتصل قبل الوصول…"
+              placeholder="مثال: اتصل قبل الوصول، غلّف الطلب جيداً…"
               placeholderTextColor={colors.mutedForeground}
               style={[
                 styles.noteInput,

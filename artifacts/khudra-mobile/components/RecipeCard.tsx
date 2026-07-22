@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
@@ -6,19 +6,49 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { RECIPES } from '@/constants/recipes';
 import { useCart } from '@/context/cart-context';
-import type { Product } from '@workspace/api-client-react';
+import { useListRecipes, type Product } from '@workspace/api-client-react';
+
+interface RecipeLike {
+  id: string;
+  name: string;
+  keywords: string[];
+}
 
 export function RecipeCard({ products }: { products: Product[] }) {
   const colors = useColors();
   const { addItem } = useCart();
-  const [recipe, setRecipe] = useState(() => RECIPES[Math.floor(Math.random() * RECIPES.length)]);
+
+  // Recipes are admin-managed on the server; fall back to the bundled static
+  // list while loading or if the API returns nothing.
+  const recipesQuery = useListRecipes();
+  const recipes: RecipeLike[] = useMemo(() => {
+    const fromApi = recipesQuery.data;
+    if (fromApi && fromApi.length > 0) {
+      return fromApi.map((r) => ({
+        id: String(r.id),
+        name: r.name,
+        keywords: r.keywords ?? [],
+      }));
+    }
+    return RECIPES;
+  }, [recipesQuery.data]);
+
+  const [recipeIndex, setRecipeIndex] = useState(() =>
+    Math.floor(Math.random() * RECIPES.length),
+  );
+  const recipe = recipes[recipeIndex % recipes.length] ?? recipes[0];
 
   const handleShuffle = () => {
-    const others = RECIPES.filter(r => r.id !== recipe.id);
-    setRecipe(others[Math.floor(Math.random() * others.length)]);
+    if (recipes.length <= 1) return;
+    let next = recipeIndex;
+    while (next % recipes.length === recipeIndex % recipes.length) {
+      next = Math.floor(Math.random() * recipes.length);
+    }
+    setRecipeIndex(next);
   };
 
   const handleAdd = () => {
+    if (!recipe) return;
     const added: string[] = [];
     const skipped: string[] = [];
     
@@ -44,6 +74,8 @@ export function RecipeCard({ products }: { products: Product[] }) {
       Alert.alert('تمت الإضافة', 'تم تنزيل كل مكونات الطبخة بالسلة!');
     }
   };
+
+  if (!recipe) return null;
 
   return (
     <View style={[styles.container, { backgroundColor: colors.card, borderColor: colors.border }]}>

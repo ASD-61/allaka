@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { z } from "zod";
 import crypto from "crypto";
-import { eq } from "drizzle-orm";
+import { eq, inArray } from "drizzle-orm";
 import { db, appSettingsTable } from "@workspace/db";
 import { signAdminToken, isAdminRequest } from "../lib/auth";
 import { requireAdmin } from "../middlewares/adminAuth";
@@ -125,6 +125,66 @@ router.post(
         set: { value: hash, updatedAt: new Date() },
       });
 
+    res.json({ ok: true });
+  },
+);
+
+// ── App version control (admin sets the "latest version" that triggers the
+// in-app "update available" notice) ─────────────────────────────────────────
+export const APP_VERSION_KEY = "app_latest_version";
+export const APP_MESSAGE_KEY = "app_update_message";
+
+async function upsertSetting(key: string, value: string): Promise<void> {
+  await db
+    .insert(appSettingsTable)
+    .values({ key, value })
+    .onConflictDoUpdate({
+      target: appSettingsTable.key,
+      set: { value, updatedAt: new Date() },
+    });
+}
+
+// GET /admin/app-version — current configured latest version + message.
+router.get(
+  "/admin/app-version",
+  requireAdmin,
+  async (_req: Request, res: Response): Promise<void> => {
+    const rows = await db
+      .select()
+      .from(appSettingsTable)
+      .where(inArray(appSettingsTable.key, [APP_VERSION_KEY, APP_MESSAGE_KEY]));
+    const map = Object.fromEntries(rows.map((r) => [r.key, r.value]));
+    res.json({
+      latestVersion:
+        map[APP_VERSION_KEY] || process.env["APP_LATEST_VERSION"] || "1.0.0",
+      message:
+        map[APP_MESSAGE_KEY] ||
+        process.env["APP_UPDATE_MESSAGE"] ||
+        "صدر تحديث جديد لتطبيق عـلاّكـة، حدّث الآن للحصول على آخر الميزات.",
+    });
+  },
+);
+
+const AppVersionBody = z.object({
+  latestVersion: z.string().min(1).max(20),
+  message: z.string().max(300).optional(),
+});
+
+// POST /admin/app-version — publish a new "latest version". Once set to a value
+// newer than the installed build, every app shows the in-app update notice.
+router.post(
+  "/admin/app-version",
+  requireAdmin,
+  async (req: Request, res: Response): Promise<void> => {
+    const parsed = AppVersionBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "رقم إصدار غير صالح" });
+      return;
+    }
+    await upsertSetting(APP_VERSION_KEY, parsed.data.latestVersion.trim());
+    if (parsed.data.message !== undefined) {
+      await upsertSetting(APP_MESSAGE_KEY, parsed.data.message.trim());
+    }
     res.json({ ok: true });
   },
 );
