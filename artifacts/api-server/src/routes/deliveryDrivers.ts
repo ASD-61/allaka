@@ -274,6 +274,7 @@ router.get(
       vehicleType: first.vehicleType,
       status: first.status,
       available: first.available,
+      photoUrl: first.photoUrl ?? null,
       idCardUrl: first.idCardUrl ?? null,
       residenceCardUrl: first.residenceCardUrl ?? null,
       stores,
@@ -285,6 +286,7 @@ router.get(
 );
 
 const KycBody = z.object({
+  photoUrl: z.string().min(1).max(1000).optional(),
   idCardUrl: z.string().min(1).max(1000).optional(),
   residenceCardUrl: z.string().min(1).max(1000).optional(),
 });
@@ -303,6 +305,7 @@ router.patch(
       return;
     }
     if (
+      parsed.data.photoUrl === undefined &&
       parsed.data.idCardUrl === undefined &&
       parsed.data.residenceCardUrl === undefined
     ) {
@@ -318,6 +321,7 @@ router.patch(
       return;
     }
     const patch: Record<string, unknown> = {};
+    if (parsed.data.photoUrl !== undefined) patch.photoUrl = parsed.data.photoUrl;
     if (parsed.data.idCardUrl !== undefined)
       patch.idCardUrl = parsed.data.idCardUrl;
     if (parsed.data.residenceCardUrl !== undefined)
@@ -327,6 +331,7 @@ router.patch(
       .set(patch)
       .where(eq(deliveryDriversTable.portalToken, token));
     res.json({
+      photoUrl: (patch.photoUrl as string) ?? existing.photoUrl ?? null,
       idCardUrl: (patch.idCardUrl as string) ?? existing.idCardUrl ?? null,
       residenceCardUrl:
         (patch.residenceCardUrl as string) ?? existing.residenceCardUrl ?? null,

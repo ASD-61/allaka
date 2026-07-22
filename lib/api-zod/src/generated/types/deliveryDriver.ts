@@ -27,6 +27,11 @@ export interface DeliveryDriver {
   /** Only present on the admin's cross-store drivers list. */
   storeName?: string;
   /**
+     * Public URL of the driver's uploaded personal photo (صورة شخصية), or null.
+     * @nullable
+     */
+  photoUrl?: string | null;
+  /**
      * Public URL of the driver's uploaded unified ID card (البطاقة الموحّدة), or null.
      * @nullable
      */

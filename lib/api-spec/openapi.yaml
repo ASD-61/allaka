@@ -3026,6 +3026,9 @@ components:
         storeName:
           type: string
           description: Only present on the admin's cross-store drivers list.
+        photoUrl:
+          type: ["string", "null"]
+          description: Public URL of the driver's uploaded personal photo (صورة شخصية), or null.
         idCardUrl:
           type: ["string", "null"]
           description: Public URL of the driver's uploaded unified ID card (البطاقة الموحّدة), or null.

@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, StyleSheet, FlatList, Pressable, TextInput, ActivityIndicator, Linking } from 'react-native';
+import { Image } from 'expo-image';
 import { Alert } from '@/lib/alert';
 import { Feather } from '@expo/vector-icons';
 import {
@@ -85,7 +86,7 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
   const sendPortalLink = (driver: { phone: string; name: string; portalToken: string }) => {
     const url = driverPortalUrl(driver.portalToken);
     const text = encodeURIComponent(
-      `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت، ومتابعة طلباتك وأرباحك:\n${url}\n\nرجاءً افتح الرابط وارفع صورة (البطاقة الموحّدة) و(بطاقة السكن) لتوثيق حسابك.`,
+      `مرحباً ${driver.name} 👋\nهذا رابطك الخاص للتحكم بحالة استلام الطلبات (متاح / غير متاح) بنفسك في أي وقت، ومتابعة طلباتك وأرباحك:\n${url}\n\nرجاءً افتح الرابط وارفع (صورتك الشخصية) وصورة (البطاقة الموحّدة) و(بطاقة السكن) لتوثيق حسابك.`,
     );
     // Accept any local form the merchant typed ("077...", "+964...", etc).
     const digits = toWhatsAppDigits(driver.phone);
@@ -271,6 +272,20 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
                 )}
               </View>
               <View style={styles.kycRow}>
+                {item.photoUrl ? (
+                  <Pressable
+                    onPress={() => openDoc(item.photoUrl as string)}
+                    style={[styles.kycBtn, { backgroundColor: colors.primary + '15' }]}
+                  >
+                    <Feather name="user" size={12} color={colors.primary} />
+                    <Text style={[styles.kycBtnText, { color: colors.primary }]}>الصورة الشخصية</Text>
+                  </Pressable>
+                ) : (
+                  <View style={[styles.kycBtn, { backgroundColor: colors.muted }]}>
+                    <Feather name="user" size={12} color={colors.mutedForeground} />
+                    <Text style={[styles.kycBtnText, { color: colors.mutedForeground }]}>الصورة الشخصية: لم تُرفع</Text>
+                  </View>
+                )}
                 {item.idCardUrl ? (
                   <Pressable
                     onPress={() => openDoc(item.idCardUrl as string)}
@@ -313,9 +328,15 @@ export function MerchantDrivers({ storeId }: { storeId: number }) {
                 </Pressable>
               ) : null}
             </View>
-            <View style={[styles.iconWrap, { backgroundColor: colors.muted }]}>
-              <Feather name="truck" size={18} color={colors.mutedForeground} />
-            </View>
+            {item.photoUrl ? (
+              <Pressable onPress={() => openDoc(item.photoUrl as string)}>
+                <Image source={{ uri: item.photoUrl }} style={styles.avatar} contentFit="cover" />
+              </Pressable>
+            ) : (
+              <View style={[styles.iconWrap, { backgroundColor: colors.muted }]}>
+                <Feather name="truck" size={18} color={colors.mutedForeground} />
+              </View>
+            )}
           </View>
         );
       }}
@@ -413,6 +434,11 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
   },
   name: {
     fontFamily: fonts.bold,

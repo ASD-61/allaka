@@ -57,6 +57,7 @@ export function driverPortalPage(token: string): string {
   .kyc-label { font-weight: 700; font-size: 13.5px; }
   .kyc-sub { font-size: 11.5px; color: #93A398; margin-top: 2px; }
   .kyc-actions { display: flex; align-items: center; gap: 8px; }
+  .kyc-left { display: flex; align-items: center; gap: 10px; }
   .kyc-thumb { width: 42px; height: 42px; border-radius: 8px; object-fit: cover; border: 1px solid #E6ECE7; }
   .upload-btn { display: inline-block; background: #1FA65E; color: #fff; border-radius: 10px; padding: 9px 12px; font-size: 12.5px; font-weight: 700; cursor: pointer; }
   .upload-btn.pending { opacity: .6; }
@@ -83,8 +84,11 @@ export function driverPortalPage(token: string): string {
 
   function kycRow(label, kind, url) {
     var h = '<div class="kyc-row">';
+    h += '<div class="kyc-left">';
+    if (url) h += '<img class="kyc-thumb" src="' + escapeHtml(url) + '" alt="" />';
     h += '<div><div class="kyc-label">' + escapeHtml(label) + '</div>';
     h += '<div class="kyc-sub">' + (url ? '<span class="kyc-badge">تم الرفع ✓</span>' : 'لم يتم الرفع بعد') + '</div></div>';
+    h += '</div>';
     h += '<div class="kyc-actions">';
     if (url) h += '<a class="view-link" href="' + escapeHtml(url) + '" target="_blank" rel="noopener">عرض</a>';
     h += '<label class="upload-btn" data-btn="' + kind + '">' + (url ? 'تغيير' : 'رفع') + '<input type="file" accept="image/*" data-kind="' + kind + '" style="display:none" /></label>';
@@ -151,7 +155,8 @@ export function driverPortalPage(token: string): string {
     // KYC documents (unified ID card + residence card) for the merchant to
     // verify the driver's identity.
     html += '<div class="card"><div class="section-title">توثيق الهوية (للأمان)</div>';
-    html += '<p class="kyc-sub" style="margin-bottom:8px">ارفع صورة بطاقتك الموحّدة وبطاقة السكن ليطّلع عليها صاحب المتجر ويوثّق حسابك.</p>';
+    html += '<p class="kyc-sub" style="margin-bottom:8px">ارفع صورتك الشخصية وصورة بطاقتك الموحّدة وبطاقة السكن ليطّلع عليها صاحب المتجر ويوثّق حسابك.</p>';
+    html += kycRow("الصورة الشخصية", "photo", d.photoUrl);
     html += kycRow("البطاقة الموحّدة", "idCard", d.idCardUrl);
     html += kycRow("بطاقة السكن", "residenceCard", d.residenceCardUrl);
     html += '</div>';
@@ -211,8 +216,9 @@ export function driverPortalPage(token: string): string {
           if (!up.ok) throw new Error("put");
           var objectPath = data.objectPath;
           var publicUrl = objectPath && objectPath.indexOf("http") === 0 ? objectPath : origin + objectPath;
+          var fieldByKind = { photo: "photoUrl", idCard: "idCardUrl", residenceCard: "residenceCardUrl" };
           var body = {};
-          body[kind === "idCard" ? "idCardUrl" : "residenceCardUrl"] = publicUrl;
+          body[fieldByKind[kind] || "photoUrl"] = publicUrl;
           return fetch(apiBase + "/kyc", {
             method: "PATCH",
             headers: { "Content-Type": "application/json" },

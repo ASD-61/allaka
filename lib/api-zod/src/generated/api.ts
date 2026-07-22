@@ -719,6 +719,7 @@ export const ListStoreDriversResponseItem = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "photoUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded personal photo (صورة شخصية), or null.'),
   "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
   "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
@@ -756,6 +757,7 @@ export const CreateStoreDriverResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "photoUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded personal photo (صورة شخصية), or null.'),
   "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
   "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
@@ -776,6 +778,7 @@ export const ListAllDriversResponseItem = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "photoUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded personal photo (صورة شخصية), or null.'),
   "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
   "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
@@ -805,6 +808,7 @@ export const SetDriverStatusResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "photoUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded personal photo (صورة شخصية), or null.'),
   "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
   "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()
@@ -841,6 +845,7 @@ export const UpdateDriverResponse = zod.object({
   "portalToken": zod.string().describe('Token identifying this driver\'s personal, login-free portal link (share as `\/driver\/{portalToken}`) where they control their own `available` toggle.'),
   "activeOrderId": zod.number().nullish().describe('The id of an active (not-yet-delivered) order currently assigned to this driver, if any — null means free.'),
   "storeName": zod.string().optional().describe('Only present on the admin\'s cross-store drivers list.'),
+  "photoUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded personal photo (صورة شخصية), or null.'),
   "idCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded unified ID card (البطاقة الموحّدة), or null.'),
   "residenceCardUrl": zod.string().nullish().describe('Public URL of the driver\'s uploaded residence card (بطاقة السكن), or null.'),
   "createdAt": zod.coerce.date()

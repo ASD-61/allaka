@@ -41,10 +41,12 @@ export const deliveryDriversTable = pgTable("delivery_drivers", {
   // Lets the driver control their own `available` toggle without needing a
   // full account/login system.
   portalToken: text("portal_token").notNull().unique(),
-  // KYC documents the driver uploads from their portal for the merchant to
-  // verify their identity (البطاقة الموحّدة + بطاقة السكن). Public object URLs
-  // (or null until uploaded). Keyed to the driver's person, so they're shared
-  // across every store row that uses the same portalToken.
+  // Documents/photo the driver uploads from their portal for the merchant to
+  // verify their identity: a personal photo (صورة شخصية) + البطاقة الموحّدة +
+  // بطاقة السكن. Public object URLs (or null until uploaded). Keyed to the
+  // driver's person, so they're shared across every store row that uses the
+  // same portalToken.
+  photoUrl: text("photo_url"),
   idCardUrl: text("id_card_url"),
   residenceCardUrl: text("residence_card_url"),
   createdAt: timestamp("created_at", { withTimezone: true })

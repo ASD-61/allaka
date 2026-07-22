@@ -61,7 +61,10 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `CREATE INDEX IF NOT EXISTS store_follows_customer_idx ON store_follows (customer_phone);`,
     );
-    // Driver KYC documents (unified ID card + residence card image URLs).
+    // Driver KYC documents (personal photo + unified ID card + residence card).
+    await pool.query(
+      `ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS photo_url text;`,
+    );
     await pool.query(
       `ALTER TABLE delivery_drivers ADD COLUMN IF NOT EXISTS id_card_url text;`,
     );
