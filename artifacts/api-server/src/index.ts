@@ -24,6 +24,10 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS image_urls jsonb;`,
     );
+    // Free-trial flag on stores (caps how many free trials one phone can start).
+    await pool.query(
+      `ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_trial boolean NOT NULL DEFAULT false;`,
+    );
     // In-app notifications feed (refund decisions, delivery updates, …).
     await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (

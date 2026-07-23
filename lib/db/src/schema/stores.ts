@@ -33,6 +33,9 @@ export const storesTable = pgTable("stores", {
   subscriptionExpiresAt: timestamp("subscription_expires_at", {
     withTimezone: true,
   }),
+  // Whether this store was created on a free trial (used to cap how many free
+  // trials a single phone number may start).
+  isTrial: boolean("is_trial").notNull().default(false),
   // The plan (in months: 3/6/12) the MERCHANT picked when registering — a
   // request, not a confirmed activation (only the admin's approval actually
   // sets `subscriptionExpiresAt`, since payment is still collected offline).

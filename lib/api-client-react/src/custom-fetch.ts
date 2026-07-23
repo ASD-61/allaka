@@ -11,6 +11,21 @@ export type AuthTokenGetter = () => Promise<string | null> | string | null;
 const NO_BODY_STATUS = new Set([204, 205, 304]);
 const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 
+// Hard ceiling on how long a single request may hang before we abort it. Without
+// this, a stalled socket (common when the app is resumed after a long sleep, or
+// while a sleeping server is waking up) leaves `await fetch` pending forever, so
+// the screen spins on "loading" and never recovers. Aborting turns it into a
+// normal, retryable failure so React Query can retry and cached data can show.
+const REQUEST_TIMEOUT_MS = 15_000;
+
+export class TimeoutError extends Error {
+  readonly name = "TimeoutError";
+  constructor(url: string) {
+    super(`انتهت مهلة الاتصال بالخادم أثناء طلب ${url}`);
+    Object.setPrototypeOf(this, new.target.prototype);
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Module-level configuration
 // ---------------------------------------------------------------------------
@@ -360,7 +375,38 @@ export async function customFetch<T = unknown>(
 
   const requestInfo = { method, url: resolveUrl(input) };
 
-  const response = await fetch(input, { ...init, method, headers });
+  // Wrap the fetch in an abortable timeout. We use our own AbortController so a
+  // stalled request can't hang indefinitely, while still honouring any caller
+  // signal (e.g. React Query cancelling a query when its component unmounts).
+  const controller = new AbortController();
+  const external = init.signal ?? null;
+  const onExternalAbort = () => controller.abort();
+  if (external) {
+    if (external.aborted) controller.abort();
+    else external.addEventListener("abort", onExternalAbort, { once: true });
+  }
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
+
+  let response: Response;
+  try {
+    response = await fetch(input, {
+      ...init,
+      method,
+      headers,
+      signal: controller.signal,
+    });
+  } catch (err) {
+    // Distinguish a real caller cancellation (propagate as-is) from our own
+    // timeout abort (surface a clear, retryable TimeoutError instead of a raw
+    // "Aborted" that clients can't reason about).
+    if (controller.signal.aborted && !external?.aborted) {
+      throw new TimeoutError(requestInfo.url);
+    }
+    throw err;
+  } finally {
+    clearTimeout(timer);
+    if (external) external.removeEventListener("abort", onExternalAbort);
+  }
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);

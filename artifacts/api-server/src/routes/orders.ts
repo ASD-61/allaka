@@ -30,6 +30,8 @@ const OrderItemSchema = z.object({
   // Weight-based items step in halves (0.5 kg), so qty is a positive
   // multiple of 0.5 rather than a whole number.
   qty: z.number().min(0.5).multipleOf(0.5),
+  // Optional merchant special-pricing note carried from the product.
+  priceNote: z.string().max(200).nullable().optional(),
 });
 
 // NOTE: customerPhone is intentionally NOT part of the input schema — it is
@@ -314,12 +316,13 @@ router.post(
       .insert(ordersTable)
       .values({
         customerPhone,
-        items: items.map((i: { id: number; name: string; price: number; unit: string; qty: number }) => ({
+        items: items.map((i: { id: number; name: string; price: number; unit: string; qty: number; priceNote?: string | null }) => ({
           id: i.id,
           name: i.name,
           price: i.price,
           unit: i.unit,
           qty: i.qty,
+          priceNote: i.priceNote ?? null,
         })),
         subtotal,
         deliveryFee,

@@ -97,7 +97,7 @@ async function buildLocationLine(
 export async function sendWhatsAppOrderNotification(opts: {
   orderId: number;
   customerPhone: string;
-  items: Array<{ name: string; qty: number; price: number }>;
+  items: Array<{ name: string; qty: number; price: number; priceNote?: string | null }>;
   total: number;
   deliveryType: string;
   latitude: number | null;
@@ -135,7 +135,9 @@ export async function sendWhatsAppOrderNotification(opts: {
     return;
   }
 
-  const itemLines = items.map((i) => `• ${i.name} × ${i.qty}`).join("\n");
+  const itemLines = items
+    .map((i) => `• ${i.name} × ${i.qty}${i.priceNote ? ` — 🏷️ ${i.priceNote}` : ""}`)
+    .join("\n");
 
   const mapsLink =
     latitude != null && longitude != null
@@ -175,7 +177,7 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
   storePhone?: string | null;
   storeLatitude?: number | null;
   storeLongitude?: number | null;
-  items: Array<{ name: string; qty: number; price: number }>;
+  items: Array<{ name: string; qty: number; price: number; priceNote?: string | null }>;
   total: number;
   deliveryType: string;
   pickupTime?: string | null;
@@ -202,7 +204,11 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
   }
 
   const itemLines = items
-    .map((i) => `• ${i.name} × ${i.qty} — ${(i.price * i.qty).toLocaleString("ar-IQ")} د.ع`)
+    .map(
+      (i) =>
+        `• ${i.name} × ${i.qty} — ${(i.price * i.qty).toLocaleString("ar-IQ")} د.ع` +
+        (i.priceNote ? `\n   🏷️ سعر خاص: ${i.priceNote}` : ""),
+    )
     .join("\n");
 
   const deliveryLabel =

@@ -46,6 +46,10 @@ const StoreBody = z.object({
 
 // Length of the free trial for a brand-new store, in days.
 const TRIAL_DAYS = 10;
+// How many free-trial stores a single phone number may ever start. Beyond this
+// the merchant must activate a permanent (paid) subscription. Kept internal —
+// the user-facing rejection message never reveals the exact number.
+const MAX_TRIALS_PER_PHONE = 2;
 
 const StoreUpdateBody = z.object({
   name: z.string().min(1).optional(),
@@ -161,11 +165,32 @@ router.post(
     // and the admin activates it after payment.
     let status = PENDING;
     let subscriptionExpiresAt: Date | null = null;
+    let isTrial = false;
     if (parsed.data.trial) {
+      // Cap the number of free trials a single phone may ever start. Once the
+      // limit is reached the merchant must activate a permanent subscription —
+      // the message stays official and never states the exact allowed count.
+      const [{ count } = { count: 0 }] = await db
+        .select({ count: sql<number>`count(*)::int` })
+        .from(storesTable)
+        .where(
+          and(
+            eq(storesTable.ownerPhone, req.customerPhone!),
+            eq(storesTable.isTrial, true),
+          ),
+        );
+      if (Number(count) >= MAX_TRIALS_PER_PHONE) {
+        res.status(403).json({
+          error:
+            "لقد استنفدت الفترة التجريبية المجانية المتاحة لحسابك. لإضافة متجر جديد يرجى تفعيل اشتراك دائم بالتواصل مع الإدارة.",
+        });
+        return;
+      }
       status = ACTIVE;
       subscriptionExpiresAt = new Date(
         Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
       );
+      isTrial = true;
     }
 
     const [store] = await db
@@ -183,6 +208,7 @@ router.post(
         ownerPhone: req.customerPhone!,
         status,
         subscriptionExpiresAt,
+        isTrial,
       })
       .returning();
 

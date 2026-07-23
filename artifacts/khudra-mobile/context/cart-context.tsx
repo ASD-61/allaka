@@ -19,6 +19,9 @@ export interface CartItem {
   unit: string;
   imageUrl: string;
   qty: number;
+  // Merchant's special-pricing note (e.g. "٣ قطع بـ٢٠٠٠") shown in the cart and
+  // carried into the order/WhatsApp message so it's not display-only.
+  priceNote?: string | null;
 }
 
 interface CartContextValue {

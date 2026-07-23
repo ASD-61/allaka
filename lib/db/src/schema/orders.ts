@@ -14,6 +14,10 @@ export interface OrderItemRecord {
   price: number;
   unit: string;
   qty: number;
+  // Merchant's free-text special pricing note (e.g. "٣ قطع بـ٢٠٠٠"). Carried
+  // into the order so it reaches the merchant/customer in the WhatsApp message
+  // instead of being display-only.
+  priceNote?: string | null;
 }
 
 export const ordersTable = pgTable("orders", {

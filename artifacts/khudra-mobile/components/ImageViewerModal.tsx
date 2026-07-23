@@ -1,13 +1,24 @@
-import React, { useEffect, useState } from 'react';
-import { Modal, View, Pressable, StyleSheet, FlatList, useWindowDimensions, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import {
+  Modal,
+  View,
+  Pressable,
+  StyleSheet,
+  FlatList,
+  useWindowDimensions,
+  Text,
+  ScrollView,
+} from 'react-native';
 import { Image } from 'expo-image';
 import { Feather } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 /**
  * Full-screen tap-to-close image viewer. Shows a single image, or — when
- * `uris` has more than one — a horizontally swipeable gallery with a counter,
- * so product/refund photos can be inspected full and in full detail.
+ * `uris` has more than one — a horizontally swipeable gallery with a counter
+ * and a row of thumbnails at the bottom (tap a thumbnail to jump), so
+ * product/refund photos can be inspected full and it's obvious there are
+ * several images.
  */
 export function ImageViewerModal({
   uri,
@@ -29,9 +40,17 @@ export function ImageViewerModal({
   const list = (uris && uris.length > 0 ? uris : uri ? [uri] : []).filter(Boolean);
 
   const [index, setIndex] = useState(initialIndex);
+  const listRef = useRef<FlatList<string>>(null);
   useEffect(() => {
     if (visible) setIndex(initialIndex);
   }, [visible, initialIndex]);
+
+  const goTo = (i: number) => {
+    setIndex(i);
+    listRef.current?.scrollToIndex({ index: i, animated: true });
+  };
+
+  const multiple = list.length > 1;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -44,9 +63,10 @@ export function ImageViewerModal({
           <Feather name="x" size={26} color="#fff" />
         </Pressable>
 
-        {list.length > 1 ? (
+        {multiple ? (
           <>
             <FlatList
+              ref={listRef}
               data={list}
               horizontal
               pagingEnabled
@@ -54,6 +74,7 @@ export function ImageViewerModal({
               keyExtractor={(item, i) => `${item}-${i}`}
               initialScrollIndex={initialIndex}
               getItemLayout={(_, i) => ({ length: width, offset: width * i, index: i })}
+              onScrollToIndexFailed={() => {}}
               onMomentumScrollEnd={(e) =>
                 setIndex(Math.round(e.nativeEvent.contentOffset.x / width))
               }
@@ -63,11 +84,30 @@ export function ImageViewerModal({
                 </Pressable>
               )}
             />
-            <View style={[styles.counter, { bottom: insets.bottom + 24 }]}>
+            <View style={[styles.counter, { top: insets.top + 16 }]}>
               <Text style={styles.counterText}>
                 {index + 1} / {list.length}
               </Text>
             </View>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              style={[styles.thumbStrip, { bottom: insets.bottom + 16 }]}
+              contentContainerStyle={styles.thumbStripContent}
+            >
+              {list.map((u, i) => (
+                <Pressable key={`${u}-${i}`} onPress={() => goTo(i)}>
+                  <Image
+                    source={{ uri: u }}
+                    style={[
+                      styles.thumb,
+                      i === index ? styles.thumbActive : styles.thumbInactive,
+                    ]}
+                    contentFit="cover"
+                  />
+                </Pressable>
+              ))}
+            </ScrollView>
           </>
         ) : (
           <Pressable style={styles.imageWrap} onPress={onClose}>
@@ -89,7 +129,7 @@ const styles = StyleSheet.create({
   closeBtn: {
     position: 'absolute',
     left: 16,
-    zIndex: 2,
+    zIndex: 3,
     width: 40,
     height: 40,
     borderRadius: 20,
@@ -118,5 +158,30 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 13,
     fontWeight: '700',
+  },
+  thumbStrip: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    maxHeight: 76,
+  },
+  thumbStripContent: {
+    paddingHorizontal: 12,
+    gap: 8,
+    alignItems: 'center',
+  },
+  thumb: {
+    width: 56,
+    height: 56,
+    borderRadius: 10,
+  },
+  thumbActive: {
+    borderWidth: 2.5,
+    borderColor: '#fff',
+  },
+  thumbInactive: {
+    opacity: 0.55,
+    borderWidth: 2.5,
+    borderColor: 'transparent',
   },
 });

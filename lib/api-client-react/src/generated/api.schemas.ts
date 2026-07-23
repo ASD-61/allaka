@@ -563,6 +563,11 @@ export interface OrderItemInput {
   unit: string;
   /** @minimum 1 */
   qty: number;
+  /**
+     * Merchant's special-pricing note carried from the product (e.g. "٣ قطع بـ٢٠٠٠").
+     * @nullable
+     */
+  priceNote?: string | null;
 }
 
 export type OrderInputDeliveryType = typeof OrderInputDeliveryType[keyof typeof OrderInputDeliveryType];

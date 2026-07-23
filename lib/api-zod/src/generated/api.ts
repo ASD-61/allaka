@@ -608,7 +608,8 @@ export const ListStoreOrdersResponseItem = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
@@ -1091,7 +1092,8 @@ export const ListOrdersResponseItem = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
@@ -1134,7 +1136,8 @@ export const CreateOrderBody = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })).min(1),
   "deliveryType": zod.enum(['standard', 'express']),
   "latitude": zod.number().optional(),
@@ -1157,7 +1160,8 @@ export const CreateOrderResponse = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
@@ -1202,7 +1206,8 @@ export const UpdateOrderStatusResponse = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
@@ -1247,7 +1252,8 @@ export const AssignOrderDriverResponse = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),
@@ -1287,7 +1293,8 @@ export const AddOrderItemsBody = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })).min(1)
 })
 
@@ -1302,7 +1309,8 @@ export const AddOrderItemsResponse = zod.object({
   "name": zod.string(),
   "price": zod.number(),
   "unit": zod.string(),
-  "qty": zod.number().min(1)
+  "qty": zod.number().min(1),
+  "priceNote": zod.string().nullish().describe('Merchant\'s special-pricing note carried from the product (e.g. \"٣ قطع بـ٢٠٠٠\").')
 })),
   "subtotal": zod.number(),
   "deliveryFee": zod.number(),

@@ -8,7 +8,7 @@ import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
 import { formatIQD } from '@/lib/format';
 import { resolveImageUrl } from '@/lib/image-url';
-import { ZoomableImage } from '@/components/ZoomableImage';
+import { ProductImageSlider } from '@/components/ProductImageSlider';
 import { useCart } from '@/context/cart-context';
 import { qtyStepForUnit } from '@/lib/quantity';
 
@@ -38,6 +38,7 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
       price: effectivePrice,
       unit: product.unit,
       imageUrl: product.imageUrl,
+      priceNote: product.priceNote ?? null,
     });
   };
 
@@ -82,14 +83,7 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
       ]}
     >
       <View style={styles.imageWrap}>
-        <ZoomableImage
-          uri={resolveImageUrl(product.imageUrl)}
-          uris={galleryUris}
-          wrapperStyle={styles.image}
-          style={styles.image}
-          contentFit="cover"
-          transition={150}
-        />
+        <ProductImageSlider uris={galleryUris} style={styles.image} contentFit="cover" />
         {galleryUris.length > 1 ? (
           <View style={[styles.countBadge, { backgroundColor: colors.background + 'CC' }]}>
             <Feather name="image" size={10} color={colors.foreground} />

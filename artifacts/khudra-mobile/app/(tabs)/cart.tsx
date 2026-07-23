@@ -141,6 +141,7 @@ function CartContent() {
             price: i.price,
             unit: i.unit,
             qty: i.qty,
+            priceNote: i.priceNote ?? null,
           })),
           deliveryType: effectiveDeliveryType,
           latitude: coords.latitude,
@@ -213,6 +214,11 @@ function CartContent() {
                 {item.name}
               </Text>
               <Text style={[styles.itemUnit, { color: colors.mutedForeground }]}>{item.unit}</Text>
+              {item.priceNote ? (
+                <Text style={[styles.itemPriceNote, { color: colors.accent }]} numberOfLines={2}>
+                  🏷️ {item.priceNote}
+                </Text>
+              ) : null}
               <Text style={[styles.itemPrice, { color: colors.primary }]}>{formatIQD(item.price)}</Text>
             </View>
             <View style={styles.cartActions}>
@@ -587,6 +593,11 @@ const styles = StyleSheet.create({
   },
   itemUnit: {
     fontFamily: fonts.regular,
+    fontSize: 11,
+    textAlign: 'right',
+  },
+  itemPriceNote: {
+    fontFamily: fonts.semibold,
     fontSize: 11,
     textAlign: 'right',
   },
