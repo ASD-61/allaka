@@ -23,6 +23,8 @@ export interface ProductUpdate {
   /** @minLength 1 */
   imageUrl?: string;
   /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
   description?: string | null;
   rating?: number;
   isVip?: boolean;

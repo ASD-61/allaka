@@ -2058,7 +2058,12 @@ components:
           description: Unit of sale, e.g. "1 كغم"
         imageUrl:
           type: string
-          description: Public URL or storage object path for the product image
+          description: Public URL or storage object path for the product image (primary/first)
+        imageUrls:
+          type: ["array", "null"]
+          items:
+            type: string
+          description: All product images (gallery); the first mirrors imageUrl.
         description:
           type: ["string", "null"]
           description: Extra details about the vegetable
@@ -2126,6 +2131,10 @@ components:
         imageUrl:
           type: string
           minLength: 1
+        imageUrls:
+          type: ["array", "null"]
+          items:
+            type: string
         description:
           type: ["string", "null"]
         rating:
@@ -2173,6 +2182,10 @@ components:
         imageUrl:
           type: string
           minLength: 1
+        imageUrls:
+          type: ["array", "null"]
+          items:
+            type: string
         description:
           type: ["string", "null"]
         rating:
@@ -2327,6 +2340,9 @@ components:
         refundsEnabled:
           type: boolean
           description: Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers.
+        trial:
+          type: boolean
+          description: When true, the store starts a free 10-day trial — activated immediately (no admin approval) with a subscription expiring in 10 days.
     StoreUpdate:
       type: object
       properties:

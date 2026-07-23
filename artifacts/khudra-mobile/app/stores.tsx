@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   Pressable,
   ActivityIndicator,
 } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Feather } from '@expo/vector-icons';
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams, Stack } from 'expo-router';
@@ -34,17 +35,38 @@ export default function StoresScreen() {
     hasLocation ? { lat: customer!.latitude!, lng: customer!.longitude! } : undefined,
   );
 
+  // Reuse the home screen's cached store list so opening a store type shows
+  // results instantly (works offline / while the fresh, distance-sorted list
+  // loads in the background) instead of a blank loading spinner.
+  const [cachedStores, setCachedStores] = useState<any[] | null>(null);
+  useEffect(() => {
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('home-cache-v1');
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          if (Array.isArray(parsed?.stores)) setCachedStores(parsed.stores);
+        }
+      } catch {
+        // ignore corrupt cache
+      }
+    })();
+  }, []);
+
   const stores = useMemo(() => {
-    const list = storesQuery.data ?? [];
+    const list = storesQuery.data ?? cachedStores ?? [];
     return type ? list.filter((s) => s.storeType === type) : list;
-  }, [storesQuery.data, type]);
+  }, [storesQuery.data, cachedStores, type]);
+
+  // Only block with a spinner when we truly have nothing to show yet.
+  const showSpinner = storesQuery.isLoading && !cachedStores;
 
   const title = type ?? 'كل المتاجر';
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
       <Stack.Screen options={{ title }} />
-      {storesQuery.isLoading ? (
+      {showSpinner ? (
         <View style={styles.center}>
           <ActivityIndicator color={colors.primary} />
         </View>

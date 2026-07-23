@@ -28,8 +28,13 @@ export interface Product {
   originalPrice?: number | null;
   /** Unit of sale, e.g. "1 كغم" */
   unit: string;
-  /** Public URL or storage object path for the product image */
+  /** Public URL or storage object path for the product image (primary/first) */
   imageUrl: string;
+  /**
+     * All product images (gallery); the first mirrors imageUrl.
+     * @nullable
+     */
+  imageUrls?: string[] | null;
   /**
      * Extra details about the vegetable
      * @nullable
@@ -133,6 +138,8 @@ export interface ProductInput {
   /** @minLength 1 */
   imageUrl: string;
   /** @nullable */
+  imageUrls?: string[] | null;
+  /** @nullable */
   description?: string | null;
   rating?: number;
   isVip?: boolean;
@@ -169,6 +176,8 @@ export interface ProductUpdate {
   unit?: string;
   /** @minLength 1 */
   imageUrl?: string;
+  /** @nullable */
+  imageUrls?: string[] | null;
   /** @nullable */
   description?: string | null;
   rating?: number;
@@ -272,6 +281,8 @@ export interface StoreInput {
   requestedSubscriptionMonths?: StoreInputRequestedSubscriptionMonths;
   /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
   refundsEnabled?: boolean;
+  /** When true, the store starts a free 10-day trial — activated immediately (no admin approval) with a subscription expiring in 10 days. */
+  trial?: boolean;
 }
 
 export interface StoreUpdate {

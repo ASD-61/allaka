@@ -73,13 +73,14 @@ function RegisterStoreContent() {
   const [uploading, setUploading] = useState(false);
   const [subscriptionMonths, setSubscriptionMonths] = useState<3 | 6 | 12>(3);
   // Set after a successful submit so we can show a "pay via WhatsApp" CTA.
-  const [submittedStore, setSubmittedStore] = useState<{ name: string; price: string } | null>(null);
+  const [submittedStore, setSubmittedStore] = useState<{ name: string; price: string; trial: boolean } | null>(null);
 
   const messageAdmin = () => {
     const price = submittedStore?.price ?? '';
-    const msg =
-      `مرحباً، سجّلت متجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة ` +
-      `واخترت اشتراك بقيمة ${price}. أريد أرسل مبلغ التسجيل إلكترونياً، شلون نتفق؟`;
+    const msg = submittedStore?.trial
+      ? `مرحباً، فعّلت تجربة مجانية لمتجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة، وأريد أكمل الاشتراك الكامل قبل انتهاء التجربة. شلون نتفق على الدفع؟`
+      : `مرحباً، سجّلت متجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة ` +
+        `واخترت اشتراك بقيمة ${price}. أريد أرسل مبلغ التسجيل إلكترونياً، شلون نتفق؟`;
     Linking.openURL(waMeLink(ADMIN_WHATSAPP, msg)).catch(() =>
       Alert.alert('تعذر الفتح', 'تأكد من تثبيت واتساب على جهازك'),
     );
@@ -105,7 +106,7 @@ function RegisterStoreContent() {
     storeType.trim().length > 0 &&
     address.trim().length > 0;
 
-  const handleSubmit = async () => {
+  const handleSubmit = async (trial: boolean) => {
     if (!canSubmit) return;
     const planPrice =
       SUBSCRIPTION_PLANS.find((p) => p.months === subscriptionMonths)?.price ?? '';
@@ -121,7 +122,8 @@ function RegisterStoreContent() {
           latitude: coords?.latitude ?? null,
           longitude: coords?.longitude ?? null,
           requestedSubscriptionMonths: subscriptionMonths,
-        },
+          trial,
+        } as any,
       });
       setName('');
       setStoreType('');
@@ -132,7 +134,7 @@ function RegisterStoreContent() {
       setImagePreview(null);
       setSubscriptionMonths(3);
       myStores.refetch();
-      setSubmittedStore({ name: submittedName, price: planPrice });
+      setSubmittedStore({ name: submittedName, price: planPrice, trial });
     } catch (err: any) {
       Alert.alert('تعذر التسجيل', err?.data?.error ?? 'صار خطأ، حاول مرة ثانية');
     }
@@ -157,14 +159,20 @@ function RegisterStoreContent() {
         <View style={[styles.successCard, { backgroundColor: colors.primary + '12', borderColor: colors.primary + '40' }]}>
           <View style={styles.successHeader}>
             <Feather name="check-circle" size={20} color={colors.primary} />
-            <Text style={[styles.successTitle, { color: colors.foreground }]}>تم إرسال طلب "{submittedStore.name}"</Text>
+            <Text style={[styles.successTitle, { color: colors.foreground }]}>
+              {submittedStore.trial ? `تم تفعيل تجربة "${submittedStore.name}" مجاناً` : `تم إرسال طلب "${submittedStore.name}"`}
+            </Text>
           </View>
           <Text style={[styles.successText, { color: colors.mutedForeground }]}>
-            متجرك قيد المراجعة. تقدر تراسل الإدارة على الواتساب لدفع مبلغ التسجيل ({submittedStore.price}) إلكترونياً والاتفاق على التفعيل.
+            {submittedStore.trial
+              ? 'متجرك مفعّل الآن مجاناً لمدة ١٠ أيام تقدر خلالها تضيف منتجاتك وتستقبل الطلبات. بعد انتهاء التجربة يتوقف المتجر ما لم تكمل الاشتراك — راسل الإدارة على الواتساب لإكمال الاشتراك وتفعيله بشكل دائم.'
+              : `متجرك قيد المراجعة. تقدر تراسل الإدارة على الواتساب لدفع مبلغ التسجيل (${submittedStore.price}) إلكترونياً والاتفاق على التفعيل.`}
           </Text>
           <Pressable onPress={messageAdmin} style={[styles.waBtn, { backgroundColor: '#25D366' }]}>
             <Feather name="message-circle" size={18} color="#fff" />
-            <Text style={styles.waBtnText}>مراسلة الإدارة على واتساب لدفع الاشتراك</Text>
+            <Text style={styles.waBtnText}>
+              {submittedStore.trial ? 'مراسلة الإدارة لإكمال الاشتراك' : 'مراسلة الإدارة على واتساب لدفع الاشتراك'}
+            </Text>
           </Pressable>
           <Pressable onPress={() => setSubmittedStore(null)} hitSlop={6} style={{ alignSelf: 'center', paddingVertical: 6 }}>
             <Text style={[styles.successDismiss, { color: colors.mutedForeground }]}>تسجيل متجر آخر</Text>
@@ -203,7 +211,7 @@ function RegisterStoreContent() {
         style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}
       >
         {imagePreview ? (
-          <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="cover" />
+          <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="contain" />
         ) : (
           <View style={styles.imagePickerPlaceholder}>
             <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>
@@ -366,21 +374,36 @@ function RegisterStoreContent() {
       </View>
 
       <Pressable
-        onPress={handleSubmit}
+        onPress={() => handleSubmit(true)}
         disabled={!canSubmit || createStore.isPending}
         style={({ pressed }) => [
-          styles.submitBtn,
-          { backgroundColor: colors.primary, opacity: !canSubmit || createStore.isPending ? 0.5 : pressed ? 0.85 : 1 },
+          styles.trialBtn,
+          { backgroundColor: colors.primary, borderColor: colors.primary, opacity: !canSubmit || createStore.isPending ? 0.5 : pressed ? 0.85 : 1 },
         ]}
       >
         {createStore.isPending ? (
           <ActivityIndicator color={colors.primaryForeground} />
         ) : (
           <>
-            <Feather name="send" size={16} color={colors.primaryForeground} />
-            <Text style={[styles.submitText, { color: colors.primaryForeground }]}>إرسال طلب التسجيل</Text>
+            <Feather name="gift" size={18} color={colors.primaryForeground} />
+            <Text style={[styles.submitText, { color: colors.primaryForeground }]}>ابدأ تجربة مجانية ١٠ أيام</Text>
           </>
         )}
+      </Pressable>
+      <Text style={[styles.chipHint, { color: colors.mutedForeground, textAlign: 'center', marginTop: 6 }]}>
+        فعّل متجرك فوراً وجرّبه ١٠ أيام مجاناً — بعدها راسل الإدارة لإكمال الاشتراك.
+      </Text>
+
+      <Pressable
+        onPress={() => handleSubmit(false)}
+        disabled={!canSubmit || createStore.isPending}
+        style={({ pressed }) => [
+          styles.submitBtn,
+          { backgroundColor: colors.card, borderWidth: 1, borderColor: colors.border, opacity: !canSubmit || createStore.isPending ? 0.5 : pressed ? 0.85 : 1 },
+        ]}
+      >
+        <Feather name="send" size={16} color={colors.foreground} />
+        <Text style={[styles.submitText, { color: colors.foreground }]}>إرسال طلب اشتراك مدفوع</Text>
       </Pressable>
 
       <LocationPicker
@@ -669,6 +692,16 @@ const styles = StyleSheet.create({
     paddingTop: 12,
     textAlignVertical: 'top',
   },
+  trialBtn: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 54,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginTop: 8,
+  },
   submitBtn: {
     flexDirection: 'row-reverse',
     alignItems: 'center',
@@ -676,7 +709,7 @@ const styles = StyleSheet.create({
     gap: 8,
     height: 52,
     borderRadius: 16,
-    marginTop: 8,
+    marginTop: 12,
   },
   submitText: {
     fontFamily: fonts.bold,

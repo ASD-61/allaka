@@ -194,7 +194,7 @@ export function StoreTypesTab() {
             <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
               <Pressable onPress={handlePickImage} style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
                 {imagePreview ? (
-                  <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="cover" />
+                  <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="contain" />
                 ) : (
                   <View style={styles.imagePickerPlaceholder}>
                     <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>

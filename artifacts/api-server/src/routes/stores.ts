@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type Response } from "express";
-import { and, desc, eq, sql } from "drizzle-orm";
+import { and, desc, eq, gt, isNull, or, sql } from "drizzle-orm";
 import {
   db,
   storesTable,
@@ -39,7 +39,13 @@ const StoreBody = z.object({
     .union([z.literal(3), z.literal(6), z.literal(12)])
     .nullish(),
   refundsEnabled: z.boolean().optional(),
+  // Free 10-day trial: activate immediately (no admin approval) with a
+  // subscription that expires in 10 days.
+  trial: z.boolean().optional(),
 });
+
+// Length of the free trial for a brand-new store, in days.
+const TRIAL_DAYS = 10;
 
 const StoreUpdateBody = z.object({
   name: z.string().min(1).optional(),
@@ -74,7 +80,18 @@ router.get("/stores", async (req: Request, res: Response): Promise<void> => {
   const rows = await db
     .select()
     .from(storesTable)
-    .where(eq(storesTable.status, ACTIVE))
+    .where(
+      and(
+        eq(storesTable.status, ACTIVE),
+        // Hide stores whose subscription (incl. a free trial) has expired —
+        // they stop showing to customers until the merchant renews/activates.
+        // A null expiry means "no expiry set" and stays visible.
+        or(
+          isNull(storesTable.subscriptionExpiresAt),
+          gt(storesTable.subscriptionExpiresAt, new Date()),
+        ),
+      ),
+    )
     .orderBy(desc(storesTable.createdAt));
 
   const origin = parseLatLng(req.query.lat, req.query.lng);
@@ -139,6 +156,18 @@ router.post(
       return;
     }
 
+    // Free trial: activate the store immediately (no admin approval) with a
+    // subscription that expires in TRIAL_DAYS days. Otherwise it starts pending
+    // and the admin activates it after payment.
+    let status = PENDING;
+    let subscriptionExpiresAt: Date | null = null;
+    if (parsed.data.trial) {
+      status = ACTIVE;
+      subscriptionExpiresAt = new Date(
+        Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
+      );
+    }
+
     const [store] = await db
       .insert(storesTable)
       .values({
@@ -152,7 +181,8 @@ router.post(
         requestedSubscriptionMonths: parsed.data.requestedSubscriptionMonths ?? null,
         refundsEnabled: parsed.data.refundsEnabled ?? true,
         ownerPhone: req.customerPhone!,
-        status: PENDING,
+        status,
+        subscriptionExpiresAt,
       })
       .returning();
 

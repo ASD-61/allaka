@@ -35,8 +35,10 @@ export async function pickImage(): Promise<PickedImage | null> {
   const result = await ImagePicker.launchImageLibraryAsync({
     mediaTypes: ['images'],
     quality: 0.8,
+    // No forced square crop: keep the full picture the user chose so nothing
+    // gets cut off ("نص الصورة طاير"). allowsEditing:true still lets them
+    // freely adjust/crop it themselves if they want.
     allowsEditing: true,
-    aspect: [1, 1],
   });
 
   if (result.canceled || !result.assets?.[0]) return null;
@@ -55,7 +57,6 @@ export async function takePhoto(): Promise<PickedImage | null> {
     mediaTypes: ['images'],
     quality: 0.8,
     allowsEditing: true,
-    aspect: [1, 1],
   });
 
   if (result.canceled || !result.assets?.[0]) return null;

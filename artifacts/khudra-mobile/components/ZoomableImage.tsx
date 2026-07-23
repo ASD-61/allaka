@@ -12,19 +12,25 @@ import { ImageViewerModal } from '@/components/ImageViewerModal';
  */
 export function ZoomableImage({
   uri,
+  uris,
   style,
   contentFit = 'cover',
   transition,
   wrapperStyle,
 }: {
   uri: string | null | undefined;
+  /** Optional full gallery; the viewer pages through these when tapped. */
+  uris?: string[];
   style?: StyleProp<ImageStyle>;
   contentFit?: ImageContentFit;
   transition?: number;
   wrapperStyle?: StyleProp<ViewStyle>;
 }) {
   const [open, setOpen] = useState(false);
-  const hasUri = !!uri;
+  // The thumbnail shows `uri` (or the first gallery image); the viewer shows all.
+  const gallery = uris && uris.length > 0 ? uris : uri ? [uri] : [];
+  const thumbUri = uri ?? gallery[0] ?? null;
+  const hasUri = !!thumbUri;
 
   return (
     <>
@@ -33,9 +39,9 @@ export function ZoomableImage({
         disabled={!hasUri}
         onPress={() => setOpen(true)}
       >
-        <Image source={hasUri ? { uri } : undefined} style={style} contentFit={contentFit} transition={transition} />
+        <Image source={hasUri ? { uri: thumbUri } : undefined} style={style} contentFit={contentFit} transition={transition} />
       </Pressable>
-      <ImageViewerModal uri={uri ?? null} visible={open} onClose={() => setOpen(false)} />
+      <ImageViewerModal uris={gallery} visible={open} onClose={() => setOpen(false)} />
     </>
   );
 }

@@ -20,6 +20,10 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `ALTER TABLE products ADD COLUMN IF NOT EXISTS price_note text;`,
     );
+    // Multiple product images (gallery). imageUrl stays the primary/first one.
+    await pool.query(
+      `ALTER TABLE products ADD COLUMN IF NOT EXISTS image_urls jsonb;`,
+    );
     // In-app notifications feed (refund decisions, delivery updates, …).
     await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (

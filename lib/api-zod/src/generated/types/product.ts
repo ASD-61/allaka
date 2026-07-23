@@ -21,8 +21,13 @@ export interface Product {
   originalPrice?: number | null;
   /** Unit of sale, e.g. "1 كغم" */
   unit: string;
-  /** Public URL or storage object path for the product image */
+  /** Public URL or storage object path for the product image (primary/first) */
   imageUrl: string;
+  /**
+     * All product images (gallery); the first mirrors imageUrl.
+     * @nullable
+     */
+  imageUrls?: string[] | null;
   /**
      * Extra details about the vegetable
      * @nullable

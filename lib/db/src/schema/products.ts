@@ -6,6 +6,7 @@ import {
   real,
   boolean,
   timestamp,
+  jsonb,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -17,7 +18,11 @@ export const productsTable = pgTable("products", {
   price: integer("price").notNull(),
   originalPrice: integer("original_price"),
   unit: text("unit").notNull(),
+  // Primary/first image (kept for backward compatibility and card thumbnails).
   imageUrl: text("image_url").notNull(),
+  // Full gallery of product images (the merchant can attach several). The first
+  // entry mirrors `imageUrl`. Null/empty for legacy single-image products.
+  imageUrls: jsonb("image_urls").$type<string[]>(),
   description: text("description"),
   rating: real("rating").notNull().default(4.5),
   isVip: boolean("is_vip").notNull().default(false),

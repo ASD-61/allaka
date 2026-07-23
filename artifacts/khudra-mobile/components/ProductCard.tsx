@@ -18,6 +18,14 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
   const cartItem = items.find((i) => i.id === product.id);
   const outOfStock = product.inStock === false;
   const step = qtyStepForUnit(product.unit);
+  // Full image gallery (falls back to the single primary image).
+  const galleryUris = (
+    product.imageUrls && product.imageUrls.length > 0
+      ? product.imageUrls
+      : [product.imageUrl]
+  )
+    .map((u) => resolveImageUrl(u))
+    .filter((u): u is string => !!u);
   // In the wholesale section a product is sold at its wholesale price (if set).
   const effectivePrice =
     wholesale && product.wholesalePrice != null ? product.wholesalePrice : product.price;
@@ -76,11 +84,18 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
       <View style={styles.imageWrap}>
         <ZoomableImage
           uri={resolveImageUrl(product.imageUrl)}
+          uris={galleryUris}
           wrapperStyle={styles.image}
           style={styles.image}
           contentFit="cover"
           transition={150}
         />
+        {galleryUris.length > 1 ? (
+          <View style={[styles.countBadge, { backgroundColor: colors.background + 'CC' }]}>
+            <Feather name="image" size={10} color={colors.foreground} />
+            <Text style={[styles.countText, { color: colors.foreground }]}>{galleryUris.length}</Text>
+          </View>
+        ) : null}
         {outOfStock ? (
           <View style={[styles.outOfStockOverlay, { backgroundColor: colors.background + 'CC' }]}>
             <View style={[styles.outOfStockPill, { backgroundColor: colors.destructive }]}>
@@ -249,6 +264,21 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   localText: {
+    fontFamily: fonts.bold,
+    fontSize: 10,
+  },
+  countBadge: {
+    position: 'absolute',
+    bottom: 8,
+    left: 8,
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 3,
+    paddingHorizontal: 7,
+    paddingVertical: 3,
+    borderRadius: 999,
+  },
+  countText: {
     fontFamily: fonts.bold,
     fontSize: 10,
   },

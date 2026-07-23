@@ -130,7 +130,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
         style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}
       >
         {currentImage ? (
-          <Image source={{ uri: currentImage }} style={styles.previewImg} contentFit="cover" />
+          <Image source={{ uri: currentImage }} style={styles.previewImg} contentFit="contain" />
         ) : (
           <View style={styles.imagePickerPlaceholder}>
             <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>

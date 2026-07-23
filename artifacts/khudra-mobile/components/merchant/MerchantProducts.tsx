@@ -61,8 +61,9 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
   const [unit, setUnit] = useState('');
   const [priceNote, setPriceNote] = useState('');
   const [wholesalePrice, setWholesalePrice] = useState('');
-  const [imagePath, setImagePath] = useState<string | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  // Product image gallery — the merchant can attach several images. The first
+  // one is the primary (used as the card thumbnail / imageUrl).
+  const [images, setImages] = useState<{ path: string; preview: string }[]>([]);
   const [inStock, setInStock] = useState(true);
   const [isLocal, setIsLocal] = useState(false);
   const [isClearance, setIsClearance] = useState(false);
@@ -170,7 +171,12 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
           ? Math.round(Number(editWholesalePrice))
           : null,
     };
-    if (editImagePath) data.imageUrl = editImagePath;
+    if (editImagePath) {
+      data.imageUrl = editImagePath;
+      // Replacing the image resets the gallery to the new one so the thumbnail
+      // and full gallery stay consistent.
+      data.imageUrls = [editImagePath];
+    }
     if (hasOffer) {
       if (newBase > item.price) {
         data.originalPrice = newBase;
@@ -262,19 +268,22 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     );
   };
 
-  const handlePickImage = async () => {
+  const handleAddImage = async () => {
     const picked = await pickImageWithChoice();
     if (!picked) return;
-    setImagePreview(picked.uri);
     setUploading(true);
     try {
       const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
-      setImagePath(path);
+      setImages((prev) => [...prev, { path, preview: picked.uri }]);
     } catch {
       Alert.alert('خطأ', 'تعذر رفع الصورة');
     } finally {
       setUploading(false);
     }
+  };
+
+  const removeImage = (index: number) => {
+    setImages((prev) => prev.filter((_, i) => i !== index));
   };
 
   const resetForm = () => {
@@ -284,8 +293,7 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     setUnit('1 كغم');
     setPriceNote('');
     setWholesalePrice('');
-    setImagePath(null);
-    setImagePreview(null);
+    setImages([]);
     setInStock(true);
     setIsLocal(false);
     setIsClearance(false);
@@ -293,8 +301,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
   };
 
   const handleSubmit = async () => {
-    if (!name.trim() || !category.trim() || !price || !imagePath) {
-      Alert.alert('تنبيه', 'يرجى تعبئة الاسم والفئة والسعر والصورة');
+    if (!name.trim() || !category.trim() || !price || images.length === 0) {
+      Alert.alert('تنبيه', 'يرجى تعبئة الاسم والفئة والسعر وإضافة صورة واحدة على الأقل');
       return;
     }
     setSaving(true);
@@ -306,7 +314,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
           category: category.trim(),
           price: Math.round(Number(price)),
           unit: unit.trim() || '1 كغم',
-          imageUrl: imagePath,
+          imageUrl: images[0].path,
+          imageUrls: images.map((im) => im.path),
           inStock,
           isLocal,
           isClearance,
@@ -348,23 +357,40 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
 
           {showForm ? (
             <View style={[styles.formCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-              <Pressable onPress={handlePickImage} style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border }]}>
-                {imagePreview ? (
-                  <Image source={{ uri: imagePreview }} style={styles.previewImg} contentFit="cover" />
-                ) : (
-                  <View style={styles.imagePickerPlaceholder}>
-                    <View style={[styles.iconCircle, { backgroundColor: colors.primary + '15' }]}>
-                      <Feather name="camera" size={24} color={colors.primary} />
-                    </View>
-                    <Text style={[styles.imagePickerText, { color: colors.mutedForeground }]}>إضافة صورة للمنتج</Text>
+              <Text style={[styles.label, { color: colors.foreground, marginBottom: 8 }]}>صور المنتج (يمكن إضافة أكثر من صورة)</Text>
+              <View style={styles.galleryWrap}>
+                {images.map((im, i) => (
+                  <View key={`${im.path}-${i}`} style={[styles.galleryTile, { borderColor: colors.border }]}>
+                    <Image source={{ uri: im.preview }} style={styles.galleryImg} contentFit="cover" />
+                    {i === 0 ? (
+                      <View style={[styles.primaryTag, { backgroundColor: colors.primary }]}>
+                        <Text style={styles.primaryTagText}>رئيسية</Text>
+                      </View>
+                    ) : null}
+                    <Pressable
+                      onPress={() => removeImage(i)}
+                      style={styles.removeImgBtn}
+                      hitSlop={6}
+                    >
+                      <Feather name="x" size={12} color="#fff" />
+                    </Pressable>
                   </View>
-                )}
-                {uploading ? (
-                  <View style={styles.uploadOverlay}>
-                    <ActivityIndicator size="large" color="#fff" />
-                  </View>
-                ) : null}
-              </Pressable>
+                ))}
+                <Pressable
+                  onPress={handleAddImage}
+                  disabled={uploading}
+                  style={[styles.galleryAddTile, { backgroundColor: colors.muted, borderColor: colors.border }]}
+                >
+                  {uploading ? (
+                    <ActivityIndicator color={colors.primary} />
+                  ) : (
+                    <>
+                      <Feather name="camera" size={22} color={colors.primary} />
+                      <Text style={[styles.imagePickerText, { color: colors.mutedForeground }]}>إضافة صورة</Text>
+                    </>
+                  )}
+                </Pressable>
+              </View>
 
               <View style={styles.formGroup}>
                 <Text style={[styles.label, { color: colors.foreground }]}>معلومات المنتج</Text>
@@ -889,6 +915,57 @@ const styles = StyleSheet.create({
   imagePickerText: {
     fontFamily: fonts.medium,
     fontSize: 14,
+  },
+  galleryWrap: {
+    flexDirection: 'row-reverse',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  galleryTile: {
+    width: 92,
+    height: 92,
+    borderRadius: 14,
+    borderWidth: 1,
+    overflow: 'hidden',
+    position: 'relative',
+  },
+  galleryImg: {
+    width: '100%',
+    height: '100%',
+  },
+  galleryAddTile: {
+    width: 92,
+    height: 92,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+  },
+  primaryTag: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingVertical: 2,
+    alignItems: 'center',
+  },
+  primaryTagText: {
+    fontFamily: fonts.bold,
+    fontSize: 9,
+    color: '#fff',
+  },
+  removeImgBtn: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: 'rgba(0,0,0,0.6)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   uploadOverlay: {
     ...StyleSheet.absoluteFillObject,
