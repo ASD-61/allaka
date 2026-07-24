@@ -216,14 +216,16 @@ export default function StoreDetailScreen() {
                 style={({ pressed }) => [
                   styles.followBtn,
                   {
-                    backgroundColor: isFollowing ? colors.primary : colors.primary + '15',
-                    opacity: pressed ? 0.8 : 1,
+                    backgroundColor: isFollowing ? colors.primary : 'transparent',
+                    borderColor: colors.primary,
+                    borderWidth: isFollowing ? 0 : 1.5,
+                    opacity: pressed ? 0.75 : 1,
                   },
                 ]}
               >
                 <Feather
-                  name="heart"
-                  size={15}
+                  name={isFollowing ? 'check' : 'heart'}
+                  size={14}
                   color={isFollowing ? colors.primaryForeground : colors.primary}
                 />
                 <Text
@@ -232,7 +234,7 @@ export default function StoreDetailScreen() {
                     { color: isFollowing ? colors.primaryForeground : colors.primary },
                   ]}
                 >
-                  {isFollowing ? 'تتابع هذا المتجر ✓' : 'متابعة المتجر'}
+                  {isFollowing ? 'تتابع المتجر' : 'متابعة المتجر'}
                 </Text>
               </Pressable>
             ) : null}
@@ -417,15 +419,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row-reverse',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 6,
+    alignSelf: 'flex-end',
     marginHorizontal: 16,
-    marginTop: 12,
-    height: 46,
-    borderRadius: 14,
+    marginTop: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    borderRadius: 999,
   },
   followBtnText: {
     fontFamily: fonts.bold,
-    fontSize: 14,
+    fontSize: 13,
   },
   metaRow: {
     flexDirection: 'row-reverse',

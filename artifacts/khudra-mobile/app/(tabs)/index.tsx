@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
-  Linking,
   Pressable,
   StyleSheet,
   Text,
@@ -21,7 +19,7 @@ import { fonts } from '@/constants/fonts';
 import { EmptyState } from '@/components/EmptyState';
 import { resolveImageUrl } from '@/lib/image-url';
 import { useAuth } from '@/context/auth-context';
-import { checkForUpdate } from '@/lib/appUpdate';
+import { UpdateModal } from '@/components/UpdateModal';
 
 type TypeGroup = {
   type: string;
@@ -88,25 +86,8 @@ export default function HomeScreen() {
   const stores = storesQuery.data ?? cachedStores ?? [];
   const types = typesQuery.data ?? cachedTypes ?? [];
 
-  // On open, check whether a newer app version was published and, if so, tell
-  // the user (once per version) with the new version number + a download link.
-  useEffect(() => {
-    (async () => {
-      const info = await checkForUpdate();
-      if (!info) return;
-      const seen = await AsyncStorage.getItem('update-prompt-version');
-      if (seen === info.latestVersion) return;
-      await AsyncStorage.setItem('update-prompt-version', info.latestVersion);
-      Alert.alert(
-        `تحديث جديد متوفر (${info.latestVersion})`,
-        `${info.message}\n\nالإصدار الحالي: ${info.currentVersion}`,
-        [
-          { text: 'لاحقاً', style: 'cancel' },
-          { text: 'تحديث الآن', onPress: () => { Linking.openURL(info.apkUrl).catch(() => {}); } },
-        ],
-      );
-    })();
-  }, []);
+  // A newer app version (if any) is surfaced automatically via <UpdateModal/>
+  // below — a polished dialog that pops up on launch, once per version.
 
   // Hidden admin entry: the admin dashboard button was removed from the
   // profile screen; instead, tapping the app logo 10 times quickly reveals the
@@ -168,6 +149,7 @@ export default function HomeScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
+      <UpdateModal />
       <View
         style={[
           styles.header,
