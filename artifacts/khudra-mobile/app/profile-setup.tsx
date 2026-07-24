@@ -86,12 +86,8 @@ export default function ProfileSetupScreen() {
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background, paddingTop: insets.top + 20 }]}>
-      {isEdit ? (
-        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
-          <Feather name="arrow-right" size={22} color={colors.foreground} />
-        </Pressable>
-      ) : null}
-
+      {/* No custom back button here — the native modal header already shows one.
+          Having both produced two back arrows on the "تعديل معلوماتي" screen. */}
       <Pressable
         onPress={handlePickAvatar}
         disabled={uploading}

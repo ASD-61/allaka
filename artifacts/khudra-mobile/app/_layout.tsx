@@ -1,5 +1,18 @@
 import React, { useEffect } from 'react';
-import { Platform, Text as RNText, TextInput as RNTextInput } from 'react-native';
+import { I18nManager, Platform, Text as RNText, TextInput as RNTextInput } from 'react-native';
+
+// This app is Arabic-first but built with MANUAL RTL styling (row-reverse +
+// textAlign:'right' on every component), which only renders correctly when the
+// base layout direction is LTR. On a device whose locale is RTL, React Native
+// auto-flips rows and DOUBLE-reverses our manual styling → mirrored/broken
+// layout and back-arrows pointing the wrong way. Lock the base direction to LTR
+// so the UI looks identical (and correct) on every device and locale.
+try {
+  I18nManager.allowRTL(false);
+  if (I18nManager.isRTL) I18nManager.forceRTL(false);
+} catch {
+  // no-op — never let a layout-direction tweak crash startup
+}
 import * as Sentry from '@sentry/react-native';
 import { PersistQueryClientProvider } from '@tanstack/react-query-persist-client';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';

@@ -15,10 +15,9 @@ const LOGO_URL =
 // streams this file with a clean "allaka.apk" download name.
 export const APK_SOURCE_URL =
   process.env["APK_SOURCE_URL"] ||
-  // Build 1e25a433 (2026-07-24): first build that routes image uploads through
-  // the server's SafeSearch moderation + includes offline mode, deep links,
-  // Sentry, and OTA-capable native modules.
-  "https://expo.dev/artifacts/eas/bgXyGKMO5pfrm-bgHKRtbVyaGSpB0sF_GKfBMWZGLyc.apk";
+  // Latest build (2026-07-24): moderated uploads (SafeSearch), offline mode,
+  // deep links, Sentry, LTR-locked RTL layout, and OTA support.
+  "https://expo.dev/artifacts/eas/egI2Kxvn-eDCtqJQ2JnS3CBy6xDWcGN4NEYDkT1tmcg.apk";
 
 export function landingPage(): string {
   const downloadBtn = APK_SOURCE_URL
