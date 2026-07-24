@@ -160,6 +160,9 @@ overrides:
   esbuild: "0.27.3"
 
 allowBuilds:
+  # @sentry/cli's postinstall downloads the sentry-cli binary used to upload
+  # source maps during the mobile build (so crash reports show real file/line).
+  '@sentry/cli': true
   esbuild: true
   # protobufjs (pulled in by @google-cloud/vision) is externalized in the API
   # server bundle and works without its optional postinstall build step, so we

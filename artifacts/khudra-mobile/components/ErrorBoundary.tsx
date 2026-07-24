@@ -1,4 +1,5 @@
 import React, { Component, ComponentType, PropsWithChildren } from 'react';
+import * as Sentry from '@sentry/react-native';
 import { ErrorFallback, ErrorFallbackProps } from '@/components/ErrorFallback';
 
 export type ErrorBoundaryProps = PropsWithChildren<{
@@ -29,6 +30,15 @@ export class ErrorBoundary extends Component<
   }
 
   componentDidCatch(error: Error, info: { componentStack: string }): void {
+    // Report the crash to Sentry with the React component stack so we can see
+    // exactly which screen/component failed on the user's device.
+    try {
+      Sentry.captureException(error, {
+        contexts: { react: { componentStack: info.componentStack } },
+      });
+    } catch {
+      // never let error reporting itself crash the fallback UI
+    }
     if (typeof this.props.onError === 'function') {
       this.props.onError(error, info.componentStack);
     }

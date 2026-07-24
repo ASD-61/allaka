@@ -19,6 +19,10 @@ import { setCustomerSessionToken } from '@/lib/session';
 import { getCurrentPositionSafe } from '@/lib/location';
 
 const TOKEN_KEY = 'khudra-customer-token';
+// The last successfully fetched profile is cached here so the app stays logged
+// in and usable offline (or when /me fails due to a flaky network). We ONLY
+// clear it on a real 401 from the server — never on a network error.
+const PROFILE_KEY = 'khudra-customer-profile';
 
 interface CustomerProfile {
   phone: string;
@@ -53,6 +57,9 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null);
   const [isReady, setIsReady] = useState(false);
+  // Locally-persisted profile so we can show the user as logged-in immediately
+  // on launch and keep them logged in while offline.
+  const [cachedProfile, setCachedProfile] = useState<CustomerProfile | null>(null);
 
   useEffect(() => {
     setCustomerSessionToken(token);
@@ -61,8 +68,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     (async () => {
       try {
-        const stored = await AsyncStorage.getItem(TOKEN_KEY);
-        if (stored) setToken(stored);
+        const [storedToken, storedProfile] = await Promise.all([
+          AsyncStorage.getItem(TOKEN_KEY),
+          AsyncStorage.getItem(PROFILE_KEY),
+        ]);
+        if (storedToken) setToken(storedToken);
+        if (storedProfile) {
+          try {
+            setCachedProfile(JSON.parse(storedProfile));
+          } catch {
+            // ignore corrupt cache
+          }
+        }
       } finally {
         setIsReady(true);
       }
@@ -70,8 +87,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const meQuery = useGetMe({
-    query: { enabled: !!token, retry: false } as any,
+    query: {
+      enabled: !!token,
+      // Retry transient failures a couple times, but NEVER retry a 401 — an
+      // expired/invalid token should surface immediately so we can log out.
+      retry: (count: number, err: any) => err?.status !== 401 && count < 2,
+    } as any,
   });
+
+  // Persist every successful profile fetch so it's available offline next time.
+  useEffect(() => {
+    if (meQuery.data) {
+      const profile = meQuery.data as CustomerProfile;
+      setCachedProfile(profile);
+      AsyncStorage.setItem(PROFILE_KEY, JSON.stringify(profile)).catch(() => {});
+    }
+  }, [meQuery.data]);
+
+  // Only a genuine 401 (invalid/expired token) logs the user out. Network
+  // errors, timeouts and offline states keep the cached session intact.
+  useEffect(() => {
+    if ((meQuery.error as any)?.status === 401) {
+      logout();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [meQuery.error]);
+
+  // The effective profile: fresh data when available, otherwise the last known
+  // profile from storage (offline / flaky network).
+  const effectiveProfile = (meQuery.data as CustomerProfile | undefined) ?? cachedProfile;
 
   const requestOtpMutation = useRequestOtp();
   const verifyOtpMutation = useVerifyOtp();
@@ -151,22 +195,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     setToken(null);
+    setCachedProfile(null);
     AsyncStorage.removeItem(TOKEN_KEY);
+    AsyncStorage.removeItem(PROFILE_KEY);
     queryClient.clear();
   }, []);
 
   const value = useMemo<AuthContextValue>(
     () => ({
       token,
-      customer: token && meQuery.data ? (meQuery.data as CustomerProfile) : null,
+      // Keep the user logged in with their cached profile even when /me can't be
+      // reached (offline). Never null just because the network is down.
+      customer: token ? effectiveProfile : null,
       isReady,
-      isAuthenticated: !!token && !!meQuery.data,
+      isAuthenticated: !!token && !!effectiveProfile,
       requestOtp,
       verifyOtp,
       updateProfile,
       logout,
     }),
-    [token, meQuery.data, isReady, requestOtp, verifyOtp, updateProfile, logout],
+    [token, effectiveProfile, isReady, requestOtp, verifyOtp, updateProfile, logout],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

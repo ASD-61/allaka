@@ -7,6 +7,15 @@
     "icon": "./assets/images/icon.png",
     "scheme": "khudra-mobile",
     "userInterfaceStyle": "automatic",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/d018efd5-683c-47b5-8e32-2af41b3a5e41",
+      "enabled": true,
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
@@ -42,6 +51,13 @@
         "expo-router",
         {
           "origin": "https://replit.com/"
+        }
+      ],
+      [
+        "@sentry/react-native/expo",
+        {
+          "organization": "allaka",
+          "project": "allaka-mobile"
         }
       ],
       "expo-font",

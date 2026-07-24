@@ -9,6 +9,7 @@ import { logger } from "./lib/logger";
 import { securityHeaders } from "./middlewares/security";
 import { driverPortalPage } from "./lib/driverPortalPage";
 import { ratePage } from "./lib/ratePage";
+import { productBridgePage } from "./lib/productBridgePage";
 import { landingPage, APK_SOURCE_URL } from "./lib/landingPage";
 
 const app: Express = express();
@@ -71,6 +72,12 @@ app.get("/driver/:token", (req, res) => {
 // deep link so the customer lands on the rating screen for their order.
 app.get("/rate/:orderId", (req, res) => {
   res.type("html").send(ratePage(req.params.orderId));
+});
+
+// Bridge page for shared product links — forwards into the app's deep link so
+// a friend who taps the WhatsApp link lands directly on that product.
+app.get("/p/:id", (req, res) => {
+  res.type("html").send(productBridgePage(req.params.id));
 });
 
 // Public landing / download page — this is what share & referral links point to.

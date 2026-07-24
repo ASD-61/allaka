@@ -11,6 +11,7 @@ import { resolveImageUrl } from '@/lib/image-url';
 import { ProductImageSlider } from '@/components/ProductImageSlider';
 import { useCart } from '@/context/cart-context';
 import { qtyStepForUnit } from '@/lib/quantity';
+import { shareProduct } from '@/lib/share';
 
 export function ProductCard({ product, wholesale }: { product: Product; wholesale?: boolean }) {
   const colors = useColors();
@@ -75,7 +76,13 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
   };
 
   return (
-    <View
+    <Pressable
+      // Long-press anywhere on the card to share this product with a friend.
+      onLongPress={() => {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        shareProduct({ id: product.id, name: product.name });
+      }}
+      delayLongPress={350}
       style={[
         styles.card,
         { backgroundColor: colors.card, borderColor: colors.border },
@@ -179,7 +186,7 @@ export function ProductCard({ product, wholesale }: { product: Product; wholesal
           )}
         </View>
       </View>
-    </View>
+    </Pressable>
   );
 }
 
