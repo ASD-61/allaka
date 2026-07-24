@@ -221,8 +221,8 @@ export function StoresTab() {
     try {
       const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
       setEditImagePath(path);
-    } catch {
-      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } catch (err) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'تعذر رفع الصورة');
     } finally {
       setEditUploading(false);
     }

@@ -86,3 +86,25 @@ export async function createS3Upload(
   const uploadURL = await getSignedUrl(getClient(), command, { expiresIn: 900 });
   return { uploadURL, publicUrl: `${publicBase}/${key}` };
 }
+
+/**
+ * Uploads an image buffer straight to the bucket from the server (used by the
+ * moderated upload route, where the bytes must pass through the server for a
+ * SafeSearch check before they land in R2). Returns the public read URL.
+ */
+export async function uploadBufferToS3(
+  buffer: Buffer,
+  name: string,
+  contentType: string,
+): Promise<{ publicUrl: string }> {
+  const key = `uploads/${randomUUID()}${extFor(name, contentType)}`;
+  await getClient().send(
+    new PutObjectCommand({
+      Bucket: bucket!,
+      Key: key,
+      Body: buffer,
+      ContentType: contentType,
+    }),
+  );
+  return { publicUrl: `${publicBase}/${key}` };
+}

@@ -161,3 +161,8 @@ overrides:
 
 allowBuilds:
   esbuild: true
+  # protobufjs (pulled in by @google-cloud/vision) is externalized in the API
+  # server bundle and works without its optional postinstall build step, so we
+  # explicitly opt out to keep installs deterministic and avoid running its
+  # build script.
+  protobufjs: false

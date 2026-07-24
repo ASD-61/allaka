@@ -2,6 +2,7 @@ import { Readable } from 'stream';
 import { randomUUID } from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import multer from 'multer';
 import {
   RequestUploadUrlBody,
   RequestUploadUrlResponse,
@@ -13,10 +14,37 @@ import {
   ObjectNotFoundError,
   ObjectStorageService,
 } from '../lib/objectStorage';
-import { s3Enabled, createS3Upload } from '../lib/s3Storage';
+import { s3Enabled, createS3Upload, uploadBufferToS3 } from '../lib/s3Storage';
+import { moderateImage } from '../lib/imageModeration';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
+
+// In-memory multer: the image bytes stay in RAM (req.file.buffer) just long
+// enough to be SafeSearch-checked and forwarded to R2 — never written to the
+// server's disk. 25 MB cap and images-only.
+const memoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 25 * 1024 * 1024 },
+  fileFilter: (_req, file, cb) => {
+    if (file.mimetype.startsWith('image/')) cb(null, true);
+    else cb(new Error('يُسمح بالصور فقط'));
+  },
+});
+
+// Runs multer for a single "file" field and converts any multer error (too
+// large, wrong type, …) into a clean 400 instead of bubbling to the generic
+// error handler.
+function uploadSingleImage(req: Request, res: Response, next: () => void) {
+  memoryUpload.single('file')(req, res, (err: unknown) => {
+    if (err) {
+      const message = err instanceof Error ? err.message : 'تعذر رفع الصورة';
+      res.status(400).json({ error: message });
+      return;
+    }
+    next();
+  });
+}
 
 // --- Local filesystem storage (dev only) -----------------------------------
 // Replit's object storage relies on a sidecar (127.0.0.1:1106) that doesn't
@@ -113,6 +141,55 @@ router.post(
     } catch (error) {
       req.log.error({ err: error }, 'Error generating upload URL');
       res.status(500).json({ error: 'Failed to generate upload URL' });
+    }
+  },
+);
+
+/**
+ * POST /storage/uploads
+ *
+ * Moderated upload: the client sends the image as multipart/form-data (field
+ * "file"). The bytes pass through the server ONLY to be checked by Google
+ * SafeSearch (moderateImage) — inappropriate images are rejected with 400 — and
+ * are then streamed to Cloudflare R2 (or local disk in dev) without ever being
+ * persisted on the server's disk. Returns { objectPath } to store on the record.
+ */
+router.post(
+  '/storage/uploads',
+  uploadSingleImage,
+  moderateImage,
+  async (req: Request, res: Response) => {
+    const file = req.file;
+    if (!file) {
+      res.status(400).json({ error: 'لم يتم إرفاق صورة' });
+      return;
+    }
+    const name = file.originalname || `photo-${Date.now()}.jpg`;
+    const contentType = file.mimetype || 'application/octet-stream';
+
+    try {
+      // Production: push the (already-moderated) buffer straight to the bucket.
+      if (s3Enabled()) {
+        const { publicUrl } = await uploadBufferToS3(file.buffer, name, contentType);
+        res.json({ objectPath: publicUrl });
+        return;
+      }
+
+      // Local dev: write to disk under LOCAL_STORAGE_DIR/uploads.
+      if (localStorageEnabled()) {
+        const id = `${randomUUID()}${path.extname(name) || ''}`;
+        const dir = path.join(path.resolve(LOCAL_STORAGE_DIR!), 'uploads');
+        await fs.promises.mkdir(dir, { recursive: true });
+        await fs.promises.writeFile(path.join(dir, id), file.buffer);
+        await fs.promises.writeFile(path.join(dir, `${id}.type`), contentType);
+        res.json({ objectPath: `/objects/uploads/${id}` });
+        return;
+      }
+
+      res.status(500).json({ error: 'لم يتم إعداد التخزين على الخادم' });
+    } catch (error) {
+      req.log.error({ err: error }, 'Error handling moderated upload');
+      res.status(500).json({ error: 'تعذر رفع الصورة' });
     }
   },
 );

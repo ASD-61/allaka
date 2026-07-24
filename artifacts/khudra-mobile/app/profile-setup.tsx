@@ -57,8 +57,8 @@ export default function ProfileSetupScreen() {
         requestUploadUrl.mutateAsync(args),
       );
       setAvatarUrl(path);
-    } catch {
-      Alert.alert('تعذر رفع الصورة', 'حاول مرة أخرى');
+    } catch (err) {
+      Alert.alert('تعذر رفع الصورة', err instanceof Error ? err.message : 'حاول مرة أخرى');
     } finally {
       setUploading(false);
     }

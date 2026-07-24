@@ -144,8 +144,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     try {
       const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
       setEditImagePath(path);
-    } catch {
-      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } catch (err) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'تعذر رفع الصورة');
     } finally {
       setEditUploading(false);
     }
@@ -275,8 +275,8 @@ export function MerchantProducts({ storeId }: { storeId: number }) {
     try {
       const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
       setImages((prev) => [...prev, { path, preview: picked.uri }]);
-    } catch {
-      Alert.alert('خطأ', 'تعذر رفع الصورة');
+    } catch (err) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'تعذر رفع الصورة');
     } finally {
       setUploading(false);
     }

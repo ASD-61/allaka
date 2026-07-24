@@ -98,8 +98,8 @@ export default function LoginScreen() {
         requestUploadUrl.mutateAsync(args),
       );
       setAvatarUrl(path);
-    } catch {
-      setError('تعذر رفع الصورة، حاول مرة أخرى');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'تعذر رفع الصورة، حاول مرة أخرى');
     } finally {
       setUploading(false);
     }

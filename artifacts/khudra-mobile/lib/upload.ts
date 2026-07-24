@@ -1,5 +1,6 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Alert } from '@/lib/alert';
+import { resolveApiDomain, schemeForDomain } from '@/lib/api-scheme';
 
 export interface PickedImage {
   uri: string;
@@ -68,32 +69,51 @@ export async function takePhoto(): Promise<PickedImage | null> {
 }
 
 /**
- * Uploads a picked image to the presigned URL returned by requestUploadUrl,
- * and returns the objectPath (e.g. "/objects/uploads/xyz") to store as
- * `/api/storage${objectPath}` on the record.
+ * Uploads a picked image THROUGH the API server so it can be screened by Google
+ * SafeSearch (inappropriate images are rejected) before being stored in
+ * Cloudflare R2. Returns the object path/URL to store on the record.
+ *
+ * The image is sent as multipart/form-data; the server never writes it to disk
+ * (it moderates the in-memory buffer and forwards it to the bucket).
+ *
+ * NOTE: the optional second argument is kept for backwards compatibility with
+ * existing call sites (they used to pass a presign requester); it is unused now.
  */
+type LegacyUploadRequester = (args: {
+  data: { name: string; size: number; contentType: string };
+}) => Promise<unknown>;
+
 export async function uploadPickedImage(
   image: PickedImage,
-  requestUploadUrl: (args: {
-    data: { name: string; size: number; contentType: string };
-  }) => Promise<{ uploadURL: string; objectPath: string }>,
+  _legacyRequestUploadUrl?: LegacyUploadRequester,
 ): Promise<string> {
-  const fileInfo = await fetch(image.uri);
-  const blob = await fileInfo.blob();
+  const domain = resolveApiDomain();
+  const url = `${schemeForDomain(domain)}://${domain}/api/storage/uploads`;
 
-  const { uploadURL, objectPath } = await requestUploadUrl({
-    data: { name: image.name, size: blob.size, contentType: image.mimeType },
-  });
+  const form = new FormData();
+  form.append('file', {
+    uri: image.uri,
+    name: image.name,
+    type: image.mimeType,
+  } as any);
 
-  const putResult = await fetch(uploadURL, {
-    method: 'PUT',
-    headers: { 'Content-Type': image.mimeType },
-    body: blob,
-  });
+  const res = await fetch(url, { method: 'POST', body: form });
 
-  if (!putResult.ok) {
-    throw new Error('فشل رفع الصورة');
+  if (!res.ok) {
+    // Surface the server's specific reason (e.g. the SafeSearch rejection
+    // message) so the UI can tell the user exactly why the upload was blocked.
+    let message = 'فشل رفع الصورة';
+    try {
+      const data = await res.json();
+      if (data?.error) message = data.error;
+    } catch {
+      // ignore non-JSON error bodies
+    }
+    throw new Error(message);
   }
+
+  const data = (await res.json()) as { objectPath: string };
+  const objectPath = data.objectPath;
 
   // With direct-to-bucket (S3/R2) storage the server returns an absolute public
   // URL — store it as-is. Otherwise it's a relative object path served through

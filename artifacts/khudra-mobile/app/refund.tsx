@@ -87,7 +87,7 @@ export default function RefundScreen() {
       );
       router.back();
     } catch (err: any) {
-      Alert.alert('تعذر تقديم الطلب', err?.data?.error || 'حدث خطأ، يرجى المحاولة لاحقاً');
+      Alert.alert('تعذر تقديم الطلب', err?.data?.error || err?.message || 'حدث خطأ، يرجى المحاولة لاحقاً');
     } finally {
       setSubmitting(false);
     }
