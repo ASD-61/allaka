@@ -28,6 +28,11 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `ALTER TABLE stores ADD COLUMN IF NOT EXISTS is_trial boolean NOT NULL DEFAULT false;`,
     );
+    // Merchant-written delivery-coverage note (which areas the listed delivery
+    // prices cover, and that anywhere else costs 5,000). Shown in the cart.
+    await pool.query(
+      `ALTER TABLE stores ADD COLUMN IF NOT EXISTS delivery_note text;`,
+    );
     // In-app notifications feed (refund decisions, delivery updates, …).
     await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (

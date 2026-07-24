@@ -31,16 +31,12 @@ import { EmptyState } from '@/components/EmptyState';
 
 const POINTS_THRESHOLD = 100;
 
-type DeliveryType = 'standard' | 'express';
+type DeliveryType = 'standard' | 'express' | 'outside';
 type Redeem = 'discount' | 'free_delivery' | null;
 
-const PICKUP_TIMES = [
-  { label: 'بأسرع وقت', value: null },
-  { label: 'اليوم بين ٤-٦ عصراً', value: 'اليوم بين ٤-٦ عصراً' },
-  { label: 'اليوم بين ٦-٨ مساءً', value: 'اليوم بين ٦-٨ مساءً' },
-  { label: 'غداً صباحاً', value: 'غداً صباحاً' },
-  { label: 'غداً مساءً', value: 'غداً مساءً' },
-];
+// Only two choices now: "as soon as possible" or a custom time the customer
+// types themselves (the fixed windows were removed per merchant request).
+const PICKUP_TIMES = [{ label: 'بأسرع وقت', value: null }];
 
 export default function CartScreen() {
   // Guests can browse and build their cart freely; login is only required at
@@ -84,7 +80,12 @@ function CartContent() {
   // waives its fee, so the effective delivery type follows the redemption.
   const effectiveDeliveryType: DeliveryType =
     redeem === 'free_delivery' ? 'express' : deliveryType;
-  const deliveryFee = effectiveDeliveryType === 'express' ? 3000 : 2000;
+  const deliveryFee =
+    effectiveDeliveryType === 'outside'
+      ? 5000
+      : effectiveDeliveryType === 'express'
+        ? 3000
+        : 2000;
   const discount = redeem === 'discount' ? Math.min(2000, subtotal) : 0;
   const finalDeliveryFee = redeem === 'free_delivery' ? 0 : deliveryFee;
   let total = subtotal - discount + finalDeliveryFee;
@@ -253,6 +254,7 @@ function CartContent() {
                 [
                   { key: 'standard', label: 'عادي', price: 2000 },
                   { key: 'express', label: 'سريع', price: 3000 },
+                  { key: 'outside', label: 'منطقة أخرى', price: 5000 },
                 ] as const
               ).map((opt) => (
                 <Pressable
@@ -267,6 +269,7 @@ function CartContent() {
                   ]}
                 >
                   <Text
+                    numberOfLines={1}
                     style={[
                       styles.deliveryLabel,
                       { color: deliveryType === opt.key ? colors.primaryForeground : colors.foreground },
@@ -288,6 +291,15 @@ function CartContent() {
                 </Pressable>
               ))}
             </View>
+
+            {storeQuery.data?.deliveryNote ? (
+              <View style={[styles.coverageNote, { backgroundColor: colors.secondary }]}>
+                <Feather name="info" size={14} color={colors.secondaryForeground} />
+                <Text style={[styles.coverageNoteText, { color: colors.secondaryForeground }]}>
+                  {storeQuery.data.deliveryNote}
+                </Text>
+              </View>
+            ) : null}
 
             {canRedeem ? (
               <>
@@ -641,7 +653,23 @@ const styles = StyleSheet.create({
   },
   deliveryRow: {
     flexDirection: 'row-reverse',
-    gap: 10,
+    gap: 8,
+  },
+  coverageNote: {
+    flexDirection: 'row-reverse',
+    alignItems: 'flex-start',
+    gap: 8,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginTop: 10,
+  },
+  coverageNoteText: {
+    flex: 1,
+    fontFamily: fonts.medium,
+    fontSize: 12,
+    lineHeight: 19,
+    textAlign: 'right',
   },
   noteInput: {
     fontFamily: fonts.regular,
@@ -656,19 +684,20 @@ const styles = StyleSheet.create({
   },
   deliveryOption: {
     flex: 1,
-    borderRadius: 14,
+    borderRadius: 12,
     borderWidth: 1,
-    padding: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     alignItems: 'center',
-    gap: 3,
+    gap: 2,
   },
   deliveryLabel: {
     fontFamily: fonts.semibold,
-    fontSize: 13,
+    fontSize: 12,
   },
   deliveryPrice: {
     fontFamily: fonts.regular,
-    fontSize: 11,
+    fontSize: 10,
   },
   walletRow: {
     flexDirection: 'row-reverse',

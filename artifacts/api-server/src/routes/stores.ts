@@ -39,8 +39,10 @@ const StoreBody = z.object({
     .union([z.literal(3), z.literal(6), z.literal(12)])
     .nullish(),
   refundsEnabled: z.boolean().optional(),
-  // Free 10-day trial: activate immediately (no admin approval) with a
-  // subscription that expires in 10 days.
+  deliveryNote: z.string().max(500).nullish(),
+  // Free 10-day trial: the store is created but STILL waits for admin approval
+  // (like a paid store). On approval the admin activates it with a 10-day
+  // window instead of a paid plan.
   trial: z.boolean().optional(),
 });
 
@@ -60,6 +62,7 @@ const StoreUpdateBody = z.object({
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
   refundsEnabled: z.boolean().optional(),
+  deliveryNote: z.string().max(500).nullish(),
 });
 
 const ReviewBody = z.object({
@@ -160,11 +163,12 @@ router.post(
       return;
     }
 
-    // Free trial: activate the store immediately (no admin approval) with a
-    // subscription that expires in TRIAL_DAYS days. Otherwise it starts pending
-    // and the admin activates it after payment.
-    let status = PENDING;
-    let subscriptionExpiresAt: Date | null = null;
+    // Every new store — including a free trial — starts PENDING and waits for
+    // admin approval. A trial is just flagged (isTrial) so that on approval the
+    // admin activates it with a 10-day window instead of a paid plan; the store
+    // never goes live to customers until the admin approves it.
+    const status = PENDING;
+    const subscriptionExpiresAt: Date | null = null;
     let isTrial = false;
     if (parsed.data.trial) {
       // Cap the number of free trials a single phone may ever start. Once the
@@ -186,10 +190,6 @@ router.post(
         });
         return;
       }
-      status = ACTIVE;
-      subscriptionExpiresAt = new Date(
-        Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000,
-      );
       isTrial = true;
     }
 
@@ -205,6 +205,7 @@ router.post(
         longitude: parsed.data.longitude ?? null,
         requestedSubscriptionMonths: parsed.data.requestedSubscriptionMonths ?? null,
         refundsEnabled: parsed.data.refundsEnabled ?? true,
+        deliveryNote: cleanText(parsed.data.deliveryNote),
         ownerPhone: req.customerPhone!,
         status,
         subscriptionExpiresAt,
@@ -287,6 +288,8 @@ router.patch(
       patch.longitude = parsed.data.longitude ?? null;
     if (parsed.data.refundsEnabled !== undefined)
       patch.refundsEnabled = parsed.data.refundsEnabled;
+    if (parsed.data.deliveryNote !== undefined)
+      patch.deliveryNote = cleanText(parsed.data.deliveryNote);
 
     if (Object.keys(patch).length === 0) {
       res.json(existing);
@@ -332,27 +335,39 @@ router.patch(
 
     let update: Record<string, unknown>;
     if (parsed.data.action === "approve") {
-      // Default to the plan the merchant asked for at registration (they
-      // already chose 3/6/12 and agreed to pay for it), so the admin can
-      // approve with a single tap without re-picking a duration. An explicit
-      // subscriptionMonths (e.g. the admin correcting/renewing later) still
-      // overrides it.
-      const months =
-        parsed.data.subscriptionMonths ??
-        existing.requestedSubscriptionMonths ??
-        3;
-      const mode = parsed.data.subscriptionMode ?? "extend";
-      // "set" counts the months from today (replacing the expiry), letting the
-      // admin correct/reduce a subscription. "extend" stacks onto the later of
-      // now or the current expiry so ordinary renewals add up.
-      const base =
-        mode === "set" ||
-        !existing.subscriptionExpiresAt ||
-        existing.subscriptionExpiresAt.getTime() <= Date.now()
-          ? new Date()
-          : new Date(existing.subscriptionExpiresAt);
-      base.setMonth(base.getMonth() + months);
-      update = { status: ACTIVE, subscriptionExpiresAt: base };
+      if (
+        existing.isTrial &&
+        parsed.data.subscriptionMonths == null &&
+        !existing.subscriptionExpiresAt
+      ) {
+        // Approving a brand-new FREE TRIAL store: activate it with a 10-day
+        // window instead of a paid plan. (If the admin explicitly passes
+        // subscriptionMonths, treat it as a normal paid activation below.)
+        const base = new Date(Date.now() + TRIAL_DAYS * 24 * 60 * 60 * 1000);
+        update = { status: ACTIVE, subscriptionExpiresAt: base };
+      } else {
+        // Default to the plan the merchant asked for at registration (they
+        // already chose 3/6/12 and agreed to pay for it), so the admin can
+        // approve with a single tap without re-picking a duration. An explicit
+        // subscriptionMonths (e.g. the admin correcting/renewing later) still
+        // overrides it.
+        const months =
+          parsed.data.subscriptionMonths ??
+          existing.requestedSubscriptionMonths ??
+          3;
+        const mode = parsed.data.subscriptionMode ?? "extend";
+        // "set" counts the months from today (replacing the expiry), letting the
+        // admin correct/reduce a subscription. "extend" stacks onto the later of
+        // now or the current expiry so ordinary renewals add up.
+        const base =
+          mode === "set" ||
+          !existing.subscriptionExpiresAt ||
+          existing.subscriptionExpiresAt.getTime() <= Date.now()
+            ? new Date()
+            : new Date(existing.subscriptionExpiresAt);
+        base.setMonth(base.getMonth() + months);
+        update = { status: ACTIVE, subscriptionExpiresAt: base };
+      }
     } else if (parsed.data.action === "suspend") {
       // Temporary suspension: hide the store from customers but keep the store
       // and its subscription intact so it can be reactivated with one tap.

@@ -29,6 +29,11 @@ export interface StoreInput {
   requestedSubscriptionMonths?: StoreInputRequestedSubscriptionMonths;
   /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
   refundsEnabled?: boolean;
-  /** When true, the store starts a free 10-day trial — activated immediately (no admin approval) with a subscription expiring in 10 days. */
+  /**
+     * Merchant note about delivery coverage shown to customers in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
+  /** When true, the store requests a free 10-day trial — it still waits for admin approval; on approval the admin activates it with a 10-day expiry. */
   trial?: boolean;
 }

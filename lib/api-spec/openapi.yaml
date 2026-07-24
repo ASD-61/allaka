@@ -2300,6 +2300,9 @@ components:
         refundsEnabled:
           type: boolean
           description: Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled).
+        deliveryNote:
+          type: ["string", "null"]
+          description: Merchant note about delivery coverage (which areas the listed prices cover; anywhere else costs 5,000). Shown in the cart.
         ratingSum:
           type: integer
           description: Running sum of all customer star ratings (1–5) for this store.
@@ -2340,9 +2343,12 @@ components:
         refundsEnabled:
           type: boolean
           description: Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers.
+        deliveryNote:
+          type: ["string", "null"]
+          description: Merchant note about delivery coverage shown to customers in the cart.
         trial:
           type: boolean
-          description: When true, the store starts a free 10-day trial — activated immediately (no admin approval) with a subscription expiring in 10 days.
+          description: When true, the store requests a free 10-day trial — it still waits for admin approval; on approval the admin activates it with a 10-day expiry.
     StoreUpdate:
       type: object
       properties:
@@ -2366,6 +2372,9 @@ components:
         refundsEnabled:
           type: boolean
           description: Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers.
+        deliveryNote:
+          type: ["string", "null"]
+          description: Merchant note about delivery coverage shown to customers in the cart.
     StoreReviewInput:
       type: object
       required: [action]
@@ -2727,7 +2736,7 @@ components:
             $ref: "#/components/schemas/OrderItemInput"
         deliveryType:
           type: string
-          enum: [standard, express]
+          enum: [standard, express, outside]
         latitude:
           type: number
         longitude:
@@ -2787,7 +2796,7 @@ components:
           type: integer
         deliveryType:
           type: string
-          enum: [standard, express]
+          enum: [standard, express, outside]
         discountApplied:
           type: integer
         pointsEarned:

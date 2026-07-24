@@ -40,7 +40,7 @@ const OrderItemSchema = z.object({
 // order or read history under someone else's phone number.
 const OrderInputSchema = z.object({
   items: z.array(OrderItemSchema).min(1),
-  deliveryType: z.enum(["standard", "express"]),
+  deliveryType: z.enum(["standard", "express", "outside"]),
   latitude: z.number().nullable().optional(),
   longitude: z.number().nullable().optional(),
   redeem: z.enum(["discount", "free_delivery"]).nullable().optional(),
@@ -194,7 +194,8 @@ router.post(
       (sum: number, i: { price: number; qty: number }) => sum + i.price * i.qty,
       0,
     );
-    const baseDeliveryFee = deliveryType === "express" ? 3000 : 2000;
+    const baseDeliveryFee =
+      deliveryType === "outside" ? 5000 : deliveryType === "express" ? 3000 : 2000;
 
     // Fetch or create customer
     let [customer] = await db

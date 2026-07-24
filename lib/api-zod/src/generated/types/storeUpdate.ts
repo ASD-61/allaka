@@ -23,4 +23,9 @@ export interface StoreUpdate {
   longitude?: number | null;
   /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
   refundsEnabled?: boolean;
+  /**
+     * Merchant note about delivery coverage shown to customers in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
 }

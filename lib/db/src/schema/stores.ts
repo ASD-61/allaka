@@ -47,6 +47,10 @@ export const storesTable = pgTable("stores", {
   // to deal with refund claims at all, so they can turn the customer-facing
   // button off entirely. Defaults on so existing stores keep the feature.
   refundsEnabled: boolean("refunds_enabled").notNull().default(true),
+  // Free-text note the merchant writes about delivery coverage — which areas
+  // the listed delivery prices cover, and that anywhere outside them costs
+  // 5,000 IQD. Shown to customers in the cart before they confirm.
+  deliveryNote: text("delivery_note"),
   // Running total of customer star ratings (1–5) and how many were given, so
   // the average = ratingSum / ratingCount can be shown on the store card
   // without scanning a separate table. Updated when a customer rates a

@@ -78,7 +78,7 @@ function RegisterStoreContent() {
   const messageAdmin = () => {
     const price = submittedStore?.price ?? '';
     const msg = submittedStore?.trial
-      ? `مرحباً، فعّلت تجربة مجانية لمتجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة، وأريد أكمل الاشتراك الكامل قبل انتهاء التجربة. شلون نتفق على الدفع؟`
+      ? `مرحباً، طلبت تجربة مجانية لمتجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة، وأريد تفعيل المتجر والاتفاق على الاشتراك. شلون نكمل؟`
       : `مرحباً، سجّلت متجر "${submittedStore?.name ?? ''}" على تطبيق علاّكة ` +
         `واخترت اشتراك بقيمة ${price}. أريد أرسل مبلغ التسجيل إلكترونياً، شلون نتفق؟`;
     Linking.openURL(waMeLink(ADMIN_WHATSAPP, msg)).catch(() =>
@@ -160,12 +160,12 @@ function RegisterStoreContent() {
           <View style={styles.successHeader}>
             <Feather name="check-circle" size={20} color={colors.primary} />
             <Text style={[styles.successTitle, { color: colors.foreground }]}>
-              {submittedStore.trial ? `تم تفعيل تجربة "${submittedStore.name}" مجاناً` : `تم إرسال طلب "${submittedStore.name}"`}
+              {submittedStore.trial ? `تم إرسال طلب التجربة المجانية "${submittedStore.name}"` : `تم إرسال طلب "${submittedStore.name}"`}
             </Text>
           </View>
           <Text style={[styles.successText, { color: colors.mutedForeground }]}>
             {submittedStore.trial
-              ? 'متجرك مفعّل الآن مجاناً لمدة ١٠ أيام تقدر خلالها تضيف منتجاتك وتستقبل الطلبات. بعد انتهاء التجربة يتوقف المتجر ما لم تكمل الاشتراك — راسل الإدارة على الواتساب لإكمال الاشتراك وتفعيله بشكل دائم.'
+              ? 'طلبك قيد مراجعة الإدارة. بعد الموافقة يتفعّل متجرك مجاناً لمدة ١٠ أيام تقدر خلالها تضيف منتجاتك وتستقبل الطلبات، وبعد انتهاء التجربة يتوقف المتجر ما لم تكمل الاشتراك. تقدر تراسل الإدارة على الواتساب لتسريع التفعيل والاتفاق على الاشتراك.'
               : `متجرك قيد المراجعة. تقدر تراسل الإدارة على الواتساب لدفع مبلغ التسجيل (${submittedStore.price}) إلكترونياً والاتفاق على التفعيل.`}
           </Text>
           <Pressable onPress={messageAdmin} style={[styles.waBtn, { backgroundColor: '#25D366' }]}>
@@ -386,12 +386,12 @@ function RegisterStoreContent() {
         ) : (
           <>
             <Feather name="gift" size={18} color={colors.primaryForeground} />
-            <Text style={[styles.submitText, { color: colors.primaryForeground }]}>ابدأ تجربة مجانية ١٠ أيام</Text>
+            <Text style={[styles.submitText, { color: colors.primaryForeground }]}>اطلب تجربة مجانية ١٠ أيام</Text>
           </>
         )}
       </Pressable>
       <Text style={[styles.chipHint, { color: colors.mutedForeground, textAlign: 'center', marginTop: 6 }]}>
-        فعّل متجرك فوراً وجرّبه ١٠ أيام مجاناً — بعدها راسل الإدارة لإكمال الاشتراك.
+        بعد موافقة الإدارة يتفعّل متجرك ١٠ أيام مجاناً — بعدها راسل الإدارة لإكمال الاشتراك.
       </Text>
 
       <Pressable

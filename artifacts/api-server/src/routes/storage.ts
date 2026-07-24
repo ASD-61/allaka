@@ -15,7 +15,11 @@ import {
   ObjectStorageService,
 } from '../lib/objectStorage';
 import { s3Enabled, createS3Upload, uploadBufferToS3 } from '../lib/s3Storage';
-import { moderateImage } from '../lib/imageModeration';
+import {
+  moderateImage,
+  imageModerationEnabled,
+  imageModerationStatus,
+} from '../lib/imageModeration';
 
 const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
@@ -144,6 +148,22 @@ router.post(
     }
   },
 );
+
+/**
+ * GET /storage/moderation-status
+ *
+ * Quick health check so you can VERIFY (in a browser) that Google SafeSearch is
+ * actually active on the deployed server — without digging through logs. Open
+ * https://<domain>/api/storage/moderation-status : if `enabled` is false the
+ * GOOGLE_CREDENTIALS/GOOGLE_CREDENTIALS_B64 env var is missing or malformed and
+ * inappropriate images will NOT be blocked.
+ */
+router.get('/storage/moderation-status', (_req: Request, res: Response) => {
+  res.json({
+    enabled: imageModerationEnabled(),
+    reason: imageModerationStatus(),
+  });
+});
 
 /**
  * POST /storage/uploads

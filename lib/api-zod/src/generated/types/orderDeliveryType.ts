@@ -12,4 +12,5 @@ export type OrderDeliveryType = typeof OrderDeliveryType[keyof typeof OrderDeliv
 export const OrderDeliveryType = {
   standard: 'standard',
   express: 'express',
+  outside: 'outside',
 } as const;

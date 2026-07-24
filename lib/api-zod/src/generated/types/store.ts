@@ -35,6 +35,11 @@ export interface Store {
   requestedSubscriptionMonths?: number | null;
   /** Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled). */
   refundsEnabled?: boolean;
+  /**
+     * Merchant note about delivery coverage (which areas the listed prices cover; anywhere else costs 5,000). Shown in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
   /** Running sum of all customer star ratings (1–5) for this store. */
   ratingSum?: number;
   /** How many ratings were given — average = ratingSum / ratingCount. */

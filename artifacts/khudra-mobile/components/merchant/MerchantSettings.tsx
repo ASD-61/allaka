@@ -29,6 +29,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
   const [storeType, setStoreType] = useState(store.storeType);
   const [address, setAddress] = useState(store.address);
   const [description, setDescription] = useState(store.description ?? '');
+  const [deliveryNote, setDeliveryNote] = useState((store as any).deliveryNote ?? '');
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
@@ -75,6 +76,7 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
       storeType: storeType.trim(),
       address: address.trim(),
       description: description.trim() || null,
+      deliveryNote: deliveryNote.trim() || null,
       latitude: coords?.latitude ?? null,
       longitude: coords?.longitude ?? null,
       refundsEnabled,
@@ -171,6 +173,15 @@ export function MerchantSettings({ store, onSaved }: { store: Store; onSaved: ()
         value={description}
         onChangeText={setDescription}
         placeholder="وصف قصير عن المتجر ومنتجاته"
+        colors={colors}
+        multiline
+      />
+
+      <Field
+        label="ملاحظة التوصيل والمناطق (اختياري)"
+        value={deliveryNote}
+        onChangeText={setDeliveryNote}
+        placeholder="مثال: الأسعار الظاهرة تشمل مناطق (المركز، الحي الأول). أي منطقة أخرى التوصيل ٥ آلاف."
         colors={colors}
         multiline
       />

@@ -145,7 +145,11 @@ export async function sendWhatsAppOrderNotification(opts: {
       : "";
 
   const deliveryLabel =
-    deliveryType === "express" ? "مستعجل (نص ساعة)" : "عادي (ساعة)";
+    deliveryType === "outside"
+      ? "منطقة أخرى (توصيل ٥ آلاف)"
+      : deliveryType === "express"
+        ? "مستعجل (نص ساعة)"
+        : "عادي (ساعة)";
 
   const body =
     `🛒 *${headline ?? `طلب جديد #${orderId}`}*\n` +
@@ -212,7 +216,11 @@ export async function sendWhatsAppOrderConfirmationToCustomer(opts: {
     .join("\n");
 
   const deliveryLabel =
-    deliveryType === "express" ? "مستعجل (نص ساعة)" : "عادي (ساعة)";
+    deliveryType === "outside"
+      ? "منطقة أخرى (توصيل ٥ آلاف)"
+      : deliveryType === "express"
+        ? "مستعجل (نص ساعة)"
+        : "عادي (ساعة)";
 
   const storeMapsLink =
     storeLatitude != null && storeLongitude != null

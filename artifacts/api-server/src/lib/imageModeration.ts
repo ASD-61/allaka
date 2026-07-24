@@ -32,35 +32,91 @@ type VisionClient = InstanceType<typeof vision.ImageAnnotatorClient>;
 
 let cachedClient: VisionClient | null = null;
 let initTried = false;
+// Human-readable reason moderation is on/off, surfaced by the status endpoint
+// so the deployment can be verified without reading server logs.
+let statusReason = "not initialised yet";
 
 /**
- * Lazily builds the Vision client from the inline service-account JSON in
- * process.env.GOOGLE_CREDENTIALS. Returns null when the env var is missing or
- * malformed (so callers can decide to skip moderation instead of crashing).
+ * Reads the service-account credentials from the environment. Supports TWO
+ * forms so a broken/multi-line paste never silently disables moderation:
+ *   1. GOOGLE_CREDENTIALS      — the raw service-account JSON.
+ *   2. GOOGLE_CREDENTIALS_B64  — the same JSON, base64-encoded (recommended for
+ *      Render: it can't be mangled by newline/quote handling in the dashboard).
+ * Returns the parsed object, or null with a reason set in statusReason.
  */
-function getVisionClient(): VisionClient | null {
-  if (initTried) return cachedClient;
-  initTried = true;
+function readCredentials(): Record<string, any> | null {
+  const b64 = process.env.GOOGLE_CREDENTIALS_B64;
+  if (b64 && b64.trim()) {
+    try {
+      const json = Buffer.from(b64.trim(), "base64").toString("utf8");
+      return JSON.parse(json);
+    } catch (err) {
+      statusReason = `GOOGLE_CREDENTIALS_B64 could not be decoded/parsed: ${
+        (err as Error).message
+      }`;
+      console.error("[imageModeration]", statusReason);
+      return null;
+    }
+  }
 
   const raw = process.env.GOOGLE_CREDENTIALS;
   if (!raw || !raw.trim()) {
+    statusReason =
+      "neither GOOGLE_CREDENTIALS nor GOOGLE_CREDENTIALS_B64 is set";
     console.warn(
-      "[imageModeration] GOOGLE_CREDENTIALS is not set — SafeSearch moderation is DISABLED.",
+      "[imageModeration] " + statusReason + " — SafeSearch moderation is DISABLED.",
     );
     return null;
   }
 
   try {
-    const credentials = JSON.parse(raw);
+    return JSON.parse(raw.trim());
+  } catch (err) {
+    // Most common cause: the private_key's real newlines break the JSON. Try a
+    // best-effort repair by escaping raw newlines that sit inside the value.
+    try {
+      return JSON.parse(raw.trim().replace(/\r?\n/g, "\\n"));
+    } catch {
+      statusReason = `GOOGLE_CREDENTIALS is not valid JSON (${
+        (err as Error).message
+      }). Tip: use GOOGLE_CREDENTIALS_B64 with a base64 of the JSON.`;
+      console.error("[imageModeration] " + statusReason);
+      return null;
+    }
+  }
+}
+
+/**
+ * Lazily builds the Vision client from the service-account JSON. Returns null
+ * when credentials are missing or malformed (so callers can decide to skip
+ * moderation instead of crashing).
+ */
+function getVisionClient(): VisionClient | null {
+  if (initTried) return cachedClient;
+  initTried = true;
+
+  const credentials = readCredentials();
+  if (!credentials) {
+    cachedClient = null;
+    return null;
+  }
+
+  try {
+    // Normalise the private key: if it still contains literal "\n" sequences
+    // (not real newlines), turn them into real newlines so the crypto layer
+    // accepts the key.
+    if (typeof credentials.private_key === "string") {
+      credentials.private_key = credentials.private_key.replace(/\\n/g, "\n");
+    }
     cachedClient = new vision.ImageAnnotatorClient({
       credentials,
       projectId: credentials.project_id,
     });
+    statusReason = `enabled (project: ${credentials.project_id ?? "unknown"})`;
+    console.log("[imageModeration] SafeSearch moderation ENABLED — " + statusReason);
   } catch (err) {
-    console.error(
-      "[imageModeration] Failed to parse GOOGLE_CREDENTIALS JSON — moderation DISABLED.",
-      err,
-    );
+    statusReason = `failed to build Vision client: ${(err as Error).message}`;
+    console.error("[imageModeration] " + statusReason);
     cachedClient = null;
   }
   return cachedClient;
@@ -69,6 +125,12 @@ function getVisionClient(): VisionClient | null {
 /** True when moderation is configured and will actually run. */
 export function imageModerationEnabled(): boolean {
   return getVisionClient() !== null;
+}
+
+/** Diagnostic string describing why moderation is on/off. */
+export function imageModerationStatus(): string {
+  getVisionClient();
+  return statusReason;
 }
 
 /**

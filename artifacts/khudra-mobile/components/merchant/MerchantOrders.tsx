@@ -99,7 +99,11 @@ export function MerchantOrders({ storeId }: { storeId: number }) {
         : colors.mutedForeground;
 
   const deliveryLabel = (type: string) =>
-    type === 'express' ? 'توصيل سريع' : 'توصيل عادي';
+    type === 'outside'
+      ? 'منطقة أخرى (٥ آلاف)'
+      : type === 'express'
+        ? 'توصيل سريع'
+        : 'توصيل عادي';
 
   if (query.isLoading) {
     return (

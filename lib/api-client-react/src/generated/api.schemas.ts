@@ -104,6 +104,11 @@ export interface Store {
   requestedSubscriptionMonths?: number | null;
   /** Whether this store offers the "البضاعة بيها خلل؟" quality-refund flow to its customers (merchant-controlled). */
   refundsEnabled?: boolean;
+  /**
+     * Merchant note about delivery coverage (which areas the listed prices cover; anywhere else costs 5,000). Shown in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
   /** Running sum of all customer star ratings (1–5) for this store. */
   ratingSum?: number;
   /** How many ratings were given — average = ratingSum / ratingCount. */
@@ -281,7 +286,12 @@ export interface StoreInput {
   requestedSubscriptionMonths?: StoreInputRequestedSubscriptionMonths;
   /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
   refundsEnabled?: boolean;
-  /** When true, the store starts a free 10-day trial — activated immediately (no admin approval) with a subscription expiring in 10 days. */
+  /**
+     * Merchant note about delivery coverage shown to customers in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
+  /** When true, the store requests a free 10-day trial — it still waits for admin approval; on approval the admin activates it with a 10-day expiry. */
   trial?: boolean;
 }
 
@@ -302,6 +312,11 @@ export interface StoreUpdate {
   longitude?: number | null;
   /** Whether to offer the "البضاعة بيها خلل؟" quality-refund flow to customers. */
   refundsEnabled?: boolean;
+  /**
+     * Merchant note about delivery coverage shown to customers in the cart.
+     * @nullable
+     */
+  deliveryNote?: string | null;
 }
 
 export type StoreReviewInputAction = typeof StoreReviewInputAction[keyof typeof StoreReviewInputAction];
@@ -576,6 +591,7 @@ export type OrderInputDeliveryType = typeof OrderInputDeliveryType[keyof typeof 
 export const OrderInputDeliveryType = {
   standard: 'standard',
   express: 'express',
+  outside: 'outside',
 } as const;
 
 /**
@@ -640,6 +656,7 @@ export type OrderDeliveryType = typeof OrderDeliveryType[keyof typeof OrderDeliv
 export const OrderDeliveryType = {
   standard: 'standard',
   express: 'express',
+  outside: 'outside',
 } as const;
 
 export interface Order {
