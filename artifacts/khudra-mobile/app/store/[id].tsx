@@ -208,36 +208,27 @@ export default function StoreDetailScreen() {
                   </View>
                 ) : null}
               </View>
-            </View>
 
-            {store ? (
-              <Pressable
-                onPress={toggleFollow}
-                style={({ pressed }) => [
-                  styles.followBtn,
-                  {
-                    backgroundColor: isFollowing ? colors.primary : 'transparent',
-                    borderColor: colors.primary,
-                    borderWidth: isFollowing ? 0 : 1.5,
-                    opacity: pressed ? 0.75 : 1,
-                  },
-                ]}
-              >
-                <Feather
-                  name={isFollowing ? 'check' : 'heart'}
-                  size={14}
-                  color={isFollowing ? colors.primaryForeground : colors.primary}
-                />
-                <Text
-                  style={[
-                    styles.followBtnText,
-                    { color: isFollowing ? colors.primaryForeground : colors.primary },
+              {store ? (
+                <Pressable
+                  onPress={toggleFollow}
+                  hitSlop={8}
+                  style={({ pressed }) => [
+                    styles.followIconBtn,
+                    {
+                      backgroundColor: isFollowing ? colors.primary : colors.primary + '15',
+                      transform: [{ scale: pressed ? 0.9 : 1 }],
+                    },
                   ]}
                 >
-                  {isFollowing ? 'تتابع المتجر' : 'متابعة المتجر'}
-                </Text>
-              </Pressable>
-            ) : null}
+                  <Feather
+                    name="heart"
+                    size={18}
+                    color={isFollowing ? colors.primaryForeground : colors.primary}
+                  />
+                </Pressable>
+              ) : null}
+            </View>
 
             {store?.description ? (
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>{store.description}</Text>
@@ -415,21 +406,13 @@ const styles = StyleSheet.create({
     textAlign: 'right',
     paddingHorizontal: 16,
   },
-  followBtn: {
-    flexDirection: 'row-reverse',
+  followIconBtn: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
-    alignSelf: 'flex-end',
-    marginHorizontal: 16,
-    marginTop: 10,
-    paddingVertical: 8,
-    paddingHorizontal: 16,
-    borderRadius: 999,
-  },
-  followBtnText: {
-    fontFamily: fonts.bold,
-    fontSize: 13,
+    alignSelf: 'center',
   },
   metaRow: {
     flexDirection: 'row-reverse',
