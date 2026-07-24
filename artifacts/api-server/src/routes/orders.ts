@@ -377,6 +377,29 @@ router.post(
           pickupTime,
           headline: `تم استلام طلبك #${displayNumber}`,
         });
+        // Always give the merchant an in-app notification for the new order —
+        // this reaches them inside the app regardless of WhatsApp delivery, and
+        // tapping it opens their store's orders.
+        if (store?.ownerPhone) {
+          const itemsSummary = items
+            .map((i: { name: string; qty: number }) => `• ${i.name} × ${i.qty}`)
+            .join("\n");
+          const orderNote = parsed.data.note?.trim();
+          void createNotification(store.ownerPhone, {
+            type: "order",
+            title: `🛒 طلب جديد #${displayNumber} — ${store.name ?? "متجرك"}`,
+            body:
+              `📞 الزبون: ${customerPhone}\n${itemsSummary}\n` +
+              `💰 الإجمالي: ${total.toLocaleString("ar-IQ")} د.ع` +
+              (orderNote ? `\n📝 ملاحظة: ${orderNote}` : ""),
+            data: {
+              orderId: order.id,
+              storeId: order.storeId,
+              role: "merchant",
+              displayNumber,
+            },
+          });
+        }
       })
       .catch((err) => console.warn("WhatsApp notification error:", err));
 
@@ -662,6 +685,24 @@ router.post(
           pickupTime: updated.pickupTime,
           headline: `تم تحديث طلبك #${displayNumber} — إضافة أغراض`,
         });
+        if (store?.ownerPhone) {
+          const itemsSummary = merged
+            .map((i: { name: string; qty: number }) => `• ${i.name} × ${i.qty}`)
+            .join("\n");
+          void createNotification(store.ownerPhone, {
+            type: "order",
+            title: `✏️ تعديل الطلب #${displayNumber} — ${store.name ?? "متجرك"}`,
+            body:
+              `📞 الزبون: ${customerPhone}\n${itemsSummary}\n` +
+              `💰 الإجمالي: ${total.toLocaleString("ar-IQ")} د.ع`,
+            data: {
+              orderId: updated.id,
+              storeId: updated.storeId,
+              role: "merchant",
+              displayNumber,
+            },
+          });
+        }
       })
       .catch((err) => console.warn("WhatsApp notification error:", err));
 

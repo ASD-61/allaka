@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Linking, Pressable, StyleSheet, Text, View } from 'react-native';
 import { Feather } from '@expo/vector-icons';
+import { router } from 'expo-router';
 import { useListNotifications } from '@workspace/api-client-react';
 import { useColors } from '@/hooks/useColors';
 import { fonts } from '@/constants/fonts';
@@ -62,19 +63,42 @@ export default function NotificationsScreen() {
           ) : null
         }
         ItemSeparatorComponent={() => <View style={{ height: 10 }} />}
-        renderItem={({ item }) => (
-          <View style={[styles.card, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <View style={[styles.iconCircle, { backgroundColor: colors.secondary }]}>
-              <Feather name="bell" size={16} color={colors.accent} />
-            </View>
-            <View style={styles.textCol}>
-              <Text style={[styles.message, { color: colors.foreground }]}>{item.message}</Text>
-              <Text style={[styles.date, { color: colors.mutedForeground }]}>
-                {formatDate(item.createdAt)}
-              </Text>
-            </View>
-          </View>
-        )}
+        renderItem={({ item }) => {
+          // `data` is returned by the API for stored notifications (order/refund/
+          // delivery). The generated type doesn't include it, so read at runtime.
+          const data = (item as any).data as
+            | { role?: string; storeId?: number; orderId?: number }
+            | undefined;
+          const isMerchantOrder = data?.role === 'merchant' && data?.storeId != null;
+          const openable = isMerchantOrder;
+          const onOpen = () => {
+            if (isMerchantOrder) {
+              router.push(`/my-store/${data!.storeId}` as any);
+            }
+          };
+          return (
+            <Pressable
+              onPress={openable ? onOpen : undefined}
+              style={({ pressed }) => [
+                styles.card,
+                { backgroundColor: colors.card, borderColor: colors.border, opacity: pressed && openable ? 0.85 : 1 },
+              ]}
+            >
+              <View style={[styles.iconCircle, { backgroundColor: colors.secondary }]}>
+                <Feather name={isMerchantOrder ? 'shopping-bag' : 'bell'} size={16} color={colors.accent} />
+              </View>
+              <View style={styles.textCol}>
+                <Text style={[styles.message, { color: colors.foreground }]}>{item.message}</Text>
+                <Text style={[styles.date, { color: colors.mutedForeground }]}>
+                  {formatDate(item.createdAt)}
+                </Text>
+              </View>
+              {openable ? (
+                <Feather name="chevron-left" size={18} color={colors.mutedForeground} />
+              ) : null}
+            </Pressable>
+          );
+        }}
         ListEmptyComponent={
           query.isLoading ? (
             <ActivityIndicator color={colors.primary} style={{ marginTop: 40 }} />
