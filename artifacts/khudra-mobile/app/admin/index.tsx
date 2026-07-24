@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, I18nManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -90,7 +90,14 @@ export default function AdminDashboardScreen() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsRow}
+          contentContainerStyle={[
+            styles.tabsRow,
+            // Put the FIRST tab (نظرة عامة) on the right regardless of the
+            // device's base direction: under an RTL base a plain `row` already
+            // starts from the right; under an LTR base we reverse it. This
+            // avoids the double-flip that pushed "الإعدادات" to the right.
+            { flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse' },
+          ]}
           style={styles.tabsScroll}
         >
           {TABS.map((t) => {

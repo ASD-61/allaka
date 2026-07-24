@@ -133,6 +133,30 @@ export function imageModerationStatus(): string {
   return statusReason;
 }
 
+// A 1x1 transparent PNG — used to make a REAL SafeSearch call so the status
+// endpoint can prove the Vision API actually works end-to-end (not just that
+// the credentials parsed). If this throws, the API is likely disabled or has no
+// billing on the Google project.
+const TINY_PNG = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+  "base64",
+);
+
+/**
+ * Runs a live SafeSearch call against a tiny image so we can verify the Vision
+ * API is truly reachable/authorized. Returns { ok } or { ok:false, error }.
+ */
+export async function testModeration(): Promise<{ ok: boolean; error?: string }> {
+  const client = getVisionClient();
+  if (!client) return { ok: false, error: statusReason };
+  try {
+    await client.safeSearchDetection(TINY_PNG);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: (err as Error).message };
+  }
+}
+
 /**
  * Express middleware: inspects the uploaded image (req.file.buffer) with Google
  * SafeSearch and rejects it with 400 when adult/violence/racy is LIKELY or
@@ -142,8 +166,10 @@ export function imageModerationStatus(): string {
  *  - No file on the request  → 400 (nothing to upload).
  *  - Moderation not configured → allowed through (logged), so the app keeps
  *    working until GOOGLE_CREDENTIALS is set.
- *  - Vision API error → allowed through (logged) rather than blocking every
- *    upload on a transient Google outage.
+ *  - Vision API error while moderation IS configured → FAIL CLOSED (503).
+ *    We'd rather block uploads than silently let an unchecked image through
+ *    when the admin expects moderation to be on. This also surfaces a broken
+ *    Vision setup immediately (see /api/storage/moderation-status → liveTest).
  */
 export async function moderateImage(
   req: Request,
@@ -186,8 +212,16 @@ export async function moderateImage(
 
     next();
   } catch (err) {
-    // A Vision outage shouldn't take down all uploads — log and allow through.
-    req.log?.error?.({ err }, "SafeSearch check failed; allowing upload");
-    next();
+    // Moderation IS configured (credentials present) but the actual Vision call
+    // failed — most likely the Cloud Vision API is disabled or billing isn't
+    // enabled on the Google project. FAIL CLOSED: reject the upload rather than
+    // silently letting a possibly-inappropriate image through. This makes the
+    // misconfiguration immediately visible (all uploads fail) instead of leaking
+    // adult content. Check /api/storage/moderation-status for the exact reason.
+    req.log?.error?.({ err }, "SafeSearch check failed; rejecting upload (fail-closed)");
+    res.status(503).json({
+      error:
+        "تعذّر فحص الصورة حالياً، الرجاء المحاولة بعد قليل. (خدمة فحص الصور غير متاحة)",
+    });
   }
 }

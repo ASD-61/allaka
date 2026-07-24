@@ -8,6 +8,7 @@ import {
   TextInput,
   ActivityIndicator,
   Linking,
+  Modal,
 } from 'react-native';
 import { Alert } from '@/lib/alert';
 import { displayPhone, telLink, waMeLink } from '@/lib/phone';
@@ -27,6 +28,7 @@ import { fonts } from '@/constants/fonts';
 import { resolveImageUrl } from '@/lib/image-url';
 import { pickImageWithChoice, uploadPickedImage } from '@/lib/upload';
 import { EmptyState } from '@/components/EmptyState';
+import { ZoomableImage } from '@/components/ZoomableImage';
 
 const STATUS_PENDING = 'قيد المراجعة';
 const STATUS_ACTIVE = 'مفعّل';
@@ -59,6 +61,14 @@ export function StoresTab() {
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [editUploading, setEditUploading] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
+  // Subscription picker modal (renew / correct). A native Alert can't reliably
+  // show 3 month options + a cancel on Android (max 3 buttons → cancel gets
+  // dropped, trapping the admin), so we use our own modal with a clear cancel.
+  const [subPicker, setSubPicker] = useState<{
+    store: Store;
+    mode: 'extend' | 'set';
+    title: string;
+  } | null>(null);
 
   const statusColor = (status: string) =>
     status === STATUS_ACTIVE
@@ -89,29 +99,13 @@ export function StoresTab() {
   // "extend" stacks months on top of the current expiry (ordinary renew).
   // "set" replaces the expiry with exactly N months from today — so a misclick
   // that added 12 months can be corrected back down to 3.
+  // Opens our own modal (see render) instead of a 4-button native Alert.
   const pickSubscription = (
     store: Store,
     title: string,
     mode: 'extend' | 'set',
   ) => {
-    const modeHint =
-      mode === 'extend'
-        ? 'المدة راح تنضاف على تاريخ الانتهاء الحالي'
-        : 'المدة راح تصير من اليوم (تصحيح / تقليل الاشتراك)';
-    // The merchant's requested plan (chosen at registration) is shown first
-    // and labeled, so the admin doesn't have to guess/ask what they signed up
-    // for — it's still just a suggestion; the admin can pick any duration.
-    const requested = store.requestedSubscriptionMonths;
-    const planLabel = (months: number) =>
-      months === requested ? `${months === 3 ? '٣' : months === 6 ? '٦' : '١٢'} أشهر (طلب التاجر)` : `${months === 3 ? '٣' : months === 6 ? '٦' : '١٢'} أشهر`;
-    const months = requested === 6 || requested === 12 ? [requested, ...[3, 6, 12].filter((m) => m !== requested)] : [3, 6, 12];
-    Alert.alert(title, `${modeHint}\n(١٠٠ ألف دينار لكل ٣ أشهر)`, [
-      ...months.map((m) => ({
-        text: planLabel(m),
-        onPress: () => doReview(store.id, 'approve', m, mode),
-      })),
-      { text: 'إلغاء', style: 'cancel' as const },
-    ]);
+    setSubPicker({ store, title, mode });
   };
 
   const approve = (store: Store, renew: boolean) => {
@@ -121,6 +115,19 @@ export function StoresTab() {
     // the requested plan (falls back to 3 months if none was requested).
     if (renew) {
       pickSubscription(store, 'تجديد الاشتراك', 'extend');
+      return;
+    }
+    // Free-trial store: activate for 10 days (server applies the trial window
+    // when no subscriptionMonths is passed). No plan picker.
+    if ((store as any).isTrial && !store.subscriptionExpiresAt) {
+      Alert.alert(
+        'تفعيل التجربة المجانية',
+        `تفعيل متجر "${store.name}" مجاناً لمدة ١٠ أيام؟`,
+        [
+          { text: 'إلغاء', style: 'cancel' },
+          { text: 'تفعيل التجربة', onPress: () => doReview(store.id, 'approve') },
+        ],
+      );
       return;
     }
     const months = store.requestedSubscriptionMonths ?? 3;
@@ -335,7 +342,64 @@ export function StoresTab() {
     );
   };
 
+  const renderSubPickerModal = () => {
+    if (!subPicker) return null;
+    const { store, title, mode } = subPicker;
+    const modeHint =
+      mode === 'extend'
+        ? 'المدة راح تنضاف على تاريخ الانتهاء الحالي'
+        : 'المدة راح تصير من اليوم (تصحيح / تقليل الاشتراك)';
+    const requested = store.requestedSubscriptionMonths;
+    const ar = (m: number) => (m === 3 ? '٣' : m === 6 ? '٦' : '١٢');
+    const order =
+      requested === 6 || requested === 12
+        ? [requested, ...[3, 6, 12].filter((m) => m !== requested)]
+        : [3, 6, 12];
+    return (
+      <Modal visible transparent animationType="fade" onRequestClose={() => setSubPicker(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSubPicker(null)}>
+          <Pressable
+            style={[styles.modalCard, { backgroundColor: colors.card }]}
+            onPress={(e) => e.stopPropagation()}
+          >
+            <Text style={[styles.modalTitle, { color: colors.foreground }]}>{title}</Text>
+            <Text style={[styles.modalHint, { color: colors.mutedForeground }]}>
+              {modeHint}
+              {'\n'}(١٠٠ ألف دينار لكل ٣ أشهر)
+            </Text>
+            {order.map((m) => (
+              <Pressable
+                key={m}
+                onPress={() => {
+                  const s = subPicker.store;
+                  setSubPicker(null);
+                  doReview(s.id, 'approve', m, mode);
+                }}
+                style={({ pressed }) => [
+                  styles.modalOption,
+                  { backgroundColor: colors.primary, opacity: pressed ? 0.85 : 1 },
+                ]}
+              >
+                <Text style={[styles.modalOptionText, { color: colors.primaryForeground }]}>
+                  {ar(m)} أشهر{m === requested ? ' (طلب التاجر)' : ''}
+                </Text>
+              </Pressable>
+            ))}
+            <Pressable
+              onPress={() => setSubPicker(null)}
+              style={[styles.modalCancel, { backgroundColor: colors.muted }]}
+            >
+              <Text style={[styles.modalCancelText, { color: colors.foreground }]}>إلغاء التصحيح</Text>
+            </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+    );
+  };
+
   return (
+    <>
+    {renderSubPickerModal()}
     <SectionList
       sections={sections}
       keyExtractor={(item) => String(item.id)}
@@ -373,8 +437,9 @@ export function StoresTab() {
               </View>
               <View style={styles.thumbBox}>
                 {item.imageUrl ? (
-                  <Image
-                    source={{ uri: resolveImageUrl(item.imageUrl) }}
+                  <ZoomableImage
+                    uri={resolveImageUrl(item.imageUrl)}
+                    wrapperStyle={styles.thumbImg}
                     style={styles.thumbImg}
                     contentFit="cover"
                   />
@@ -402,7 +467,27 @@ export function StoresTab() {
             {item.description ? (
               <Text style={[styles.desc, { color: colors.mutedForeground }]}>{item.description}</Text>
             ) : null}
-            {isPending && item.requestedSubscriptionMonths ? (
+            {(item as any).ownerPhotoUrl ? (
+              <View style={styles.ownerPhotoRow}>
+                <ZoomableImage
+                  uri={resolveImageUrl((item as any).ownerPhotoUrl)}
+                  wrapperStyle={styles.ownerPhoto}
+                  style={styles.ownerPhoto}
+                  contentFit="cover"
+                />
+                <Text style={[styles.detail, { color: colors.mutedForeground }]}>
+                  صورة التاجر للتوثيق — اضغط للتكبير
+                </Text>
+              </View>
+            ) : null}
+            {isPending && (item as any).isTrial ? (
+              <View style={[styles.requestedPlanBox, { backgroundColor: colors.primary + '15' }]}>
+                <Feather name="gift" size={13} color={colors.primary} />
+                <Text style={[styles.requestedPlanText, { color: colors.primary }]}>
+                  طلب تجربة مجانية ١٠ أيام
+                </Text>
+              </View>
+            ) : isPending && item.requestedSubscriptionMonths ? (
               <View style={[styles.requestedPlanBox, { backgroundColor: colors.accent + '15' }]}>
                 <Feather name="tag" size={13} color={colors.accent} />
                 <Text style={[styles.requestedPlanText, { color: colors.accent }]}>
@@ -422,7 +507,13 @@ export function StoresTab() {
             <View style={styles.actions}>
               {isPending ? (
                 <>
-                  {renderActionBtn('تفعيل', 'check', () => approve(item, false), 'solid', colors.primary)}
+                  {renderActionBtn(
+                    (item as any).isTrial ? 'تفعيل التجربة' : 'تفعيل',
+                    'check',
+                    () => approve(item, false),
+                    'solid',
+                    colors.primary,
+                  )}
                   {renderActionBtn('رفض', 'x', () => reject(item), 'destructive', colors.destructive)}
                 </>
               ) : null}
@@ -542,6 +633,7 @@ export function StoresTab() {
         );
       }}
     />
+    </>
   );
 }
 
@@ -659,6 +751,17 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     alignSelf: 'flex-end',
   },
+  ownerPhotoRow: {
+    flexDirection: 'row-reverse',
+    alignItems: 'center',
+    gap: 8,
+  },
+  ownerPhoto: {
+    width: 44,
+    height: 44,
+    borderRadius: 10,
+    overflow: 'hidden',
+  },
   requestedPlanText: {
     fontFamily: fonts.semibold,
     fontSize: 11.5,
@@ -759,5 +862,52 @@ const styles = StyleSheet.create({
   applyBtnText: {
     fontFamily: fonts.bold,
     fontSize: 13,
+  },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 24,
+  },
+  modalCard: {
+    width: '100%',
+    maxWidth: 340,
+    borderRadius: 20,
+    padding: 20,
+    gap: 10,
+  },
+  modalTitle: {
+    fontFamily: fonts.bold,
+    fontSize: 17,
+    textAlign: 'center',
+  },
+  modalHint: {
+    fontFamily: fonts.regular,
+    fontSize: 12.5,
+    textAlign: 'center',
+    lineHeight: 19,
+    marginBottom: 4,
+  },
+  modalOption: {
+    height: 48,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  modalOptionText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
+  },
+  modalCancel: {
+    height: 46,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 2,
+  },
+  modalCancelText: {
+    fontFamily: fonts.bold,
+    fontSize: 14,
   },
 });

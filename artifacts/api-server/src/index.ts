@@ -33,6 +33,10 @@ async function ensureSchema(): Promise<void> {
     await pool.query(
       `ALTER TABLE stores ADD COLUMN IF NOT EXISTS delivery_note text;`,
     );
+    // Merchant personal photo (KYC) shown to the admin during store review.
+    await pool.query(
+      `ALTER TABLE stores ADD COLUMN IF NOT EXISTS owner_photo_url text;`,
+    );
     // In-app notifications feed (refund decisions, delivery updates, …).
     await pool.query(`
       CREATE TABLE IF NOT EXISTS notifications (

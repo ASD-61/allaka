@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator, I18nManager } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { useLocalSearchParams, Stack } from 'expo-router';
 import { useGetStore } from '@workspace/api-client-react';
@@ -104,7 +104,11 @@ function DashboardContent() {
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.tabsRow}
+          contentContainerStyle={[
+            styles.tabsRow,
+            // Keep "نظرة عامة" first on the right under any base direction.
+            { flexDirection: I18nManager.isRTL ? 'row' : 'row-reverse' },
+          ]}
         >
           {TABS.map((t) => {
             const isActive = tab === t.key;

@@ -26,6 +26,9 @@ export const storesTable = pgTable("stores", {
   storeType: text("store_type").notNull(),
   // The merchant account (phone) that registered and manages this store.
   ownerPhone: text("owner_phone").notNull(),
+  // The merchant's personal photo (KYC), uploaded at registration and shown to
+  // the admin during review for identity verification. Not shown to customers.
+  ownerPhotoUrl: text("owner_photo_url"),
   imageUrl: text("image_url"),
   // "قيد المراجعة" (pending) → "مفعّل" (active) | "مرفوض" (rejected).
   status: text("status").notNull().default("قيد المراجعة"),

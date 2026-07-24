@@ -2281,6 +2281,9 @@ components:
           description: Kind of shop, e.g. "خضار وفواكه", "بقالة", "لحوم".
         ownerPhone:
           type: string
+        ownerPhotoUrl:
+          type: ["string", "null"]
+          description: Merchant's personal photo (KYC), shown to the admin during review; not shown to customers.
         imageUrl:
           type: ["string", "null"]
         latitude:
@@ -2332,6 +2335,9 @@ components:
           type: ["string", "null"]
         imageUrl:
           type: ["string", "null"]
+        ownerPhotoUrl:
+          type: ["string", "null"]
+          description: Merchant's personal photo (KYC) for admin verification.
         latitude:
           type: ["number", "null"]
         longitude:

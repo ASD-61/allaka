@@ -33,6 +33,7 @@ const StoreBody = z.object({
   storeType: z.string().min(1),
   description: z.string().nullish(),
   imageUrl: z.string().nullish(),
+  ownerPhotoUrl: z.string().max(1000).nullish(),
   latitude: z.number().nullish(),
   longitude: z.number().nullish(),
   requestedSubscriptionMonths: z
@@ -83,6 +84,13 @@ function cleanText(v: string | null | undefined): string | null {
 // pending or rejected shops. With ?lat=&lng=, sorted nearest-first (stores
 // without a saved map pin are pushed to the end, in their usual newest-first
 // order) and each row gets a distanceKm.
+// The merchant's personal KYC photo is only for the admin review screen — never
+// expose it on the public/customer-facing endpoints.
+function stripOwnerPhoto<T extends Record<string, unknown>>(s: T): Omit<T, "ownerPhotoUrl"> {
+  const { ownerPhotoUrl, ...rest } = s as any;
+  return rest;
+}
+
 router.get("/stores", async (req: Request, res: Response): Promise<void> => {
   const rows = await db
     .select()
@@ -103,7 +111,7 @@ router.get("/stores", async (req: Request, res: Response): Promise<void> => {
 
   const origin = parseLatLng(req.query.lat, req.query.lng);
   if (!origin) {
-    res.json(rows);
+    res.json(rows.map(stripOwnerPhoto));
     return;
   }
 
@@ -120,7 +128,7 @@ router.get("/stores", async (req: Request, res: Response): Promise<void> => {
     if (b.distanceKm == null) return -1;
     return a.distanceKm - b.distanceKm;
   });
-  res.json(withDistance);
+  res.json(withDistance.map(stripOwnerPhoto));
 });
 
 // GET /stores/mine — the authenticated merchant's own stores (any status), so
@@ -201,6 +209,7 @@ router.post(
         storeType: parsed.data.storeType.trim(),
         description: cleanText(parsed.data.description),
         imageUrl: cleanText(parsed.data.imageUrl),
+        ownerPhotoUrl: cleanText(parsed.data.ownerPhotoUrl),
         latitude: parsed.data.latitude ?? null,
         longitude: parsed.data.longitude ?? null,
         requestedSubscriptionMonths: parsed.data.requestedSubscriptionMonths ?? null,
@@ -233,7 +242,7 @@ router.get(
       res.status(404).json({ error: "المتجر غير موجود" });
       return;
     }
-    res.json(store);
+    res.json(stripOwnerPhoto(store));
   },
 );
 

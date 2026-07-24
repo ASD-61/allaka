@@ -19,6 +19,7 @@ import {
   moderateImage,
   imageModerationEnabled,
   imageModerationStatus,
+  testModeration,
 } from '../lib/imageModeration';
 
 const router: IRouter = Router();
@@ -158,10 +159,15 @@ router.post(
  * GOOGLE_CREDENTIALS/GOOGLE_CREDENTIALS_B64 env var is missing or malformed and
  * inappropriate images will NOT be blocked.
  */
-router.get('/storage/moderation-status', (_req: Request, res: Response) => {
+router.get('/storage/moderation-status', async (_req: Request, res: Response) => {
+  // `enabled` = credentials parsed & client built. `liveTest` = a REAL call to
+  // the Vision API, which reveals whether the API is actually enabled/authorized
+  // (this is what determines if adult images are truly blocked).
+  const live = await testModeration();
   res.json({
     enabled: imageModerationEnabled(),
     reason: imageModerationStatus(),
+    liveTest: live.ok ? 'ok' : `FAILED: ${live.error ?? 'unknown'}`,
   });
 });
 

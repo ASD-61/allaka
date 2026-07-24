@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   ScrollView,
   View,
@@ -71,9 +71,16 @@ function RegisterStoreContent() {
   const [imagePath, setImagePath] = useState<string | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  // Merchant's personal (KYC) photo — shown to the admin during review.
+  const [ownerPhotoPath, setOwnerPhotoPath] = useState<string | null>(null);
+  const [ownerPhotoPreview, setOwnerPhotoPreview] = useState<string | null>(null);
+  const [ownerUploading, setOwnerUploading] = useState(false);
   const [subscriptionMonths, setSubscriptionMonths] = useState<3 | 6 | 12>(3);
   // Set after a successful submit so we can show a "pay via WhatsApp" CTA.
   const [submittedStore, setSubmittedStore] = useState<{ name: string; price: string; trial: boolean } | null>(null);
+  // Ref to the page scroll view so we can jump back to the top after submit —
+  // the success card (with the "contact admin on WhatsApp" button) sits there.
+  const scrollRef = useRef<ScrollView>(null);
 
   const messageAdmin = () => {
     const price = submittedStore?.price ?? '';
@@ -101,6 +108,21 @@ function RegisterStoreContent() {
     }
   };
 
+  const handlePickOwnerPhoto = async () => {
+    const picked = await pickImageWithChoice();
+    if (!picked) return;
+    setOwnerPhotoPreview(picked.uri);
+    setOwnerUploading(true);
+    try {
+      const path = await uploadPickedImage(picked, (args) => requestUploadUrl.mutateAsync(args));
+      setOwnerPhotoPath(path);
+    } catch (err) {
+      Alert.alert('خطأ', err instanceof Error ? err.message : 'تعذر رفع الصورة');
+    } finally {
+      setOwnerUploading(false);
+    }
+  };
+
   const canSubmit =
     name.trim().length > 0 &&
     storeType.trim().length > 0 &&
@@ -119,6 +141,7 @@ function RegisterStoreContent() {
           address: address.trim(),
           description: description.trim() || null,
           imageUrl: imagePath,
+          ownerPhotoUrl: ownerPhotoPath,
           latitude: coords?.latitude ?? null,
           longitude: coords?.longitude ?? null,
           requestedSubscriptionMonths: subscriptionMonths,
@@ -132,9 +155,14 @@ function RegisterStoreContent() {
       setCoords(null);
       setImagePath(null);
       setImagePreview(null);
+      setOwnerPhotoPath(null);
+      setOwnerPhotoPreview(null);
       setSubscriptionMonths(3);
       myStores.refetch();
       setSubmittedStore({ name: submittedName, price: planPrice, trial });
+      // Jump to the top so the merchant immediately sees the success message
+      // and the "message admin on WhatsApp" button.
+      requestAnimationFrame(() => scrollRef.current?.scrollTo({ y: 0, animated: true }));
     } catch (err: any) {
       Alert.alert('تعذر التسجيل', err?.data?.error ?? 'صار خطأ، حاول مرة ثانية');
     }
@@ -144,6 +172,7 @@ function RegisterStoreContent() {
 
   return (
     <ScrollView
+      ref={scrollRef}
       style={[styles.container, { backgroundColor: colors.background }]}
       contentContainerStyle={{ padding: 16, paddingBottom: insets.bottom + 40 }}
       keyboardShouldPersistTaps="handled"
@@ -221,6 +250,29 @@ function RegisterStoreContent() {
           </View>
         )}
         {uploading ? (
+          <View style={styles.uploadOverlay}>
+            <ActivityIndicator size="large" color="#fff" />
+          </View>
+        ) : null}
+      </Pressable>
+
+      <Pressable
+        onPress={handlePickOwnerPhoto}
+        style={[styles.imagePicker, { backgroundColor: colors.muted, borderColor: colors.border, marginTop: 12 }]}
+      >
+        {ownerPhotoPreview ? (
+          <Image source={{ uri: ownerPhotoPreview }} style={styles.previewImg} contentFit="contain" />
+        ) : (
+          <View style={styles.imagePickerPlaceholder}>
+            <View style={[styles.iconCircle, { backgroundColor: colors.accent + '15' }]}>
+              <Feather name="user-check" size={24} color={colors.accent} />
+            </View>
+            <Text style={[styles.imagePickerText, { color: colors.mutedForeground }]}>
+              صورتك الشخصية للتوثيق (تظهر للإدارة فقط)
+            </Text>
+          </View>
+        )}
+        {ownerUploading ? (
           <View style={styles.uploadOverlay}>
             <ActivityIndicator size="large" color="#fff" />
           </View>
